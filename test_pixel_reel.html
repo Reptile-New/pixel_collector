@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Pixel Réel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 50px;
+            background: #f0f0f0;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .pixel-real {
+            width: 2px;
+            height: 2px;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            background: linear-gradient(to right,
+                red 0%, red 50%,
+                blue 50%, blue 100%),
+                linear-gradient(to bottom,
+                transparent 0%, transparent 50%,
+                green 50%, green 100%);
+        }
+
+        .pixel-canvas {
+            margin: 20px 0;
+        }
+
+        .explanation {
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        .arrow {
+            font-size: 30px;
+            text-align: center;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Test : Même pixel 2×2 agrandi (Pattern: 1234)</h1>
+
+        <p style="text-align: center; color: #666;">
+            Le même pixel 2×2 affiché à différentes tailles pour voir la différence
+        </p>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin: 30px 0;">
+
+            <!-- 2px par pixel (4×4 px total) -->
+            <div style="text-align: center;">
+                <h3>2×2 pixels</h3>
+                <canvas id="pixel2px" width="4" height="4" style="border: 1px solid #ccc;"></canvas>
+                <p style="font-size: 10px; margin: 5px 0;">2px/pixel = 4×4px</p>
+            </div>
+
+            <!-- 3px par pixel -->
+            <div style="text-align: center;">
+                <h3>3×3 pixels</h3>
+                <canvas id="pixel3px" width="6" height="6" style="border: 1px solid #ccc;"></canvas>
+                <p style="font-size: 10px; margin: 5px 0;">3px/pixel = 6×6px</p>
+            </div>
+
+            <!-- 4px par pixel -->
+            <div style="text-align: center;">
+                <h3>4×4 pixels</h3>
+                <canvas id="pixel4px" width="8" height="8" style="border: 1px solid #ccc;"></canvas>
+                <p style="font-size: 10px; margin: 5px 0;">4px/pixel = 8×8px</p>
+            </div>
+
+            <!-- 5px par pixel -->
+            <div style="text-align: center;">
+                <h3>5×5 pixels</h3>
+                <canvas id="pixel5px" width="10" height="10" style="border: 1px solid #ccc;"></canvas>
+                <p style="font-size: 10px; margin: 5px 0;">5px/pixel = 10×10px</p>
+            </div>
+
+            <!-- 6px par pixel -->
+            <div style="text-align: center;">
+                <h3>6×6 pixels</h3>
+                <canvas id="pixel6px" width="12" height="12" style="border: 1px solid #ccc;"></canvas>
+                <p style="font-size: 10px; margin: 5px 0;">6px/pixel = 12×12px</p>
+            </div>
+
+            <!-- 7px par pixel -->
+            <div style="text-align: center;">
+                <h3>7×7 pixels</h3>
+                <canvas id="pixel7px" width="14" height="14" style="border: 1px solid #ccc;"></canvas>
+                <p style="font-size: 10px; margin: 5px 0;">7px/pixel = 14×14px</p>
+            </div>
+
+            <!-- 8px par pixel -->
+            <div style="text-align: center;">
+                <h3>8×8 pixels</h3>
+                <canvas id="pixel8px" width="16" height="16" style="border: 1px solid #ccc;"></canvas>
+                <p style="font-size: 10px; margin: 5px 0;">8px/pixel = 16×16px</p>
+            </div>
+
+            <!-- 9px par pixel -->
+            <div style="text-align: center;">
+                <h3>9×9 pixels</h3>
+                <canvas id="pixel9px" width="18" height="18" style="border: 1px solid #ccc;"></canvas>
+                <p style="font-size: 10px; margin: 5px 0;">9px/pixel = 18×18px</p>
+            </div>
+
+        </div>
+
+        <hr style="margin: 50px 0; border: none; border-top: 2px solid #ddd;">
+
+        <h1 style="margin-top: 50px;">🎨 Exemples de Pixel Art</h1>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 30px; justify-content: center; margin: 30px 0;">
+
+            <!-- Smiley -->
+            <div style="text-align: center;">
+                <h3>😊 Smiley</h3>
+                <canvas id="artSmiley" width="160" height="160"></canvas>
+            </div>
+
+            <!-- Coeur -->
+            <div style="text-align: center;">
+                <h3>❤️ Coeur</h3>
+                <canvas id="artHeart" width="160" height="160"></canvas>
+            </div>
+
+            <!-- Champignon -->
+            <div style="text-align: center;">
+                <h3>🍄 Champignon</h3>
+                <canvas id="artMushroom" width="160" height="160"></canvas>
+            </div>
+
+            <!-- Étoile -->
+            <div style="text-align: center;">
+                <h3>⭐ Étoile</h3>
+                <canvas id="artStar" width="160" height="160"></canvas>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Palette de 4 couleurs
+        const colors = ['#FF0000', '#0000FF', '#00FF00', '#FFFF00']; // Rouge, Bleu, Vert, Jaune
+
+        // Pattern fixe 2×2 : 1234 (Rouge, Bleu, Vert, Jaune)
+        const pattern2x2 = '1234';
+
+        // Fonction pour dessiner un pixel 2×2 avec une taille de pixel donnée
+        function draw2x2Pixel(canvasId, pixelSize) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+
+            // Pattern 2×2: 1234
+            // [1 2]
+            // [3 4]
+
+            // Haut-gauche: Rouge (1)
+            ctx.fillStyle = colors[0];
+            ctx.fillRect(0, 0, pixelSize, pixelSize);
+
+            // Haut-droite: Bleu (2)
+            ctx.fillStyle = colors[1];
+            ctx.fillRect(pixelSize, 0, pixelSize, pixelSize);
+
+            // Bas-gauche: Vert (3)
+            ctx.fillStyle = colors[2];
+            ctx.fillRect(0, pixelSize, pixelSize, pixelSize);
+
+            // Bas-droite: Jaune (4)
+            ctx.fillStyle = colors[3];
+            ctx.fillRect(pixelSize, pixelSize, pixelSize, pixelSize);
+        }
+
+        // Dessiner le même pixel 2×2 à différentes tailles
+        draw2x2Pixel('pixel2px', 2);
+        draw2x2Pixel('pixel3px', 3);
+        draw2x2Pixel('pixel4px', 4);
+        draw2x2Pixel('pixel5px', 5);
+        draw2x2Pixel('pixel6px', 6);
+        draw2x2Pixel('pixel7px', 7);
+        draw2x2Pixel('pixel8px', 8);
+        draw2x2Pixel('pixel9px', 9);
+
+        // === PIXEL ART ===
+
+        // Smiley 8x8
+        function drawSmiley() {
+            const canvas = document.getElementById('artSmiley');
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+
+            const size = 20; // Taille de chaque pixel
+            const pattern = [
+                [0,0,1,1,1,1,0,0],
+                [0,1,1,1,1,1,1,0],
+                [1,1,2,1,1,2,1,1],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [1,2,1,1,1,1,2,1],
+                [0,1,2,2,2,2,1,0],
+                [0,0,1,1,1,1,0,0]
+            ];
+
+            const colors = ['transparent', '#FFFF00', '#000000']; // 0=transparent, 1=jaune, 2=noir
+
+            for (let y = 0; y < 8; y++) {
+                for (let x = 0; x < 8; x++) {
+                    ctx.fillStyle = colors[pattern[y][x]];
+                    ctx.fillRect(x * size, y * size, size, size);
+                }
+            }
+        }
+
+        // Coeur 8x8
+        function drawHeart() {
+            const canvas = document.getElementById('artHeart');
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+
+            const size = 20;
+            const pattern = [
+                [0,0,1,1,0,1,1,0],
+                [0,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [0,1,1,1,1,1,1,0],
+                [0,0,1,1,1,1,0,0],
+                [0,0,0,1,1,0,0,0],
+                [0,0,0,0,0,0,0,0]
+            ];
+
+            const colors = ['transparent', '#FF0000'];
+
+            for (let y = 0; y < 8; y++) {
+                for (let x = 0; x < 8; x++) {
+                    ctx.fillStyle = colors[pattern[y][x]];
+                    ctx.fillRect(x * size, y * size, size, size);
+                }
+            }
+        }
+
+        // Champignon 8x8
+        function drawMushroom() {
+            const canvas = document.getElementById('artMushroom');
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+
+            const size = 20;
+            const pattern = [
+                [0,0,1,1,1,1,0,0],
+                [0,1,1,1,1,1,1,0],
+                [1,1,2,1,1,2,1,1],
+                [1,1,1,1,1,1,1,1],
+                [0,0,3,3,3,3,0,0],
+                [0,0,3,3,3,3,0,0],
+                [0,3,3,3,3,3,3,0],
+                [0,0,3,3,3,3,0,0]
+            ];
+
+            const colors = ['transparent', '#FF0000', '#FFFFFF', '#FFDDBB']; // 0=transparent, 1=rouge, 2=blanc, 3=beige
+
+            for (let y = 0; y < 8; y++) {
+                for (let x = 0; x < 8; x++) {
+                    ctx.fillStyle = colors[pattern[y][x]];
+                    ctx.fillRect(x * size, y * size, size, size);
+                }
+            }
+        }
+
+        // Étoile 8x8
+        function drawStar() {
+            const canvas = document.getElementById('artStar');
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+
+            const size = 20;
+            const pattern = [
+                [0,0,0,1,1,0,0,0],
+                [0,0,1,1,1,1,0,0],
+                [0,0,1,1,1,1,0,0],
+                [1,1,1,1,1,1,1,1],
+                [0,1,1,1,1,1,1,0],
+                [0,0,1,1,1,1,0,0],
+                [0,1,0,1,1,0,1,0],
+                [1,0,0,0,0,0,0,1]
+            ];
+
+            const colors = ['transparent', '#FFFF00'];
+
+            for (let y = 0; y < 8; y++) {
+                for (let x = 0; x < 8; x++) {
+                    ctx.fillStyle = colors[pattern[y][x]];
+                    ctx.fillRect(x * size, y * size, size, size);
+                }
+            }
+        }
+
+        // Dessiner tous les pixel arts
+        drawSmiley();
+        drawHeart();
+        drawMushroom();
+        drawStar();
+    </script>
+</body>
+</html>

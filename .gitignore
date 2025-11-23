@@ -1,0 +1,50 @@
+# Fichiers système
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Éditeurs et IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Fichiers temporaires
+*.tmp
+*.temp
+.cache/
+
+# Node modules (si jamais vous ajoutez des dépendances)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Fichiers de build (si vous ajoutez un système de build)
+dist/
+build/
+
+# Variables d'environnement et configuration sensible
+.env
+.env.local
+.env.production
+.env.development
+
+# Fichiers de backup
+*.bak
+*.backup
+*~
+
+# Dossiers de test
+coverage/
+.nyc_output/
