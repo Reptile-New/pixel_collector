@@ -67,8 +67,8 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 ## 🚀 Comment lancer le jeu
 
 1. Ouvrez simplement `index.html` dans votre navigateur
-2. Créez un compte ou connectez-vous
-3. Cliquez sur le coffre pour l'ouvrir !
+2. Le jeu démarre automatiquement en mode invité
+3. Cliquez sur le coffre pour l'ouvrir et obtenir 3 pixels !
 
 ## 📋 À venir
 
