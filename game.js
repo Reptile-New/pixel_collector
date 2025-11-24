@@ -1,12 +1,21 @@
-// Configuration Firebase (à compléter avec vos identifiants)
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
+// Importation de Firebase
+import {
+    auth,
+    db,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    GoogleAuthProvider,
+    signInWithPopup,
+    updateProfile,
+    sendEmailVerification,
+    doc,
+    setDoc,
+    getDoc,
+    updateDoc,
+    serverTimestamp
+} from './firebase-config.js';
 
 // Variables globales
 let currentUser = null;
@@ -22,14 +31,25 @@ let currentAlbum = 'all'; // Album actuellement affiché
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     drawChest();
-    // Jouer directement sans inscription
-    playAsGuest();
+
+    // Écouter les changements d'authentification
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            await loadUserData();
+            showGameScreen();
+        } else {
+            currentUser = null;
+            showLoginScreen();
+        }
+    });
 });
 
 function setupEventListeners() {
     // Boutons de connexion
     document.getElementById('loginButton').addEventListener('click', handleLogin);
     document.getElementById('registerButton').addEventListener('click', handleRegister);
+    document.getElementById('googleSignInButton').addEventListener('click', handleGoogleSignIn);
     document.getElementById('logoutButton').addEventListener('click', handleLogout);
 
     // Clic sur le coffre pour l'ouvrir
@@ -50,6 +70,26 @@ function setupEventListeners() {
     document.querySelectorAll('.album-tab').forEach(tab => {
         tab.addEventListener('click', (e) => switchAlbum(e.target.dataset.album));
     });
+}
+
+// Fonction pour changer d'onglet dans l'authentification
+window.switchAuthTab = function(tab) {
+    const loginTab = document.getElementById('tabLogin');
+    const registerTab = document.getElementById('tabRegister');
+    const loginForm = document.getElementById('formLogin');
+    const registerForm = document.getElementById('formRegister');
+
+    if (tab === 'login') {
+        loginTab.classList.add('active');
+        registerTab.classList.remove('active');
+        loginForm.style.display = 'block';
+        registerForm.style.display = 'none';
+    } else {
+        loginTab.classList.remove('active');
+        registerTab.classList.add('active');
+        loginForm.style.display = 'none';
+        registerForm.style.display = 'block';
+    }
 }
 
 // === DESSIN DU COFFRE ===
@@ -99,96 +139,134 @@ function drawChest() {
     }
 }
 
-// === AUTHENTIFICATION (MODE LOCAL POUR L'INSTANT) ===
+// === AUTHENTIFICATION FIREBASE ===
 
-function playAsGuest() {
-    // Créer un utilisateur invité automatiquement
-    currentUser = {
-        uid: 'guest',
-        email: 'guest@pixel-collector.local',
-        displayName: 'Joueur Invité'
-    };
-    loadUserData();
-    showGameScreen();
-}
-
-function checkLocalUser() {
-    const savedUser = localStorage.getItem('pixelCollectorUser');
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        loadUserData();
-        showGameScreen();
-    }
-}
-
-function handleLogin() {
-    const email = document.getElementById('emailInput').value;
-    const password = document.getElementById('passwordInput').value;
+async function handleLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
 
     if (!email || !password) {
         alert('Veuillez remplir tous les champs');
         return;
     }
 
-    // Simulation de connexion locale
-    const users = JSON.parse(localStorage.getItem('pixelCollectorUsers') || '{}');
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
-    if (users[email] && users[email].password === password) {
-        currentUser = {
-            uid: email,
-            email: email,
-            displayName: users[email].displayName
-        };
-        localStorage.setItem('pixelCollectorUser', JSON.stringify(currentUser));
-        loadUserData();
-        showGameScreen();
-    } else {
-        alert('Email ou mot de passe incorrect');
+        // Vérifier si l'email est vérifié
+        if (!userCredential.user.emailVerified) {
+            alert('Veuillez vérifier votre email avant de vous connecter. Un email de confirmation vous a été envoyé lors de votre inscription.');
+            await signOut(auth);
+            return;
+        }
+
+        // onAuthStateChanged gérera la suite
+    } catch (error) {
+        console.error('Erreur de connexion:', error);
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            alert('Email ou mot de passe incorrect');
+        } else if (error.code === 'auth/invalid-email') {
+            alert('Email invalide');
+        } else {
+            alert('Erreur de connexion: ' + error.message);
+        }
     }
 }
 
-function handleRegister() {
-    const email = document.getElementById('emailInput').value;
-    const password = document.getElementById('passwordInput').value;
+async function handleRegister() {
+    const pseudo = document.getElementById('registerPseudo').value.trim();
+    const email = document.getElementById('registerEmail').value;
+    const password = document.getElementById('registerPassword').value;
 
-    if (!email || !password) {
+    if (!pseudo || !email || !password) {
         alert('Veuillez remplir tous les champs');
         return;
     }
 
-    // Simulation de création de compte local
-    const users = JSON.parse(localStorage.getItem('pixelCollectorUsers') || '{}');
-
-    if (users[email]) {
-        alert('Cet email est déjà utilisé');
+    if (pseudo.length < 3) {
+        alert('Le pseudo doit contenir au moins 3 caractères');
         return;
     }
 
-    const displayName = email.split('@')[0];
-    users[email] = {
-        password: password,
-        displayName: displayName
-    };
-    localStorage.setItem('pixelCollectorUsers', JSON.stringify(users));
+    if (password.length < 6) {
+        alert('Le mot de passe doit contenir au moins 6 caractères');
+        return;
+    }
 
-    // Connexion automatique
-    currentUser = {
-        uid: email,
-        email: email,
-        displayName: displayName
-    };
-    localStorage.setItem('pixelCollectorUser', JSON.stringify(currentUser));
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-    // Initialiser les données utilisateur
-    initializeUserData();
-    showGameScreen();
+        // Définir le displayName (pseudo)
+        await updateProfile(userCredential.user, {
+            displayName: pseudo
+        });
+
+        // Envoyer l'email de vérification
+        await sendEmailVerification(userCredential.user);
+
+        // Initialiser les données utilisateur dans Firestore avec le pseudo
+        await initializeUserData(userCredential.user.uid, pseudo);
+
+        // Déconnecter l'utilisateur et afficher un message
+        await signOut(auth);
+        alert('Inscription réussie ! Un email de confirmation a été envoyé à ' + email + '. Veuillez vérifier votre boîte mail pour activer votre compte.');
+
+        // Revenir à l'onglet connexion
+        window.switchAuthTab('login');
+    } catch (error) {
+        console.error('Erreur d\'inscription:', error);
+        if (error.code === 'auth/email-already-in-use') {
+            alert('Cet email est déjà utilisé');
+        } else if (error.code === 'auth/invalid-email') {
+            alert('Email invalide');
+        } else if (error.code === 'auth/weak-password') {
+            alert('Le mot de passe est trop faible');
+        } else {
+            alert('Erreur d\'inscription: ' + error.message);
+        }
+    }
 }
 
-function handleLogout() {
-    localStorage.removeItem('pixelCollectorUser');
-    currentUser = null;
-    document.getElementById('gameScreen').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'flex';
+async function handleGoogleSignIn() {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+        prompt: 'select_account'
+    });
+
+    try {
+        const result = await signInWithPopup(auth, provider);
+
+        // Vérifier si c'est la première connexion
+        const docRef = doc(db, 'users', result.user.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            // Premier login avec Google, initialiser les données
+            const displayName = result.user.displayName || result.user.email?.split('@')[0] || 'Joueur';
+            await initializeUserData(result.user.uid, displayName);
+        }
+
+        // onAuthStateChanged gérera la suite
+    } catch (error) {
+        console.error('Erreur de connexion Google:', error);
+        if (error.code === 'auth/popup-closed-by-user') {
+            // L'utilisateur a fermé la popup, ne rien faire
+        } else if (error.code === 'auth/cancelled-popup-request') {
+            // Une autre popup était déjà ouverte
+        } else {
+            alert('Erreur de connexion avec Google: ' + error.message);
+        }
+    }
+}
+
+async function handleLogout() {
+    try {
+        await signOut(auth);
+        // onAuthStateChanged gérera la suite
+    } catch (error) {
+        console.error('Erreur de déconnexion:', error);
+        alert('Erreur de déconnexion: ' + error.message);
+    }
 }
 
 function showGameScreen() {
@@ -197,46 +275,76 @@ function showGameScreen() {
     updateUI();
 }
 
-// === GESTION DES DONNÉES UTILISATEUR ===
+function showLoginScreen() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('gameScreen').style.display = 'none';
+}
 
-function initializeUserData() {
+// === GESTION DES DONNÉES UTILISATEUR AVEC FIRESTORE ===
+
+async function initializeUserData(uid, displayName) {
+    // S'assurer que displayName n'est jamais undefined
+    const safeName = displayName || 'Joueur';
+
     const data = {
+        displayName: safeName,
         collection: {},
         stats: {
             chestsOpened: 0,
             totalPixels: 0,
             uniquePixels: 0
         },
-        lastChestTime: 0
+        lastChestTime: 0,
+        createdAt: serverTimestamp()
     };
-    localStorage.setItem(`userData_${currentUser.uid}`, JSON.stringify(data));
-    userCollection = {};
-    userStats = data.stats;
-}
 
-function loadUserData() {
-    const savedData = localStorage.getItem(`userData_${currentUser.uid}`);
-
-    if (savedData) {
-        const data = JSON.parse(savedData);
-        userCollection = data.collection || {};
-        userStats = data.stats || {
-            chestsOpened: 0,
-            totalPixels: 0,
-            uniquePixels: 0
-        };
-    } else {
-        initializeUserData();
+    try {
+        await setDoc(doc(db, 'users', uid), data);
+        userCollection = {};
+        userStats = data.stats;
+    } catch (error) {
+        console.error('Erreur d\'initialisation des données:', error);
+        throw error; // Relancer l'erreur pour la voir dans le catch parent
     }
 }
 
-function saveUserData() {
-    const data = {
-        collection: userCollection,
-        stats: userStats,
-        lastChestTime: Date.now()
-    };
-    localStorage.setItem(`userData_${currentUser.uid}`, JSON.stringify(data));
+async function loadUserData() {
+    try {
+        const docRef = doc(db, 'users', currentUser.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            userCollection = data.collection || {};
+            userStats = data.stats || {
+                chestsOpened: 0,
+                totalPixels: 0,
+                uniquePixels: 0
+            };
+        } else {
+            // Premier accès, initialiser les données
+            await initializeUserData(currentUser.uid);
+        }
+    } catch (error) {
+        console.error('Erreur de chargement des données:', error);
+        alert('Erreur de chargement des données. Veuillez réessayer.');
+    }
+}
+
+async function saveUserData() {
+    try {
+        const data = {
+            collection: userCollection,
+            stats: userStats,
+            lastChestTime: Date.now(),
+            updatedAt: serverTimestamp()
+        };
+
+        await updateDoc(doc(db, 'users', currentUser.uid), data);
+    } catch (error) {
+        console.error('Erreur de sauvegarde des données:', error);
+        alert('Erreur de sauvegarde. Vos progrès pourraient ne pas être sauvegardés.');
+    }
 }
 
 // === SYSTÈME DE COFFRES ===
@@ -246,16 +354,13 @@ function canOpenChest() {
     return true;
 
     // Production (à réactiver plus tard) :
-    // const savedData = localStorage.getItem(`userData_${currentUser.uid}`);
-    // if (!savedData) return true;
-    // const data = JSON.parse(savedData);
-    // const lastTime = data.lastChestTime || 0;
+    // const lastTime = userStats.lastChestTime || 0;
     // const now = Date.now();
     // const hoursSince = (now - lastTime) / (1000 * 60 * 60);
     // return hoursSince >= 24;
 }
 
-function openChest() {
+async function openChest() {
     if (!canOpenChest()) {
         alert('Vous avez déjà ouvert votre coffre quotidien. Revenez demain !');
         return;
@@ -278,8 +383,8 @@ function openChest() {
     userStats.chestsOpened++;
     updateUniquePixelsCount();
 
-    // Sauvegarder
-    saveUserData();
+    // Sauvegarder dans Firestore
+    await saveUserData();
 
     // Afficher le résultat
     showResult(pixels);
@@ -575,22 +680,20 @@ function switchTab(tabName) {
 
 function updateUI() {
     // Stats utilisateur
-    document.getElementById('userName').textContent = currentUser.displayName;
+    const displayName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Joueur';
+    document.getElementById('userName').textContent = displayName;
     document.getElementById('totalPixels').textContent = userStats.totalPixels;
     document.getElementById('uniquePixels').textContent = `${userStats.uniquePixels} / 294`;
     document.getElementById('chestsOpened').textContent = userStats.chestsOpened;
 
     // État du coffre
     if (canOpenChest()) {
-        document.getElementById('chestTimer').textContent = 'Disponible !';
-        document.getElementById('openChestButton').disabled = false;
+        document.getElementById('chestTimer').textContent = 'Cliquez sur le coffre pour l\'ouvrir !';
     } else {
-        const savedData = JSON.parse(localStorage.getItem(`userData_${currentUser.uid}`));
-        const lastTime = savedData.lastChestTime || 0;
+        const lastTime = userStats.lastChestTime || 0;
         const now = Date.now();
         const hoursLeft = 24 - Math.floor((now - lastTime) / (1000 * 60 * 60));
         document.getElementById('chestTimer').textContent = `Disponible dans ${hoursLeft}h`;
-        document.getElementById('openChestButton').disabled = true;
     }
 
     // Afficher les derniers pixels
