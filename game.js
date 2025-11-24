@@ -21,7 +21,10 @@ import {
     query,
     orderBy,
     limit,
-    getDocs
+    getDocs,
+    addDoc,
+    onSnapshot,
+    where
 } from './firebase-config.js';
 
 // Variables globales
@@ -48,6 +51,12 @@ let currentModalPlayer = null; // Joueur actuellement affiché dans la modal
 let isAdmin = false; // Si l'utilisateur est admin
 let allAdminUsers = []; // Liste de tous les utilisateurs (admin)
 let adminCurrentFilter = 'active'; // Filtre actif dans le panel admin
+
+// Variables pour les échanges
+let selectedMyPixel = null; // Pixel que je propose
+let selectedTheirPixel = null; // Pixel que je demande
+let selectedTradePlayer = null; // Joueur avec qui j'échange
+let tradesUnsubscribe = null; // Pour unsub les listeners Firestore
 
 // Initialisation
 document.addEventListener('DOMContentLoaded', () => {
@@ -134,6 +143,13 @@ function setupEventListeners() {
     document.getElementById('adminCleanDeleted').addEventListener('click', handleAdminCleanDeleted);
     document.getElementById('adminResetUser').addEventListener('click', handleAdminResetUser);
     document.getElementById('adminDeleteAll').addEventListener('click', handleAdminDeleteAll);
+
+    // Trade system event listeners
+    document.querySelectorAll('.trade-tab').forEach(tab => {
+        tab.addEventListener('click', (e) => switchTradeTab(e.target.dataset.tradeTab));
+    });
+    document.getElementById('selectPlayer').addEventListener('change', handlePlayerSelect);
+    document.getElementById('sendTradeOffer').addEventListener('click', handleSendTrade);
 }
 
 // Fonction pour changer d'onglet dans l'authentification
@@ -879,6 +895,8 @@ function switchTab(tabName) {
         displayCollection();
     } else if (tabName === 'players') {
         loadPlayers();
+    } else if (tabName === 'market') {
+        initTradeSystem();
     } else if (tabName === 'admin' && isAdmin) {
         loadAdminDashboard();
     }
@@ -1493,4 +1511,518 @@ async function handleAdminDeleteAll() {
         console.error('Erreur:', error);
         alert('Erreur: ' + error.message);
     }
+}
+
+// === SYSTÈME D'ÉCHANGE ===
+
+async function initTradeSystem() {
+    // Charger la liste des joueurs pour le select
+    await loadPlayersForTrade();
+    // Charger les échanges en attente
+    await loadPendingTrades();
+    // Charger l'historique
+    await loadTradeHistory();
+    // S'abonner aux changements en temps réel
+    subscribeToTrades();
+}
+
+async function loadPlayersForTrade() {
+    const select = document.getElementById('selectPlayer');
+    select.innerHTML = '<option value="">-- Sélectionner un joueur --</option>';
+
+    try {
+        const q = query(collection(db, 'users'), orderBy('displayName'));
+        const querySnapshot = await getDocs(q);
+
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const uid = docSnap.id;
+
+            // Ne pas afficher l'utilisateur actuel ni les comptes supprimés
+            if (uid !== currentUser.uid && !data.deleted) {
+                const option = document.createElement('option');
+                option.value = uid;
+                option.textContent = `${data.displayName || 'Joueur'} (${data.stats?.uniquePixels || 0} pixels)`;
+                option.dataset.player = JSON.stringify({
+                    uid,
+                    displayName: data.displayName,
+                    collection: data.collection
+                });
+                select.appendChild(option);
+            }
+        });
+    } catch (error) {
+        console.error('Erreur de chargement des joueurs:', error);
+    }
+}
+
+async function handlePlayerSelect(e) {
+    const select = e.target;
+    const selectedOption = select.options[select.selectedIndex];
+
+    if (!selectedOption.value) {
+        selectedTradePlayer = null;
+        document.getElementById('myPixelsForTrade').innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Sélectionne un joueur d\'abord</p>';
+        document.getElementById('theirPixelsForTrade').innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Sélectionne un joueur d\'abord</p>';
+        document.getElementById('sendTradeOffer').disabled = true;
+        return;
+    }
+
+    selectedTradePlayer = JSON.parse(selectedOption.dataset.player);
+
+    // Afficher mes pixels
+    displayMyPixelsForTrade();
+    // Afficher les pixels du joueur
+    displayTheirPixelsForTrade();
+}
+
+function displayMyPixelsForTrade() {
+    const container = document.getElementById('myPixelsForTrade');
+    container.innerHTML = '';
+
+    const myPixels = Object.values(userCollection);
+
+    if (myPixels.length === 0) {
+        container.innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Tu n\'as aucun pixel</p>';
+        return;
+    }
+
+    myPixels.forEach(pixel => {
+        const item = document.createElement('div');
+        item.style.cssText = 'cursor: pointer; padding: 5px; border-radius: 5px; transition: all 0.3s; background: rgba(255,255,255,0.1);';
+        item.onclick = () => selectMyPixel(pixel);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 80;
+        canvas.height = 80;
+        PixelRenderer.drawPixel(canvas, pixel, 80);
+
+        const name = document.createElement('div');
+        name.style.cssText = 'font-size: 0.7em; text-align: center; margin-top: 3px;';
+        name.textContent = pixel.name;
+
+        item.appendChild(canvas);
+        item.appendChild(name);
+        container.appendChild(item);
+    });
+}
+
+function displayTheirPixelsForTrade() {
+    const container = document.getElementById('theirPixelsForTrade');
+    container.innerHTML = '';
+
+    if (!selectedTradePlayer || !selectedTradePlayer.collection) {
+        container.innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Ce joueur n\'a aucun pixel</p>';
+        return;
+    }
+
+    // Désérialiser la collection
+    const theirPixels = [];
+    for (const [key, pixel] of Object.entries(selectedTradePlayer.collection)) {
+        theirPixels.push({
+            ...pixel,
+            data: pixel.data && typeof pixel.data === 'string' ? JSON.parse(pixel.data) : pixel.data,
+            colors: pixel.colors && typeof pixel.colors === 'string' ? JSON.parse(pixel.colors) : pixel.colors
+        });
+    }
+
+    if (theirPixels.length === 0) {
+        container.innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Ce joueur n\'a aucun pixel</p>';
+        return;
+    }
+
+    theirPixels.forEach(pixel => {
+        const item = document.createElement('div');
+        item.style.cssText = 'cursor: pointer; padding: 5px; border-radius: 5px; transition: all 0.3s; background: rgba(255,255,255,0.1);';
+        item.onclick = () => selectTheirPixel(pixel);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 80;
+        canvas.height = 80;
+        PixelRenderer.drawPixel(canvas, pixel, 80);
+
+        const name = document.createElement('div');
+        name.style.cssText = 'font-size: 0.7em; text-align: center; margin-top: 3px;';
+        name.textContent = pixel.name;
+
+        item.appendChild(canvas);
+        item.appendChild(name);
+        container.appendChild(item);
+    });
+}
+
+function selectMyPixel(pixel, element) {
+    selectedMyPixel = pixel;
+    // Highlight visuel
+    document.querySelectorAll('#myPixelsForTrade > div').forEach(div => {
+        div.style.background = 'rgba(255,255,255,0.1)';
+        div.style.transform = 'scale(1)';
+    });
+    element.style.background = 'rgba(100,200,100,0.3)';
+    element.style.transform = 'scale(1.1)';
+
+    checkTradeReady();
+}
+
+function selectTheirPixel(pixel, element) {
+    selectedTheirPixel = pixel;
+    // Highlight visuel
+    document.querySelectorAll('#theirPixelsForTrade > div').forEach(div => {
+        div.style.background = 'rgba(255,255,255,0.1)';
+        div.style.transform = 'scale(1)';
+    });
+    element.style.background = 'rgba(100,200,100,0.3)';
+    element.style.transform = 'scale(1.1)';
+
+    checkTradeReady();
+}
+
+function checkTradeReady() {
+    const btn = document.getElementById('sendTradeOffer');
+    btn.disabled = !(selectedMyPixel && selectedTheirPixel && selectedTradePlayer);
+}
+
+async function handleSendTrade() {
+    if (!selectedMyPixel || !selectedTheirPixel || !selectedTradePlayer) {
+        alert('Sélectionne les deux pixels à échanger');
+        return;
+    }
+
+    if (!confirm(`Proposer d'échanger ton ${selectedMyPixel.name} contre le ${selectedTheirPixel.name} de ${selectedTradePlayer.displayName} ?`)) {
+        return;
+    }
+
+    try {
+        await addDoc(collection(db, 'trades'), {
+            fromUserId: currentUser.uid,
+            fromUserName: currentUser.displayName || 'Joueur',
+            toUserId: selectedTradePlayer.uid,
+            toUserName: selectedTradePlayer.displayName,
+            fromPixelId: selectedMyPixel.id,
+            fromPixelName: selectedMyPixel.name,
+            fromPixelData: selectedMyPixel,
+            toPixelId: selectedTheirPixel.id,
+            toPixelName: selectedTheirPixel.name,
+            toPixelData: selectedTheirPixel,
+            status: 'pending',
+            createdAt: serverTimestamp()
+        });
+
+        alert('Proposition d\'échange envoyée !');
+
+        // Reset
+        selectedMyPixel = null;
+        selectedTheirPixel = null;
+        document.getElementById('selectPlayer').value = '';
+        handlePlayerSelect({ target: document.getElementById('selectPlayer') });
+    } catch (error) {
+        console.error('Erreur d\'envoi de la proposition:', error);
+        alert('Erreur: ' + error.message);
+    }
+}
+
+function switchTradeTab(tabName) {
+    // Changer les onglets actifs
+    document.querySelectorAll('.trade-tab').forEach(tab => {
+        if (tab.dataset.tradeTab === tabName) {
+            tab.style.background = 'rgba(255,255,255,0.3)';
+            tab.style.fontWeight = 'bold';
+        } else {
+            tab.style.background = 'rgba(0,0,0,0.2)';
+            tab.style.fontWeight = 'normal';
+        }
+    });
+
+    // Afficher la bonne section
+    document.querySelectorAll('.trade-section').forEach(section => {
+        section.style.display = 'none';
+    });
+
+    if (tabName === 'propose') {
+        document.getElementById('proposeTrade').style.display = 'block';
+    } else if (tabName === 'pending') {
+        document.getElementById('pendingTrades').style.display = 'block';
+        loadPendingTrades();
+    } else if (tabName === 'history') {
+        document.getElementById('historyTrades').style.display = 'block';
+        loadTradeHistory();
+    }
+}
+
+async function loadPendingTrades() {
+    const container = document.getElementById('pendingTradesList');
+    container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Chargement...</p>';
+
+    try {
+        // Échanges reçus (en attente)
+        const receivedQuery = query(
+            collection(db, 'trades'),
+            where('toUserId', '==', currentUser.uid),
+            where('status', '==', 'pending'),
+            orderBy('createdAt', 'desc')
+        );
+
+        // Échanges envoyés (en attente)
+        const sentQuery = query(
+            collection(db, 'trades'),
+            where('fromUserId', '==', currentUser.uid),
+            where('status', '==', 'pending'),
+            orderBy('createdAt', 'desc')
+        );
+
+        const [receivedSnap, sentSnap] = await Promise.all([
+            getDocs(receivedQuery),
+            getDocs(sentQuery)
+        ]);
+
+        container.innerHTML = '';
+
+        // Afficher les échanges reçus
+        if (!receivedSnap.empty) {
+            const receivedTitle = document.createElement('h3');
+            receivedTitle.textContent = '📥 Propositions reçues';
+            receivedTitle.style.color = 'white';
+            container.appendChild(receivedTitle);
+
+            receivedSnap.forEach(docSnap => {
+                const trade = { id: docSnap.id, ...docSnap.data() };
+                container.appendChild(createTradeCard(trade, 'received'));
+            });
+        }
+
+        // Afficher les échanges envoyés
+        if (!sentSnap.empty) {
+            const sentTitle = document.createElement('h3');
+            sentTitle.textContent = '📤 Propositions envoyées';
+            sentTitle.style.color = 'white';
+            sentTitle.style.marginTop = '20px';
+            container.appendChild(sentTitle);
+
+            sentSnap.forEach(docSnap => {
+                const trade = { id: docSnap.id, ...docSnap.data() };
+                container.appendChild(createTradeCard(trade, 'sent'));
+            });
+        }
+
+        if (receivedSnap.empty && sentSnap.empty) {
+            container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Aucun échange en attente</p>';
+        }
+
+        // Mettre à jour le compteur
+        document.getElementById('pendingTradesCount').textContent = receivedSnap.size;
+    } catch (error) {
+        console.error('Erreur de chargement des échanges:', error);
+        container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Erreur de chargement</p>';
+    }
+}
+
+async function loadTradeHistory() {
+    const container = document.getElementById('historyTradesList');
+    container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Chargement...</p>';
+
+    try {
+        const q = query(
+            collection(db, 'trades'),
+            where('status', 'in', ['accepted', 'refused']),
+            orderBy('createdAt', 'desc'),
+            limit(50)
+        );
+
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Aucun historique</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+        querySnapshot.forEach(docSnap => {
+            const trade = { id: docSnap.id, ...docSnap.data() };
+            // Afficher seulement les échanges où je suis impliqué
+            if (trade.fromUserId === currentUser.uid || trade.toUserId === currentUser.uid) {
+                container.appendChild(createTradeCard(trade, 'history'));
+            }
+        });
+    } catch (error) {
+        console.error('Erreur de chargement de l\'historique:', error);
+        container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Erreur de chargement</p>';
+    }
+}
+
+function createTradeCard(trade, type) {
+    const card = document.createElement('div');
+    card.style.cssText = 'background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin-bottom: 15px;';
+
+    const date = trade.createdAt?.toDate ? trade.createdAt.toDate().toLocaleString('fr-FR') : 'Date inconnue';
+
+    let statusBadge = '';
+    if (trade.status === 'accepted') {
+        statusBadge = '<span style="background: #4caf50; padding: 5px 10px; border-radius: 12px; font-size: 0.85em;">✅ Accepté</span>';
+    } else if (trade.status === 'refused') {
+        statusBadge = '<span style="background: #f44336; padding: 5px 10px; border-radius: 12px; font-size: 0.85em;">❌ Refusé</span>';
+    }
+
+    let actions = '';
+    if (type === 'received' && trade.status === 'pending') {
+        actions = `
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button onclick="acceptTrade('${trade.id}')" class="open-button" style="flex: 1; background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);">✅ Accepter</button>
+                <button onclick="refuseTrade('${trade.id}')" class="open-button" style="flex: 1; background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);">❌ Refuser</button>
+            </div>
+        `;
+    } else if (type === 'sent' && trade.status === 'pending') {
+        actions = `<button onclick="cancelTrade('${trade.id}')" class="open-button" style="width: 100%; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); margin-top: 10px;">🗑️ Annuler</button>`;
+    }
+
+    card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div>
+                <strong>${trade.fromUserName}</strong> ↔️ <strong>${trade.toUserName}</strong>
+            </div>
+            <div style="font-size: 0.85em; opacity: 0.8;">${date}</div>
+        </div>
+        <div style="display: flex; gap: 15px; align-items: center; margin: 15px 0;">
+            <div style="flex: 1; text-align: center;">
+                <div style="font-size: 0.9em; opacity: 0.8; margin-bottom: 5px;">Propose</div>
+                <div style="font-weight: bold;">${trade.fromPixelName}</div>
+            </div>
+            <div style="font-size: 1.5em;">↔️</div>
+            <div style="flex: 1; text-align: center;">
+                <div style="font-size: 0.9em; opacity: 0.8; margin-bottom: 5px;">Contre</div>
+                <div style="font-weight: bold;">${trade.toPixelName}</div>
+            </div>
+        </div>
+        ${statusBadge}
+        ${actions}
+    `;
+
+    return card;
+}
+
+window.acceptTrade = async function(tradeId) {
+    if (!confirm('Accepter cet échange ?')) return;
+
+    try {
+        const tradeDoc = await getDoc(doc(db, 'trades', tradeId));
+        if (!tradeDoc.exists()) {
+            alert('Échange introuvable');
+            return;
+        }
+
+        const trade = tradeDoc.data();
+
+        // Vérifier que les deux joueurs ont toujours les pixels
+        const fromUserDoc = await getDoc(doc(db, 'users', trade.fromUserId));
+        const toUserDoc = await getDoc(doc(db, 'users', trade.toUserId));
+
+        if (!fromUserDoc.exists() || !toUserDoc.exists()) {
+            alert('Un des utilisateurs n\'existe plus');
+            return;
+        }
+
+        const fromUserData = fromUserDoc.data();
+        const toUserData = toUserDoc.data();
+
+        if (!fromUserData.collection[trade.fromPixelId]) {
+            alert(`${trade.fromUserName} n'a plus ce pixel`);
+            return;
+        }
+
+        if (!toUserData.collection[trade.toPixelId]) {
+            alert('Tu n\'as plus ce pixel');
+            return;
+        }
+
+        // Effectuer l'échange
+        const fromPixel = fromUserData.collection[trade.fromPixelId];
+        const toPixel = toUserData.collection[trade.toPixelId];
+
+        // Mettre à jour les collections
+        delete fromUserData.collection[trade.fromPixelId];
+        fromUserData.collection[trade.toPixelId] = toPixel;
+
+        delete toUserData.collection[trade.toPixelId];
+        toUserData.collection[trade.fromPixelId] = fromPixel;
+
+        // Sauvegarder dans Firestore
+        await updateDoc(doc(db, 'users', trade.fromUserId), {
+            collection: fromUserData.collection,
+            updatedAt: serverTimestamp()
+        });
+
+        await updateDoc(doc(db, 'users', trade.toUserId), {
+            collection: toUserData.collection,
+            updatedAt: serverTimestamp()
+        });
+
+        // Marquer l'échange comme accepté
+        await updateDoc(doc(db, 'trades', tradeId), {
+            status: 'accepted',
+            acceptedAt: serverTimestamp()
+        });
+
+        alert('Échange effectué avec succès !');
+
+        // Recharger les données
+        await loadUserData();
+        await loadPendingTrades();
+    } catch (error) {
+        console.error('Erreur lors de l\'acceptation:', error);
+        alert('Erreur: ' + error.message);
+    }
+}
+
+window.refuseTrade = async function(tradeId) {
+    if (!confirm('Refuser cet échange ?')) return;
+
+    try {
+        await updateDoc(doc(db, 'trades', tradeId), {
+            status: 'refused',
+            refusedAt: serverTimestamp()
+        });
+
+        alert('Échange refusé');
+        await loadPendingTrades();
+    } catch (error) {
+        console.error('Erreur lors du refus:', error);
+        alert('Erreur: ' + error.message);
+    }
+}
+
+window.cancelTrade = async function(tradeId) {
+    if (!confirm('Annuler cette proposition ?')) return;
+
+    try {
+        await deleteDoc(doc(db, 'trades', tradeId));
+        alert('Proposition annulée');
+        await loadPendingTrades();
+    } catch (error) {
+        console.error('Erreur lors de l\'annulation:', error);
+        alert('Erreur: ' + error.message);
+    }
+}
+
+function subscribeToTrades() {
+    // Se désabonner si déjà abonné
+    if (tradesUnsubscribe) {
+        tradesUnsubscribe();
+    }
+
+    // S'abonner aux échanges en temps réel
+    const q = query(
+        collection(db, 'trades'),
+        where('toUserId', '==', currentUser.uid),
+        where('status', '==', 'pending')
+    );
+
+    tradesUnsubscribe = onSnapshot(q, (snapshot) => {
+        const count = snapshot.size;
+        document.getElementById('pendingTradesCount').textContent = count;
+
+        // Si on est sur l'onglet pending, rafraîchir
+        const activeTab = document.querySelector('.trade-tab.active');
+        if (activeTab && activeTab.dataset.tradeTab === 'pending') {
+            loadPendingTrades();
+        }
+    });
 }
