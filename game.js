@@ -470,6 +470,8 @@ async function loadUserData() {
             if (isAdmin) {
                 // Afficher l'onglet admin
                 document.getElementById('adminTab').style.display = 'block';
+                // Précharger les données admin
+                await loadAdminDashboard();
             }
         } else {
             // Premier accès, initialiser les données
