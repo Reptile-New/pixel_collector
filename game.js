@@ -316,7 +316,20 @@ async function loadUserData() {
 
         if (docSnap.exists()) {
             const data = docSnap.data();
-            userCollection = data.collection || {};
+
+            // Désérialiser la collection
+            userCollection = {};
+            if (data.collection) {
+                for (const [key, pixel] of Object.entries(data.collection)) {
+                    userCollection[key] = {
+                        ...pixel,
+                        // Reconvertir les JSON strings en tableaux
+                        data: pixel.data && typeof pixel.data === 'string' ? JSON.parse(pixel.data) : pixel.data,
+                        colors: pixel.colors && typeof pixel.colors === 'string' ? JSON.parse(pixel.colors) : pixel.colors
+                    };
+                }
+            }
+
             userStats = data.stats || {
                 chestsOpened: 0,
                 totalPixels: 0,
@@ -336,8 +349,19 @@ async function loadUserData() {
 
 async function saveUserData() {
     try {
+        // Sérialiser la collection pour éviter les tableaux imbriqués
+        const serializedCollection = {};
+        for (const [key, pixel] of Object.entries(userCollection)) {
+            serializedCollection[key] = {
+                ...pixel,
+                // Convertir les tableaux de tableaux en JSON strings pour Firestore
+                data: pixel.data ? JSON.stringify(pixel.data) : undefined,
+                colors: pixel.colors ? JSON.stringify(pixel.colors) : undefined
+            };
+        }
+
         const data = {
-            collection: userCollection,
+            collection: serializedCollection,
             stats: userStats,
             lastChestTime: Date.now(),
             updatedAt: serverTimestamp()
