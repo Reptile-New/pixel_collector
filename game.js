@@ -10,11 +10,13 @@ import {
     signInWithPopup,
     updateProfile,
     sendEmailVerification,
+    deleteUser,
     doc,
     setDoc,
     getDoc,
     updateDoc,
-    serverTimestamp
+    serverTimestamp,
+    deleteDoc
 } from './firebase-config.js';
 
 // Variables globales
@@ -52,6 +54,7 @@ function setupEventListeners() {
     document.getElementById('registerButton').addEventListener('click', handleRegister);
     document.getElementById('googleSignInButton').addEventListener('click', handleGoogleSignIn);
     document.getElementById('logoutButton').addEventListener('click', handleLogout);
+    document.getElementById('deleteAccountButton').addEventListener('click', handleDeleteAccount);
 
     // Clic sur le coffre pour l'ouvrir
     document.getElementById('chestCanvas').addEventListener('click', openChest);
@@ -267,6 +270,42 @@ async function handleLogout() {
     } catch (error) {
         console.error('Erreur de déconnexion:', error);
         alert('Erreur de déconnexion: ' + error.message);
+    }
+}
+
+async function handleDeleteAccount() {
+    const confirmation = confirm('Êtes-vous sûr de vouloir supprimer votre compte ?\n\nCette action est irréversible et supprimera :\n- Votre compte\n- Toutes vos données\n- Votre collection de pixels\n- Vos statistiques\n\nVoulez-vous vraiment continuer ?');
+
+    if (!confirmation) {
+        return;
+    }
+
+    // Demander une double confirmation
+    const doubleConfirmation = confirm('DERNIÈRE CONFIRMATION\n\nVotre compte sera définitivement supprimé.\nTapez sur OK pour confirmer la suppression.');
+
+    if (!doubleConfirmation) {
+        return;
+    }
+
+    try {
+        const userId = currentUser.uid;
+
+        // 1. Supprimer d'abord le document Firestore
+        await deleteDoc(doc(db, 'users', userId));
+
+        // 2. Ensuite supprimer l'utilisateur Firebase Auth
+        await deleteUser(currentUser);
+
+        alert('Votre compte a été supprimé avec succès.');
+        // onAuthStateChanged redirigera automatiquement vers l'écran de connexion
+    } catch (error) {
+        console.error('Erreur de suppression du compte:', error);
+
+        if (error.code === 'auth/requires-recent-login') {
+            alert('Pour des raisons de sécurité, vous devez vous reconnecter avant de supprimer votre compte.\n\nVeuillez vous déconnecter puis vous reconnecter, et réessayez.');
+        } else {
+            alert('Erreur lors de la suppression du compte: ' + error.message);
+        }
     }
 }
 
