@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nettoyage des comptes supprimés</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: white;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 10px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            opacity: 0.8;
+        }
+        button.danger {
+            background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+        }
+        #log {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .log-item {
+            margin: 5px 0;
+            padding: 5px;
+        }
+        .log-info { color: #4fc3f7; }
+        .log-success { color: #81c784; }
+        .log-warning { color: #ffb74d; }
+        .log-error { color: #e57373; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Nettoyage des comptes orphelins</h1>
+        <p>Cet outil va analyser tous les comptes dans Firestore et vous permettre de marquer comme supprimés ceux qui n'ont plus de compte Firebase Auth associé.</p>
+
+        <div>
+            <button onclick="analyzeAccounts()">1️⃣ Analyser les comptes</button>
+            <button class="danger" onclick="markDeletedAccounts()" id="cleanupBtn" disabled>2️⃣ Marquer les comptes orphelins comme supprimés</button>
+        </div>
+
+        <div id="log"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, doc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDg2OHBoMXTCF5eMSFwMlJBXWRiMAYUhKs",
+            authDomain: "pixel-collector-online.firebaseapp.com",
+            projectId: "pixel-collector-online",
+            storageBucket: "pixel-collector-online.firebasestorage.app",
+            messagingSenderId: "930112532984",
+            appId: "1:930112532984:web:433c099242afe91757a60d"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let orphanedAccounts = [];
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const item = document.createElement('div');
+            item.className = `log-item log-${type}`;
+            item.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(item);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        window.analyzeAccounts = async function() {
+            log('Démarrage de l\'analyse...', 'info');
+            orphanedAccounts = [];
+
+            try {
+                // Récupérer tous les utilisateurs Firestore
+                const usersSnapshot = await getDocs(collection(db, 'users'));
+                log(`${usersSnapshot.size} comptes trouvés dans Firestore`, 'info');
+
+                const currentUserUid = auth.currentUser?.uid;
+
+                usersSnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const uid = docSnap.id;
+
+                    // Vérifier si le compte est déjà marqué comme supprimé
+                    if (data.deleted === true) {
+                        log(`✓ ${data.displayName || uid} - Déjà marqué comme supprimé`, 'success');
+                        return;
+                    }
+
+                    // Si c'est l'utilisateur actuel, ne pas le marquer
+                    if (uid === currentUserUid) {
+                        log(`✓ ${data.displayName || uid} - Utilisateur actuel (Vous)`, 'success');
+                        return;
+                    }
+
+                    // Comptes avec 0 pixels et 0 coffres = probablement supprimés ou jamais utilisés
+                    if (data.stats?.totalPixels === 0 && data.stats?.chestsOpened === 0) {
+                        orphanedAccounts.push({
+                            uid: uid,
+                            displayName: data.displayName || 'Joueur',
+                            stats: data.stats
+                        });
+                        log(`⚠ ${data.displayName || uid} - Compte sans activité (0 pixels, 0 coffres)`, 'warning');
+                    } else {
+                        log(`✓ ${data.displayName || uid} - Compte actif (${data.stats?.totalPixels || 0} pixels, ${data.stats?.chestsOpened || 0} coffres)`, 'success');
+                    }
+                });
+
+                log('', 'info');
+                log(`Analyse terminée : ${orphanedAccounts.length} comptes orphelins détectés`, orphanedAccounts.length > 0 ? 'warning' : 'success');
+
+                if (orphanedAccounts.length > 0) {
+                    document.getElementById('cleanupBtn').disabled = false;
+                    log('Vous pouvez maintenant cliquer sur le bouton "Marquer les comptes orphelins comme supprimés"', 'info');
+                }
+
+            } catch (error) {
+                log(`Erreur : ${error.message}`, 'error');
+                console.error(error);
+            }
+        };
+
+        window.markDeletedAccounts = async function() {
+            if (orphanedAccounts.length === 0) {
+                log('Aucun compte à nettoyer', 'info');
+                return;
+            }
+
+            const confirmation = confirm(`Voulez-vous vraiment marquer ${orphanedAccounts.length} compte(s) comme supprimé(s) ?\n\nCette action est irréversible.`);
+            if (!confirmation) {
+                log('Nettoyage annulé', 'warning');
+                return;
+            }
+
+            log('Démarrage du nettoyage...', 'info');
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const account of orphanedAccounts) {
+                try {
+                    await updateDoc(doc(db, 'users', account.uid), {
+                        deleted: true,
+                        deletedAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    });
+                    log(`✓ ${account.displayName} - Marqué comme supprimé`, 'success');
+                    successCount++;
+                } catch (error) {
+                    log(`✗ ${account.displayName} - Erreur : ${error.message}`, 'error');
+                    errorCount++;
+                }
+            }
+
+            log('', 'info');
+            log(`Nettoyage terminé : ${successCount} réussites, ${errorCount} erreurs`, successCount > 0 ? 'success' : 'error');
+            log('Vous pouvez maintenant fermer cette page et recharger votre application', 'info');
+
+            document.getElementById('cleanupBtn').disabled = true;
+            orphanedAccounts = [];
+        };
+
+        // Vérifier si l'utilisateur est connecté
+        auth.onAuthStateChanged((user) => {
+            if (!user) {
+                log('⚠ Vous devez être connecté pour utiliser cet outil', 'error');
+                log('Veuillez vous connecter sur l\'application principale puis revenir ici', 'warning');
+            } else {
+                log(`✓ Connecté en tant que : ${user.displayName || user.email}`, 'success');
+                log('Cliquez sur "Analyser les comptes" pour commencer', 'info');
+            }
+        });
+    </script>
+</body>
+</html>

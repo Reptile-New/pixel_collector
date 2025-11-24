@@ -825,16 +825,23 @@ async function loadPlayers() {
         const querySnapshot = await getDocs(q);
 
         allPlayers = [];
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const uid = docSnap.id;
 
-            // Ignorer les comptes supprimés
+            // Ignorer les comptes déjà marqués comme supprimés
             if (data.deleted === true) {
                 return;
             }
 
+            // Ignorer les comptes vides (probablement des comptes supprimés avant l'implémentation du flag)
+            // Exception : ne pas ignorer l'utilisateur actuel même s'il vient de s'inscrire
+            if (uid !== currentUser.uid && data.stats?.totalPixels === 0 && data.stats?.chestsOpened === 0) {
+                return;
+            }
+
             allPlayers.push({
-                uid: doc.id,
+                uid: uid,
                 displayName: data.displayName || 'Joueur',
                 stats: data.stats || { chestsOpened: 0, totalPixels: 0, uniquePixels: 0 },
                 collection: data.collection || {}
