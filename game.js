@@ -33,6 +33,14 @@ let userStats = {
     uniquePixels: 0,
     lastChestTime: 0
 };
+// Configuration des albums
+const ALBUMS = [
+    { id: 'all', label: 'Tous' },
+    { id: '1x1', label: 'Pixels 1×1' },
+    { id: '2x2', label: 'Pixels 2×2' },
+    { id: 'art', label: 'Pixel Arts' }
+];
+
 let currentAlbum = 'all'; // Album actuellement affiché
 let allPlayers = []; // Liste de tous les joueurs
 let currentModalAlbum = 'all'; // Album actuellement affiché dans la modal
@@ -45,6 +53,7 @@ let adminCurrentFilter = 'active'; // Filtre actif dans le panel admin
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     drawChest();
+    generateCollectionAlbumTabs();
 
     // Écouter les changements d'authentification
     onAuthStateChanged(auth, async (user) => {
@@ -827,6 +836,23 @@ function showPixelDetail(pixel) {
 
 // === NAVIGATION PAR ONGLETS ===
 
+function generateCollectionAlbumTabs() {
+    const container = document.getElementById('collectionAlbumTabs');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    ALBUMS.forEach((album, index) => {
+        const button = document.createElement('button');
+        button.className = 'album-tab' + (index === 0 ? ' active' : '');
+        button.dataset.album = album.id;
+        button.style.cssText = `flex: 1; padding: 10px; border: none; border-radius: 8px; background: ${index === 0 ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)'}; color: #fff; cursor: pointer;` + (index === 0 ? ' font-weight: bold;' : '');
+        button.textContent = album.label;
+        button.addEventListener('click', () => switchAlbum(album.id));
+        container.appendChild(button);
+    });
+}
+
 function switchTab(tabName) {
     // Changer l'onglet actif
     document.querySelectorAll('.tab').forEach(tab => {
@@ -839,11 +865,14 @@ function switchTab(tabName) {
     // Changer le contenu
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
+        content.style.display = 'none';
     });
 
     // Gérer le nom spécial pour l'onglet admin
     const tabId = tabName === 'admin' ? 'adminPanelTab' : tabName + 'Tab';
-    document.getElementById(tabId).classList.add('active');
+    const selectedTab = document.getElementById(tabId);
+    selectedTab.classList.add('active');
+    selectedTab.style.display = 'block';
 
     // Actions spécifiques
     if (tabName === 'collection') {
@@ -953,11 +982,28 @@ async function openPlayerProfile(player) {
     document.getElementById('modalUniquePixels').textContent = `${player.stats.uniquePixels} / 294`;
     document.getElementById('modalChestsOpened').textContent = player.stats.chestsOpened;
 
+    // Générer dynamiquement les boutons d'albums
+    generateModalAlbumTabs();
+
     // Afficher la collection
     displayModalCollection();
 
     // Afficher la modal
     document.getElementById('playerProfileModal').style.display = 'block';
+}
+
+function generateModalAlbumTabs() {
+    const container = document.querySelector('#playerProfileModal .album-tab').parentElement;
+    container.innerHTML = '';
+
+    ALBUMS.forEach((album, index) => {
+        const button = document.createElement('button');
+        button.className = 'album-tab' + (index === 0 ? ' active' : '');
+        button.dataset.album = album.id;
+        button.textContent = album.label;
+        button.onclick = () => switchModalAlbum(album.id);
+        container.appendChild(button);
+    });
 }
 
 function closePlayerProfile() {
@@ -985,7 +1031,7 @@ function displayModalCollection() {
 
     // Filtrer par album
     if (currentModalAlbum !== 'all') {
-        pixels = pixels.filter(p => p.size === currentModalAlbum);
+        pixels = pixels.filter(p => p.type === currentModalAlbum);
     }
 
     // Trier par rareté
@@ -1047,7 +1093,7 @@ function filterModalCollection(searchTerm) {
 
     // Filtrer par album
     if (currentModalAlbum !== 'all') {
-        pixels = pixels.filter(p => p.size === currentModalAlbum);
+        pixels = pixels.filter(p => p.type === currentModalAlbum);
     }
 
     // Filtrer par recherche
@@ -1206,10 +1252,15 @@ async function loadAdminDashboard() {
         });
 
         // Mettre à jour les stats globales
-        document.getElementById('adminTotalUsers').textContent = activeCount;
-        document.getElementById('adminDeletedUsers').textContent = deletedCount;
-        document.getElementById('adminTotalChests').textContent = totalChests;
-        document.getElementById('adminTotalPixels').textContent = totalPixelsCount;
+        const elemTotalUsers = document.getElementById('adminTotalUsers');
+        const elemDeletedUsers = document.getElementById('adminDeletedUsers');
+        const elemTotalChests = document.getElementById('adminTotalChests');
+        const elemTotalPixels = document.getElementById('adminTotalPixels');
+
+        if (elemTotalUsers) elemTotalUsers.textContent = activeCount;
+        if (elemDeletedUsers) elemDeletedUsers.textContent = deletedCount;
+        if (elemTotalChests) elemTotalChests.textContent = totalChests;
+        if (elemTotalPixels) elemTotalPixels.textContent = totalPixelsCount;
 
         // Afficher les utilisateurs
         displayAdminUsers(allAdminUsers);
@@ -1221,6 +1272,8 @@ async function loadAdminDashboard() {
 
 function displayAdminUsers(users) {
     const container = document.getElementById('adminUsersList');
+    if (!container) return;
+
     container.innerHTML = '';
 
     // Filtrer selon le filtre actif

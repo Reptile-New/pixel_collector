@@ -541,20 +541,9 @@
 
                 <!-- Contenu : Collection -->
                 <div class="tab-content" id="collectionTab">
-                    <!-- Sous-onglets Albums -->
-                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                        <button class="album-tab active" data-album="all" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: rgba(255,255,255,0.3); color: #fff; cursor: pointer; font-weight: bold;">
-                            Tous
-                        </button>
-                        <button class="album-tab" data-album="1x1" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: rgba(0,0,0,0.2); color: #fff; cursor: pointer;">
-                            Pixels 1×1
-                        </button>
-                        <button class="album-tab" data-album="2x2" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: rgba(0,0,0,0.2); color: #fff; cursor: pointer;">
-                            Pixels 2×2
-                        </button>
-                        <button class="album-tab" data-album="art" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: rgba(0,0,0,0.2); color: #fff; cursor: pointer;">
-                            Pixel Arts
-                        </button>
+                    <!-- Sous-onglets Albums (générés dynamiquement par JS) -->
+                    <div id="collectionAlbumTabs" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <!-- Les onglets seront générés dynamiquement -->
                     </div>
 
                     <div style="margin-bottom: 15px;">
@@ -695,9 +684,7 @@
                     <button class="album-tab active" data-album="all" onclick="switchModalAlbum('all')">Tous</button>
                     <button class="album-tab" data-album="1x1" onclick="switchModalAlbum('1x1')">1×1</button>
                     <button class="album-tab" data-album="2x2" onclick="switchModalAlbum('2x2')">2×2</button>
-                    <button class="album-tab" data-album="3x3" onclick="switchModalAlbum('3x3')">3×3</button>
-                    <button class="album-tab" data-album="4x4" onclick="switchModalAlbum('4x4')">4×4</button>
-                    <button class="album-tab" data-album="5x5" onclick="switchModalAlbum('5x5')">5×5</button>
+                    <button class="album-tab" data-album="pixelart" onclick="switchModalAlbum('pixelart')">Pixel Art</button>
                 </div>
                 <div id="modalCollectionGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 15px; max-height: 400px; overflow-y: auto;">
                     <!-- Collection du joueur -->
