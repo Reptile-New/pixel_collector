@@ -37,6 +37,9 @@ let currentAlbum = 'all'; // Album actuellement affiché
 let allPlayers = []; // Liste de tous les joueurs
 let currentModalAlbum = 'all'; // Album actuellement affiché dans la modal
 let currentModalPlayer = null; // Joueur actuellement affiché dans la modal
+let isAdmin = false; // Si l'utilisateur est admin
+let allAdminUsers = []; // Liste de tous les utilisateurs (admin)
+let adminCurrentFilter = 'active'; // Filtre actif dans le panel admin
 
 // Initialisation
 document.addEventListener('DOMContentLoaded', () => {
@@ -101,6 +104,27 @@ function setupEventListeners() {
     document.getElementById('modalSearchCollection').addEventListener('input', (e) => {
         filterModalCollection(e.target.value);
     });
+
+    // Admin panel event listeners
+    document.getElementById('adminRefresh').addEventListener('click', loadAdminDashboard);
+    document.getElementById('adminSearchUsers').addEventListener('input', (e) => {
+        filterAdminUsers(e.target.value);
+    });
+    document.querySelectorAll('.admin-filter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.admin-filter-btn').forEach(b => {
+                b.style.background = 'transparent';
+                b.style.color = 'white';
+            });
+            e.target.style.background = 'white';
+            e.target.style.color = '#667eea';
+            adminCurrentFilter = e.target.dataset.filter;
+            displayAdminUsers(allAdminUsers);
+        });
+    });
+    document.getElementById('adminCleanDeleted').addEventListener('click', handleAdminCleanDeleted);
+    document.getElementById('adminResetUser').addEventListener('click', handleAdminResetUser);
+    document.getElementById('adminDeleteAll').addEventListener('click', handleAdminDeleteAll);
 }
 
 // Fonction pour changer d'onglet dans l'authentification
@@ -440,6 +464,13 @@ async function loadUserData() {
             };
             // Charger le lastChestTime pour la limite quotidienne
             userStats.lastChestTime = data.lastChestTime || 0;
+
+            // Vérifier si l'utilisateur est admin
+            isAdmin = data.role === 'admin';
+            if (isAdmin) {
+                // Afficher l'onglet admin
+                document.getElementById('adminTab').style.display = 'block';
+            }
         } else {
             // Premier accès, initialiser les données
             await initializeUserData(currentUser.uid);
@@ -807,13 +838,18 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    document.getElementById(tabName + 'Tab').classList.add('active');
+
+    // Gérer le nom spécial pour l'onglet admin
+    const tabId = tabName === 'admin' ? 'adminPanelTab' : tabName + 'Tab';
+    document.getElementById(tabId).classList.add('active');
 
     // Actions spécifiques
     if (tabName === 'collection') {
         displayCollection();
     } else if (tabName === 'players') {
         loadPlayers();
+    } else if (tabName === 'admin' && isAdmin) {
+        loadAdminDashboard();
     }
 }
 
@@ -1123,5 +1159,283 @@ function updateRecentPixels() {
 
     if (pixels.length === 0) {
         container.innerHTML = '<p style="text-align: center; padding: 20px; opacity: 0.7; font-size: 0.9em;">Aucun pixel encore</p>';
+    }
+}
+
+// === PANEL ADMIN ===
+
+async function loadAdminDashboard() {
+    if (!isAdmin) return;
+
+    try {
+        const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+        const querySnapshot = await getDocs(q);
+
+        allAdminUsers = [];
+        let totalChests = 0;
+        let totalPixelsCount = 0;
+        let activeCount = 0;
+        let deletedCount = 0;
+
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const uid = docSnap.id;
+
+            const user = {
+                uid: uid,
+                displayName: data.displayName || 'Joueur',
+                email: data.email || 'N/A',
+                stats: data.stats || { chestsOpened: 0, totalPixels: 0, uniquePixels: 0 },
+                createdAt: data.createdAt,
+                deleted: data.deleted === true,
+                collection: data.collection || {}
+            };
+
+            allAdminUsers.push(user);
+
+            totalChests += user.stats.chestsOpened || 0;
+            totalPixelsCount += user.stats.totalPixels || 0;
+
+            if (user.deleted) {
+                deletedCount++;
+            } else {
+                activeCount++;
+            }
+        });
+
+        // Mettre à jour les stats globales
+        document.getElementById('adminTotalUsers').textContent = activeCount;
+        document.getElementById('adminDeletedUsers').textContent = deletedCount;
+        document.getElementById('adminTotalChests').textContent = totalChests;
+        document.getElementById('adminTotalPixels').textContent = totalPixelsCount;
+
+        // Afficher les utilisateurs
+        displayAdminUsers(allAdminUsers);
+    } catch (error) {
+        console.error('Erreur de chargement du dashboard admin:', error);
+        document.getElementById('adminUsersList').innerHTML = '<p style="text-align: center; opacity: 0.7;">Erreur de chargement</p>';
+    }
+}
+
+function displayAdminUsers(users) {
+    const container = document.getElementById('adminUsersList');
+    container.innerHTML = '';
+
+    // Filtrer selon le filtre actif
+    let filteredUsers = users;
+    if (adminCurrentFilter === 'active') {
+        filteredUsers = users.filter(u => !u.deleted);
+    } else if (adminCurrentFilter === 'deleted') {
+        filteredUsers = users.filter(u => u.deleted);
+    }
+
+    if (filteredUsers.length === 0) {
+        container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Aucun utilisateur trouvé</p>';
+        return;
+    }
+
+    filteredUsers.forEach(user => {
+        const userDiv = document.createElement('div');
+        userDiv.style.cssText = 'background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;';
+
+        // Date de création
+        let createdDate = 'N/A';
+        if (user.createdAt && user.createdAt.toDate) {
+            createdDate = user.createdAt.toDate().toLocaleDateString('fr-FR');
+        }
+
+        // Statut
+        const statusColor = user.deleted ? '#f44336' : '#4caf50';
+        const statusText = user.deleted ? 'Supprimé' : 'Actif';
+
+        userDiv.innerHTML = `
+            <div style="flex: 1; min-width: 200px;">
+                <div style="font-weight: bold; font-size: 1.1em;">${user.displayName}</div>
+                <div style="opacity: 0.8; font-size: 0.9em;">${user.email}</div>
+                <div style="opacity: 0.7; font-size: 0.85em; margin-top: 3px;">UID: ${user.uid}</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-weight: bold;">${user.stats.uniquePixels} / 294</div>
+                <div style="opacity: 0.7; font-size: 0.85em;">Pixels uniques</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-weight: bold;">${user.stats.chestsOpened}</div>
+                <div style="opacity: 0.7; font-size: 0.85em;">Coffres</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="opacity: 0.8; font-size: 0.9em;">${createdDate}</div>
+                <div style="background: ${statusColor}; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.85em; margin-top: 3px;">${statusText}</div>
+            </div>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="viewAdminUser('${user.uid}')" style="padding: 8px 12px; background: #2196f3; border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 0.85em;">👁️ Voir</button>
+                ${user.deleted ?
+                    `<button onclick="permanentDeleteUser('${user.uid}')" style="padding: 8px 12px; background: #f44336; border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 0.85em;">🗑️ Supprimer</button>` :
+                    `<button onclick="softDeleteUser('${user.uid}')" style="padding: 8px 12px; background: #ff9800; border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 0.85em;">❌ Marquer supprimé</button>`
+                }
+            </div>
+        `;
+
+        container.appendChild(userDiv);
+    });
+}
+
+function filterAdminUsers(searchTerm) {
+    if (!searchTerm) {
+        displayAdminUsers(allAdminUsers);
+        return;
+    }
+
+    const filtered = allAdminUsers.filter(user =>
+        user.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.uid.includes(searchTerm)
+    );
+    displayAdminUsers(filtered);
+}
+
+window.viewAdminUser = function(uid) {
+    const user = allAdminUsers.find(u => u.uid === uid);
+    if (!user) return;
+
+    let collectionInfo = 'Collection vide';
+    if (user.collection && Object.keys(user.collection).length > 0) {
+        collectionInfo = `${Object.keys(user.collection).length} pixels différents dans la collection`;
+    }
+
+    alert(`Détails de l'utilisateur:\n\nUID: ${uid}\nPseudo: ${user.displayName}\nEmail: ${user.email}\nPixels uniques: ${user.stats.uniquePixels}/294\nPixels totaux: ${user.stats.totalPixels}\nCoffres ouverts: ${user.stats.chestsOpened}\nStatut: ${user.deleted ? 'Supprimé' : 'Actif'}\n\n${collectionInfo}`);
+}
+
+window.softDeleteUser = async function(uid) {
+    if (!confirm(`Êtes-vous sûr de vouloir marquer ce compte comme supprimé ?\n\nUID: ${uid}\n\nL'utilisateur n'apparaîtra plus dans le jeu mais ses données seront conservées.`)) {
+        return;
+    }
+
+    try {
+        await updateDoc(doc(db, 'users', uid), {
+            deleted: true,
+            deletedAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        });
+
+        alert('Compte marqué comme supprimé avec succès');
+        await loadAdminDashboard();
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur: ' + error.message);
+    }
+}
+
+window.permanentDeleteUser = async function(uid) {
+    if (!confirm(`⚠️ ATTENTION ⚠️\n\nÊtes-vous sûr de vouloir SUPPRIMER DÉFINITIVEMENT ce compte ?\n\nUID: ${uid}\n\nCette action est IRRÉVERSIBLE !`)) {
+        return;
+    }
+
+    const doubleConfirm = confirm('DERNIÈRE CONFIRMATION\n\nLe compte sera définitivement supprimé de Firestore.\nTapez sur OK pour confirmer.');
+
+    if (!doubleConfirm) {
+        return;
+    }
+
+    try {
+        await deleteDoc(doc(db, 'users', uid));
+        alert('Compte supprimé définitivement');
+        await loadAdminDashboard();
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur: ' + error.message);
+    }
+}
+
+async function handleAdminCleanDeleted() {
+    const deletedUsers = allAdminUsers.filter(u => u.deleted);
+
+    if (deletedUsers.length === 0) {
+        alert('Aucun compte supprimé à nettoyer');
+        return;
+    }
+
+    if (!confirm(`Voulez-vous supprimer DÉFINITIVEMENT ${deletedUsers.length} compte(s) marqué(s) comme supprimé(s) ?\n\nCette action est irréversible !`)) {
+        return;
+    }
+
+    try {
+        let deleted = 0;
+        for (const user of deletedUsers) {
+            await deleteDoc(doc(db, 'users', user.uid));
+            deleted++;
+        }
+
+        alert(`${deleted} compte(s) supprimé(s) définitivement`);
+        await loadAdminDashboard();
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur: ' + error.message);
+    }
+}
+
+async function handleAdminResetUser() {
+    const uid = document.getElementById('adminResetUserId').value.trim();
+
+    if (!uid) {
+        alert('Veuillez entrer un UID d\'utilisateur');
+        return;
+    }
+
+    if (!confirm(`Êtes-vous sûr de vouloir réinitialiser l'utilisateur ${uid} ?\n\nCela supprimera:\n- Toute sa collection\n- Toutes ses statistiques\n\nCette action est irréversible !`)) {
+        return;
+    }
+
+    try {
+        const userDoc = await getDoc(doc(db, 'users', uid));
+
+        if (!userDoc.exists()) {
+            alert('Utilisateur introuvable');
+            return;
+        }
+
+        await updateDoc(doc(db, 'users', uid), {
+            collection: {},
+            stats: {
+                chestsOpened: 0,
+                totalPixels: 0,
+                uniquePixels: 0
+            },
+            lastChestTime: 0,
+            updatedAt: serverTimestamp()
+        });
+
+        alert('Utilisateur réinitialisé avec succès');
+        document.getElementById('adminResetUserId').value = '';
+        await loadAdminDashboard();
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur: ' + error.message);
+    }
+}
+
+async function handleAdminDeleteAll() {
+    if (!confirm(`⚠️⚠️⚠️ DANGER EXTRÊME ⚠️⚠️⚠️\n\nVous êtes sur le point de SUPPRIMER TOUS LES UTILISATEURS (${allAdminUsers.length} comptes)\n\nCette action est ABSOLUMENT IRRÉVERSIBLE !\n\nÊtes-vous ABSOLUMENT certain ?`)) {
+        return;
+    }
+
+    const confirmText = prompt('Pour confirmer, tapez exactement: SUPPRIMER TOUT');
+
+    if (confirmText !== 'SUPPRIMER TOUT') {
+        alert('Annulé');
+        return;
+    }
+
+    try {
+        let deleted = 0;
+        for (const user of allAdminUsers) {
+            await deleteDoc(doc(db, 'users', user.uid));
+            deleted++;
+        }
+
+        alert(`${deleted} compte(s) supprimé(s) définitivement`);
+        await loadAdminDashboard();
+    } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur: ' + error.message);
     }
 }

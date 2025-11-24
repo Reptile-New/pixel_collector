@@ -509,6 +509,7 @@
                     <div class="tab" data-tab="collection">🎨 Collection</div>
                     <div class="tab" data-tab="players">👥 Joueurs</div>
                     <div class="tab" data-tab="market">🏪 Marché</div>
+                    <div class="tab" data-tab="admin" id="adminTab" style="display: none;">🔧 Admin</div>
                 </div>
 
                 <!-- Contenu : Coffres -->
@@ -581,6 +582,74 @@
                         Le marché arrive bientôt !<br>
                         Vous pourrez échanger vos pixels avec d'autres joueurs.
                     </p>
+                </div>
+
+                <!-- Contenu : Admin -->
+                <div class="tab-content" id="adminPanelTab" style="display: none;">
+                    <div style="padding: 20px;">
+                        <h2 style="color: white; margin-bottom: 20px;">🔧 Panel Administrateur</h2>
+
+                        <!-- Statistiques globales -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; text-align: center;">
+                                <div style="font-size: 2em; font-weight: bold;" id="adminTotalUsers">0</div>
+                                <div style="opacity: 0.8; font-size: 0.9em;">Utilisateurs actifs</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; text-align: center;">
+                                <div style="font-size: 2em; font-weight: bold;" id="adminDeletedUsers">0</div>
+                                <div style="opacity: 0.8; font-size: 0.9em;">Comptes supprimés</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; text-align: center;">
+                                <div style="font-size: 2em; font-weight: bold;" id="adminTotalChests">0</div>
+                                <div style="opacity: 0.8; font-size: 0.9em;">Coffres ouverts (total)</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; text-align: center;">
+                                <div style="font-size: 2em; font-weight: bold;" id="adminTotalPixels">0</div>
+                                <div style="opacity: 0.8; font-size: 0.9em;">Pixels collectés (total)</div>
+                            </div>
+                        </div>
+
+                        <!-- Filtres et recherche -->
+                        <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                            <input type="text" id="adminSearchUsers" class="login-input" placeholder="🔍 Rechercher un utilisateur..." style="flex: 1; min-width: 200px;">
+                            <button id="adminRefresh" class="open-button" style="padding: 10px 20px; min-width: auto;">🔄 Rafraîchir</button>
+                        </div>
+
+                        <!-- Filtres actifs/supprimés -->
+                        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                            <button class="admin-filter-btn active" data-filter="active" style="padding: 10px 20px; border: 2px solid white; background: white; color: #667eea; border-radius: 8px; cursor: pointer; font-weight: 600;">Actifs</button>
+                            <button class="admin-filter-btn" data-filter="deleted" style="padding: 10px 20px; border: 2px solid white; background: transparent; color: white; border-radius: 8px; cursor: pointer; font-weight: 600;">Supprimés</button>
+                            <button class="admin-filter-btn" data-filter="all" style="padding: 10px 20px; border: 2px solid white; background: transparent; color: white; border-radius: 8px; cursor: pointer; font-weight: 600;">Tous</button>
+                        </div>
+
+                        <!-- Liste des utilisateurs -->
+                        <div style="background: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; max-height: 400px; overflow-y: auto;">
+                            <div id="adminUsersList">
+                                <p style="text-align: center; opacity: 0.7;">Chargement...</p>
+                            </div>
+                        </div>
+
+                        <!-- Actions de maintenance -->
+                        <div style="margin-top: 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                            <div style="background: rgba(255,100,100,0.2); padding: 20px; border-radius: 10px; border: 2px solid rgba(255,100,100,0.5);">
+                                <h3 style="margin-top: 0;">🗑️ Nettoyer supprimés</h3>
+                                <p style="font-size: 0.9em; opacity: 0.9;">Supprime définitivement tous les comptes marqués comme supprimés.</p>
+                                <button id="adminCleanDeleted" class="open-button" style="width: 100%; background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); margin-top: 10px;">Nettoyer</button>
+                            </div>
+
+                            <div style="background: rgba(255,150,0,0.2); padding: 20px; border-radius: 10px; border: 2px solid rgba(255,150,0,0.5);">
+                                <h3 style="margin-top: 0;">⚙️ Réinitialiser utilisateur</h3>
+                                <input type="text" id="adminResetUserId" class="login-input" placeholder="UID de l'utilisateur" style="margin-bottom: 10px;">
+                                <button id="adminResetUser" class="open-button" style="width: 100%; background: linear-gradient(135deg, #f57c00 0%, #e65100 100%);">Réinitialiser</button>
+                            </div>
+
+                            <div style="background: rgba(200,0,0,0.3); padding: 20px; border-radius: 10px; border: 2px solid rgba(200,0,0,0.7);">
+                                <h3 style="margin-top: 0;">💀 Zone Dangereuse</h3>
+                                <p style="font-size: 0.9em; opacity: 0.9;">Supprime TOUS les utilisateurs. Action irréversible !</p>
+                                <button id="adminDeleteAll" class="open-button" style="width: 100%; background: linear-gradient(135deg, #b71c1c 0%, #7f0000 100%); margin-top: 10px;">Tout supprimer</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

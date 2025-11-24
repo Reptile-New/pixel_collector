@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Admin - Pixel Collector</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <div class="admin-container">
+        <header>
+            <h1>🔧 Panel Admin - Pixel Collector</h1>
+            <div class="header-actions">
+                <span id="adminEmail">Non connecté</span>
+                <button id="logoutButton" class="btn-secondary">Déconnexion</button>
+            </div>
+        </header>
+
+        <!-- Écran de connexion admin -->
+        <div id="loginScreen" class="login-screen">
+            <div class="login-box">
+                <h2>Connexion Administrateur</h2>
+                <input type="email" id="adminEmailInput" placeholder="Email admin" class="input">
+                <input type="password" id="adminPasswordInput" placeholder="Mot de passe" class="input">
+                <button id="loginButton" class="btn-primary">Se connecter</button>
+                <div id="loginError" class="error-message"></div>
+            </div>
+        </div>
+
+        <!-- Panel admin -->
+        <div id="adminPanel" style="display: none;">
+            <!-- Statistiques globales -->
+            <section class="stats-section">
+                <h2>📊 Statistiques Globales</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalUsers">0</div>
+                        <div class="stat-label">Utilisateurs actifs</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="deletedUsers">0</div>
+                        <div class="stat-label">Comptes supprimés</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalChests">0</div>
+                        <div class="stat-label">Coffres ouverts (total)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalPixels">0</div>
+                        <div class="stat-label">Pixels collectés (total)</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Gestion des utilisateurs -->
+            <section class="users-section">
+                <h2>👥 Gestion des Utilisateurs</h2>
+                <div class="section-actions">
+                    <input type="text" id="searchUsers" placeholder="🔍 Rechercher un utilisateur..." class="input search-input">
+                    <button id="refreshUsers" class="btn-secondary">🔄 Rafraîchir</button>
+                </div>
+
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="active">Actifs</button>
+                    <button class="filter-btn" data-filter="deleted">Supprimés</button>
+                    <button class="filter-btn" data-filter="all">Tous</button>
+                </div>
+
+                <div class="users-table-container">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>Pseudo</th>
+                                <th>Email</th>
+                                <th>Pixels uniques</th>
+                                <th>Coffres</th>
+                                <th>Date création</th>
+                                <th>Statut</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 20px;">Chargement...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Actions de maintenance -->
+            <section class="maintenance-section">
+                <h2>🛠️ Maintenance</h2>
+                <div class="maintenance-grid">
+                    <div class="maintenance-card">
+                        <h3>Nettoyer les comptes supprimés</h3>
+                        <p>Supprime définitivement tous les documents marqués comme supprimés dans Firestore.</p>
+                        <button id="cleanDeletedAccounts" class="btn-danger">🗑️ Nettoyer</button>
+                    </div>
+                    <div class="maintenance-card">
+                        <h3>Réinitialiser un utilisateur</h3>
+                        <p>Réinitialise la collection et les stats d'un utilisateur spécifique.</p>
+                        <input type="text" id="resetUserId" placeholder="UID de l'utilisateur" class="input">
+                        <button id="resetUser" class="btn-warning">⚠️ Réinitialiser</button>
+                    </div>
+                    <div class="maintenance-card danger-zone">
+                        <h3>⚠️ Zone Dangereuse</h3>
+                        <p>Supprime TOUS les documents de la collection users. Action irréversible !</p>
+                        <button id="deleteAllUsers" class="btn-danger">💀 Tout supprimer</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script type="module" src="admin.js"></script>
+</body>
+</html>
