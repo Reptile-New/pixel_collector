@@ -406,6 +406,9 @@ async function openChest() {
     userStats.chestsOpened++;
     updateUniquePixelsCount();
 
+    // Mettre à jour le lastChestTime dans userStats
+    userStats.lastChestTime = Date.now();
+
     // Sauvegarder dans Firestore
     await saveUserData();
 
