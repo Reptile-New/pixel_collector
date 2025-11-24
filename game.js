@@ -350,10 +350,14 @@ async function handleDeleteAccount() {
     try {
         const userId = currentUser.uid;
 
-        // 1. Supprimer d'abord le document Firestore
-        await deleteDoc(doc(db, 'users', userId));
+        // 1. Marquer le compte comme supprimé dans Firestore
+        await updateDoc(doc(db, 'users', userId), {
+            deleted: true,
+            deletedAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        });
 
-        // 2. Ensuite supprimer l'utilisateur Firebase Auth
+        // 2. Supprimer l'utilisateur Firebase Auth
         await deleteUser(currentUser);
 
         alert('Votre compte a été supprimé avec succès.');
@@ -823,6 +827,12 @@ async function loadPlayers() {
         allPlayers = [];
         querySnapshot.forEach((doc) => {
             const data = doc.data();
+
+            // Ignorer les comptes supprimés
+            if (data.deleted === true) {
+                return;
+            }
+
             allPlayers.push({
                 uid: doc.id,
                 displayName: data.displayName || 'Joueur',
