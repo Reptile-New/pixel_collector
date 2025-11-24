@@ -16,7 +16,12 @@ import {
     getDoc,
     updateDoc,
     serverTimestamp,
-    deleteDoc
+    deleteDoc,
+    collection,
+    query,
+    orderBy,
+    limit,
+    getDocs
 } from './firebase-config.js';
 
 // Variables globales
@@ -29,6 +34,9 @@ let userStats = {
     lastChestTime: 0
 };
 let currentAlbum = 'all'; // Album actuellement affiché
+let allPlayers = []; // Liste de tous les joueurs
+let currentModalAlbum = 'all'; // Album actuellement affiché dans la modal
+let currentModalPlayer = null; // Joueur actuellement affiché dans la modal
 
 // Initialisation
 document.addEventListener('DOMContentLoaded', () => {
@@ -55,6 +63,7 @@ function setupEventListeners() {
     document.getElementById('googleSignInButton').addEventListener('click', handleGoogleSignIn);
     document.getElementById('logoutButton').addEventListener('click', handleLogout);
     document.getElementById('deleteAccountButton').addEventListener('click', handleDeleteAccount);
+    document.getElementById('saveNameButton').addEventListener('click', handleSaveName);
 
     // Clic sur le coffre pour l'ouvrir
     document.getElementById('chestCanvas').addEventListener('click', openChest);
@@ -73,6 +82,24 @@ function setupEventListeners() {
     // Albums de collection
     document.querySelectorAll('.album-tab').forEach(tab => {
         tab.addEventListener('click', (e) => switchAlbum(e.target.dataset.album));
+    });
+
+    // Recherche de joueurs
+    document.getElementById('searchPlayers').addEventListener('input', (e) => {
+        filterPlayers(e.target.value);
+    });
+
+    // Modal profil joueur
+    document.getElementById('closeProfileModal').addEventListener('click', closePlayerProfile);
+    document.getElementById('playerProfileModal').addEventListener('click', (e) => {
+        if (e.target.id === 'playerProfileModal') {
+            closePlayerProfile();
+        }
+    });
+
+    // Recherche dans la modal
+    document.getElementById('modalSearchCollection').addEventListener('input', (e) => {
+        filterModalCollection(e.target.value);
     });
 }
 
@@ -270,6 +297,39 @@ async function handleLogout() {
     } catch (error) {
         console.error('Erreur de déconnexion:', error);
         alert('Erreur de déconnexion: ' + error.message);
+    }
+}
+
+async function handleSaveName() {
+    const newName = document.getElementById('userNameInput').value.trim();
+
+    if (!newName) {
+        alert('Le pseudo ne peut pas être vide');
+        return;
+    }
+
+    if (newName.length < 3) {
+        alert('Le pseudo doit contenir au moins 3 caractères');
+        return;
+    }
+
+    try {
+        // Mettre à jour dans Firebase Auth
+        await updateProfile(currentUser, {
+            displayName: newName
+        });
+
+        // Mettre à jour dans Firestore
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+            displayName: newName,
+            updatedAt: serverTimestamp()
+        });
+
+        alert('Pseudo modifié avec succès !');
+        updateUI();
+    } catch (error) {
+        console.error('Erreur de modification du pseudo:', error);
+        alert('Erreur lors de la modification du pseudo: ' + error.message);
     }
 }
 
@@ -748,7 +808,252 @@ function switchTab(tabName) {
     // Actions spécifiques
     if (tabName === 'collection') {
         displayCollection();
+    } else if (tabName === 'players') {
+        loadPlayers();
     }
+}
+
+// === GESTION DES JOUEURS ===
+
+async function loadPlayers() {
+    try {
+        const q = query(collection(db, 'users'), orderBy('stats.uniquePixels', 'desc'), limit(100));
+        const querySnapshot = await getDocs(q);
+
+        allPlayers = [];
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            allPlayers.push({
+                uid: doc.id,
+                displayName: data.displayName || 'Joueur',
+                stats: data.stats || { chestsOpened: 0, totalPixels: 0, uniquePixels: 0 },
+                collection: data.collection || {}
+            });
+        });
+
+        displayPlayers(allPlayers);
+    } catch (error) {
+        console.error('Erreur de chargement des joueurs:', error);
+        document.getElementById('playersList').innerHTML = '<p style="text-align: center; padding: 20px; opacity: 0.7;">Erreur de chargement des joueurs</p>';
+    }
+}
+
+function displayPlayers(players) {
+    const container = document.getElementById('playersList');
+    container.innerHTML = '';
+
+    if (players.length === 0) {
+        container.innerHTML = '<p style="text-align: center; padding: 20px; opacity: 0.7;">Aucun joueur trouvé</p>';
+        return;
+    }
+
+    players.forEach((player, index) => {
+        const playerCard = document.createElement('div');
+        playerCard.style.cssText = 'background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; cursor: pointer; transition: all 0.3s;';
+        playerCard.onmouseover = () => playerCard.style.background = 'rgba(255,255,255,0.2)';
+        playerCard.onmouseout = () => playerCard.style.background = 'rgba(255,255,255,0.1)';
+        playerCard.onclick = () => openPlayerProfile(player);
+
+        const isCurrentUser = player.uid === currentUser.uid;
+
+        playerCard.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1;">
+                    <div style="font-size: 1.2em; font-weight: bold; margin-bottom: 5px;">
+                        ${index + 1}. ${player.displayName} ${isCurrentUser ? '(Vous)' : ''}
+                    </div>
+                    <div style="display: flex; gap: 20px; opacity: 0.8; font-size: 0.9em;">
+                        <span>🎨 ${player.stats.uniquePixels} / 294 uniques</span>
+                        <span>📦 ${player.stats.totalPixels} totaux</span>
+                        <span>🎁 ${player.stats.chestsOpened} coffres</span>
+                    </div>
+                </div>
+                <div style="font-size: 1.5em; opacity: 0.5;">→</div>
+            </div>
+        `;
+
+        container.appendChild(playerCard);
+    });
+}
+
+function filterPlayers(searchTerm) {
+    if (!searchTerm) {
+        displayPlayers(allPlayers);
+        return;
+    }
+
+    const filtered = allPlayers.filter(player =>
+        player.displayName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    displayPlayers(filtered);
+}
+
+async function openPlayerProfile(player) {
+    currentModalPlayer = player;
+    currentModalAlbum = 'all';
+
+    // Mettre à jour les informations
+    document.getElementById('modalPlayerName').textContent = player.displayName;
+    document.getElementById('modalTotalPixels').textContent = player.stats.totalPixels;
+    document.getElementById('modalUniquePixels').textContent = `${player.stats.uniquePixels} / 294`;
+    document.getElementById('modalChestsOpened').textContent = player.stats.chestsOpened;
+
+    // Afficher la collection
+    displayModalCollection();
+
+    // Afficher la modal
+    document.getElementById('playerProfileModal').style.display = 'block';
+}
+
+function closePlayerProfile() {
+    document.getElementById('playerProfileModal').style.display = 'none';
+    currentModalPlayer = null;
+}
+
+function displayModalCollection() {
+    if (!currentModalPlayer) return;
+
+    const container = document.getElementById('modalCollectionGrid');
+    container.innerHTML = '';
+
+    // Désérialiser la collection
+    const playerCollection = {};
+    for (const [key, pixel] of Object.entries(currentModalPlayer.collection)) {
+        playerCollection[key] = {
+            ...pixel,
+            data: pixel.data && typeof pixel.data === 'string' ? JSON.parse(pixel.data) : pixel.data,
+            colors: pixel.colors && typeof pixel.colors === 'string' ? JSON.parse(pixel.colors) : pixel.colors
+        };
+    }
+
+    let pixels = Object.values(playerCollection);
+
+    // Filtrer par album
+    if (currentModalAlbum !== 'all') {
+        pixels = pixels.filter(p => p.size === currentModalAlbum);
+    }
+
+    // Trier par rareté
+    pixels.sort((a, b) => {
+        const rarityOrder = { 'Légendaire': 0, 'Épique': 1, 'Rare': 2, 'Commun': 3 };
+        return rarityOrder[a.rarity] - rarityOrder[b.rarity];
+    });
+
+    if (pixels.length === 0) {
+        container.innerHTML = '<p style="text-align: center; padding: 20px; opacity: 0.7; grid-column: 1 / -1;">Aucun pixel dans cet album</p>';
+        return;
+    }
+
+    pixels.forEach(pixel => {
+        const item = document.createElement('div');
+        item.className = 'pixel-item';
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'pixel-canvas';
+        PixelRenderer.drawPixel(canvas, pixel, 80);
+
+        const name = document.createElement('div');
+        name.className = 'pixel-name';
+        name.textContent = pixel.name;
+
+        const rarity = document.createElement('div');
+        rarity.className = 'pixel-rarity';
+        rarity.textContent = pixel.rarity;
+
+        const count = document.createElement('div');
+        count.className = 'pixel-count';
+        count.textContent = `×${pixel.count}`;
+
+        item.appendChild(canvas);
+        item.appendChild(name);
+        item.appendChild(rarity);
+        item.appendChild(count);
+        container.appendChild(item);
+    });
+}
+
+function filterModalCollection(searchTerm) {
+    if (!currentModalPlayer) return;
+
+    const container = document.getElementById('modalCollectionGrid');
+    container.innerHTML = '';
+
+    // Désérialiser la collection
+    const playerCollection = {};
+    for (const [key, pixel] of Object.entries(currentModalPlayer.collection)) {
+        playerCollection[key] = {
+            ...pixel,
+            data: pixel.data && typeof pixel.data === 'string' ? JSON.parse(pixel.data) : pixel.data,
+            colors: pixel.colors && typeof pixel.colors === 'string' ? JSON.parse(pixel.colors) : pixel.colors
+        };
+    }
+
+    let pixels = Object.values(playerCollection);
+
+    // Filtrer par album
+    if (currentModalAlbum !== 'all') {
+        pixels = pixels.filter(p => p.size === currentModalAlbum);
+    }
+
+    // Filtrer par recherche
+    if (searchTerm) {
+        pixels = pixels.filter(p =>
+            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.rarity.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }
+
+    // Trier par rareté
+    pixels.sort((a, b) => {
+        const rarityOrder = { 'Légendaire': 0, 'Épique': 1, 'Rare': 2, 'Commun': 3 };
+        return rarityOrder[a.rarity] - rarityOrder[b.rarity];
+    });
+
+    if (pixels.length === 0) {
+        container.innerHTML = '<p style="text-align: center; padding: 20px; opacity: 0.7; grid-column: 1 / -1;">Aucun pixel trouvé</p>';
+        return;
+    }
+
+    pixels.forEach(pixel => {
+        const item = document.createElement('div');
+        item.className = 'pixel-item';
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'pixel-canvas';
+        PixelRenderer.drawPixel(canvas, pixel, 80);
+
+        const name = document.createElement('div');
+        name.className = 'pixel-name';
+        name.textContent = pixel.name;
+
+        const rarity = document.createElement('div');
+        rarity.className = 'pixel-rarity';
+        rarity.textContent = pixel.rarity;
+
+        const count = document.createElement('div');
+        count.className = 'pixel-count';
+        count.textContent = `×${pixel.count}`;
+
+        item.appendChild(canvas);
+        item.appendChild(name);
+        item.appendChild(rarity);
+        item.appendChild(count);
+        container.appendChild(item);
+    });
+}
+
+window.switchModalAlbum = function(album) {
+    currentModalAlbum = album;
+
+    // Mettre à jour les tabs
+    document.querySelectorAll('#playerProfileModal .album-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.album === album) {
+            tab.classList.add('active');
+        }
+    });
+
+    displayModalCollection();
 }
 
 // === MISE À JOUR DE L'UI ===
@@ -756,7 +1061,7 @@ function switchTab(tabName) {
 function updateUI() {
     // Stats utilisateur
     const displayName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Joueur';
-    document.getElementById('userName').textContent = displayName;
+    document.getElementById('userNameInput').value = displayName;
     document.getElementById('totalPixels').textContent = userStats.totalPixels;
     document.getElementById('uniquePixels').textContent = `${userStats.uniquePixels} / 294`;
     document.getElementById('chestsOpened').textContent = userStats.chestsOpened;

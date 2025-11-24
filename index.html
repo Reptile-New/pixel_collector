@@ -474,9 +474,12 @@
             <div class="panel">
                 <div class="panel-title">👤 Profil</div>
                 <div class="user-stats">
-                    <div class="stat-item">
+                    <div class="stat-item" style="flex-direction: column; align-items: stretch; gap: 5px;">
                         <span class="stat-label">Pseudo</span>
-                        <span class="stat-value" id="userName">Joueur</span>
+                        <div style="display: flex; gap: 5px; align-items: center;">
+                            <input type="text" id="userNameInput" class="login-input" style="flex: 1; margin: 0; padding: 8px;" value="Joueur">
+                            <button id="saveNameButton" class="open-button" style="padding: 8px 12px; margin: 0; min-width: auto;">✓</button>
+                        </div>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Pixels totaux</span>
@@ -504,6 +507,7 @@
                 <div class="tabs">
                     <div class="tab active" data-tab="chest">📦 Coffres</div>
                     <div class="tab" data-tab="collection">🎨 Collection</div>
+                    <div class="tab" data-tab="players">👥 Joueurs</div>
                     <div class="tab" data-tab="market">🏪 Marché</div>
                 </div>
 
@@ -561,6 +565,16 @@
                     </div>
                 </div>
 
+                <!-- Contenu : Joueurs -->
+                <div class="tab-content" id="playersTab">
+                    <div style="padding: 20px;">
+                        <input type="text" id="searchPlayers" class="login-input" placeholder="🔍 Rechercher un joueur..." style="margin-bottom: 15px;">
+                        <div id="playersList" style="display: flex; flex-direction: column; gap: 10px; max-height: 500px; overflow-y: auto;">
+                            <!-- Liste des joueurs -->
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Contenu : Marché -->
                 <div class="tab-content" id="marketTab">
                     <p style="text-align: center; padding: 50px; opacity: 0.7;">
@@ -575,6 +589,49 @@
                 <div class="panel-title">✨ Dernières trouvailles</div>
                 <div class="collection-preview" id="recentPixels">
                     <!-- Les derniers pixels obtenus seront affichés ici -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal profil joueur -->
+    <div id="playerProfileModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto;">
+        <div style="max-width: 900px; margin: 50px auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; padding: 30px; position: relative;">
+            <button id="closeProfileModal" style="position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;">×</button>
+
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h2 style="color: white; margin: 0 0 10px 0; font-size: 2em;" id="modalPlayerName">Joueur</h2>
+                <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; margin-top: 20px;">
+                    <div style="text-align: center;">
+                        <div style="color: rgba(255,255,255,0.8); font-size: 0.9em;">Pixels totaux</div>
+                        <div style="color: white; font-size: 1.8em; font-weight: bold;" id="modalTotalPixels">0</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="color: rgba(255,255,255,0.8); font-size: 0.9em;">Pixels uniques</div>
+                        <div style="color: white; font-size: 1.8em; font-weight: bold;" id="modalUniquePixels">0 / 294</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="color: rgba(255,255,255,0.8); font-size: 0.9em;">Coffres ouverts</div>
+                        <div style="color: white; font-size: 1.8em; font-weight: bold;" id="modalChestsOpened">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.1); border-radius: 10px; padding: 20px;">
+                <h3 style="color: white; margin-top: 0;">🎨 Collection</h3>
+                <div style="margin-bottom: 15px;">
+                    <input type="text" id="modalSearchCollection" class="login-input" placeholder="🔍 Rechercher dans la collection...">
+                </div>
+                <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="album-tab active" data-album="all" onclick="switchModalAlbum('all')">Tous</button>
+                    <button class="album-tab" data-album="1x1" onclick="switchModalAlbum('1x1')">1×1</button>
+                    <button class="album-tab" data-album="2x2" onclick="switchModalAlbum('2x2')">2×2</button>
+                    <button class="album-tab" data-album="3x3" onclick="switchModalAlbum('3x3')">3×3</button>
+                    <button class="album-tab" data-album="4x4" onclick="switchModalAlbum('4x4')">4×4</button>
+                    <button class="album-tab" data-album="5x5" onclick="switchModalAlbum('5x5')">5×5</button>
+                </div>
+                <div id="modalCollectionGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 15px; max-height: 400px; overflow-y: auto;">
+                    <!-- Collection du joueur -->
                 </div>
             </div>
         </div>
