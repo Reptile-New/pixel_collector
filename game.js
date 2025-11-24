@@ -1710,13 +1710,14 @@ function removeUndefined(obj) {
 
 // Nettoyer les données d'un pixel pour Firestore (enlever les undefined)
 function cleanPixelForFirestore(pixel) {
-    const cleaned = {
-        id: pixel.id,
-        name: pixel.name,
-        type: pixel.type,
-        rarity: pixel.rarity,
-        size: pixel.size
-    };
+    const cleaned = {};
+
+    // Ajouter seulement les champs définis
+    if (pixel.id !== undefined) cleaned.id = pixel.id;
+    if (pixel.name !== undefined) cleaned.name = pixel.name;
+    if (pixel.type !== undefined) cleaned.type = pixel.type;
+    if (pixel.rarity !== undefined) cleaned.rarity = pixel.rarity;
+    if (pixel.size !== undefined) cleaned.size = pixel.size;
 
     // Ajouter data seulement si défini et non vide
     if (pixel.data) {
