@@ -1877,27 +1877,53 @@ async function loadTradeHistory() {
     container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Chargement...</p>';
 
     try {
-        const q = query(
+        // Récupérer les échanges où je suis l'émetteur (fromUserId)
+        const qFrom = query(
             collection(db, 'trades'),
+            where('fromUserId', '==', currentUser.uid),
             where('status', 'in', ['accepted', 'refused']),
             orderBy('createdAt', 'desc'),
-            limit(50)
+            limit(25)
         );
 
-        const querySnapshot = await getDocs(q);
+        // Récupérer les échanges où je suis le destinataire (toUserId)
+        const qTo = query(
+            collection(db, 'trades'),
+            where('toUserId', '==', currentUser.uid),
+            where('status', 'in', ['accepted', 'refused']),
+            orderBy('createdAt', 'desc'),
+            limit(25)
+        );
 
-        if (querySnapshot.empty) {
+        const [fromSnapshot, toSnapshot] = await Promise.all([
+            getDocs(qFrom),
+            getDocs(qTo)
+        ]);
+
+        // Combiner les résultats
+        const allTrades = [];
+        fromSnapshot.forEach(docSnap => {
+            allTrades.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        toSnapshot.forEach(docSnap => {
+            allTrades.push({ id: docSnap.id, ...docSnap.data() });
+        });
+
+        // Trier par date décroissante
+        allTrades.sort((a, b) => {
+            const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+            const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+            return timeB - timeA;
+        });
+
+        if (allTrades.length === 0) {
             container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Aucun historique</p>';
             return;
         }
 
         container.innerHTML = '';
-        querySnapshot.forEach(docSnap => {
-            const trade = { id: docSnap.id, ...docSnap.data() };
-            // Afficher seulement les échanges où je suis impliqué
-            if (trade.fromUserId === currentUser.uid || trade.toUserId === currentUser.uid) {
-                container.appendChild(createTradeCard(trade, 'history'));
-            }
+        allTrades.forEach(trade => {
+            container.appendChild(createTradeCard(trade, 'history'));
         });
     } catch (error) {
         console.error('Erreur de chargement de l\'historique:', error);
