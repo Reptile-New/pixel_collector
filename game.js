@@ -1881,7 +1881,7 @@ async function loadTradeHistory() {
         const qFrom = query(
             collection(db, 'trades'),
             where('fromUserId', '==', currentUser.uid),
-            where('status', 'in', ['accepted', 'refused']),
+            where('status', 'in', ['accepted', 'refused', 'cancelled']),
             orderBy('createdAt', 'desc'),
             limit(25)
         );
@@ -1890,7 +1890,7 @@ async function loadTradeHistory() {
         const qTo = query(
             collection(db, 'trades'),
             where('toUserId', '==', currentUser.uid),
-            where('status', 'in', ['accepted', 'refused']),
+            where('status', 'in', ['accepted', 'refused', 'cancelled']),
             orderBy('createdAt', 'desc'),
             limit(25)
         );
@@ -1942,6 +1942,8 @@ function createTradeCard(trade, type) {
         statusBadge = '<span style="background: #4caf50; padding: 5px 10px; border-radius: 12px; font-size: 0.85em;">✅ Accepté</span>';
     } else if (trade.status === 'refused') {
         statusBadge = '<span style="background: #f44336; padding: 5px 10px; border-radius: 12px; font-size: 0.85em;">❌ Refusé</span>';
+    } else if (trade.status === 'cancelled') {
+        statusBadge = '<span style="background: #9e9e9e; padding: 5px 10px; border-radius: 12px; font-size: 0.85em;">🗑️ Annulé</span>';
     }
 
     let actions = '';
@@ -2075,7 +2077,10 @@ window.cancelTrade = async function(tradeId) {
     if (!confirm('Annuler cette proposition ?')) return;
 
     try {
-        await deleteDoc(doc(db, 'trades', tradeId));
+        await updateDoc(doc(db, 'trades', tradeId), {
+            status: 'cancelled',
+            cancelledAt: serverTimestamp()
+        });
         alert('Proposition annulée');
         await loadPendingTrades();
     } catch (error) {
