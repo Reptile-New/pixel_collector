@@ -1682,6 +1682,32 @@ function checkTradeReady() {
     btn.disabled = !(selectedMyPixel && selectedTheirPixel && selectedTradePlayer);
 }
 
+// Supprimer récursivement tous les undefined d'un objet
+function removeUndefined(obj) {
+    if (obj === null || obj === undefined) {
+        return null;
+    }
+
+    if (Array.isArray(obj)) {
+        return obj.map(item => removeUndefined(item)).filter(item => item !== null && item !== undefined);
+    }
+
+    if (typeof obj === 'object') {
+        const cleaned = {};
+        for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined && value !== null) {
+                const cleanedValue = removeUndefined(value);
+                if (cleanedValue !== null && cleanedValue !== undefined) {
+                    cleaned[key] = cleanedValue;
+                }
+            }
+        }
+        return cleaned;
+    }
+
+    return obj;
+}
+
 // Nettoyer les données d'un pixel pour Firestore (enlever les undefined)
 function cleanPixelForFirestore(pixel) {
     const cleaned = {
@@ -1692,14 +1718,20 @@ function cleanPixelForFirestore(pixel) {
         size: pixel.size
     };
 
-    // Ajouter data seulement si défini
+    // Ajouter data seulement si défini et non vide
     if (pixel.data) {
-        cleaned.data = typeof pixel.data === 'string' ? pixel.data : JSON.stringify(pixel.data);
+        const dataString = typeof pixel.data === 'string' ? pixel.data : JSON.stringify(removeUndefined(pixel.data));
+        if (dataString && dataString !== '{}' && dataString !== '[]') {
+            cleaned.data = dataString;
+        }
     }
 
-    // Ajouter colors seulement si défini
+    // Ajouter colors seulement si défini et non vide
     if (pixel.colors) {
-        cleaned.colors = typeof pixel.colors === 'string' ? pixel.colors : JSON.stringify(pixel.colors);
+        const colorsString = typeof pixel.colors === 'string' ? pixel.colors : JSON.stringify(removeUndefined(pixel.colors));
+        if (colorsString && colorsString !== '{}' && colorsString !== '[]') {
+            cleaned.colors = colorsString;
+        }
     }
 
     return cleaned;
