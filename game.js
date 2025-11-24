@@ -1682,6 +1682,29 @@ function checkTradeReady() {
     btn.disabled = !(selectedMyPixel && selectedTheirPixel && selectedTradePlayer);
 }
 
+// Nettoyer les données d'un pixel pour Firestore (enlever les undefined)
+function cleanPixelForFirestore(pixel) {
+    const cleaned = {
+        id: pixel.id,
+        name: pixel.name,
+        type: pixel.type,
+        rarity: pixel.rarity,
+        size: pixel.size
+    };
+
+    // Ajouter data seulement si défini
+    if (pixel.data) {
+        cleaned.data = typeof pixel.data === 'string' ? pixel.data : JSON.stringify(pixel.data);
+    }
+
+    // Ajouter colors seulement si défini
+    if (pixel.colors) {
+        cleaned.colors = typeof pixel.colors === 'string' ? pixel.colors : JSON.stringify(pixel.colors);
+    }
+
+    return cleaned;
+}
+
 async function handleSendTrade() {
     if (!selectedMyPixel || !selectedTheirPixel || !selectedTradePlayer) {
         alert('Sélectionne les deux pixels à échanger');
@@ -1700,10 +1723,10 @@ async function handleSendTrade() {
             toUserName: selectedTradePlayer.displayName,
             fromPixelId: selectedMyPixel.id,
             fromPixelName: selectedMyPixel.name,
-            fromPixelData: selectedMyPixel,
+            fromPixelData: cleanPixelForFirestore(selectedMyPixel),
             toPixelId: selectedTheirPixel.id,
             toPixelName: selectedTheirPixel.name,
-            toPixelData: selectedTheirPixel,
+            toPixelData: cleanPixelForFirestore(selectedTheirPixel),
             status: 'pending',
             createdAt: serverTimestamp()
         });
