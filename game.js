@@ -352,12 +352,22 @@ async function saveUserData() {
         // Sérialiser la collection pour éviter les tableaux imbriqués
         const serializedCollection = {};
         for (const [key, pixel] of Object.entries(userCollection)) {
-            serializedCollection[key] = {
-                ...pixel,
-                // Convertir les tableaux de tableaux en JSON strings pour Firestore
-                data: pixel.data ? JSON.stringify(pixel.data) : undefined,
-                colors: pixel.colors ? JSON.stringify(pixel.colors) : undefined
-            };
+            const serializedPixel = { ...pixel };
+
+            // Convertir les tableaux de tableaux en JSON strings pour Firestore
+            if (pixel.data) {
+                serializedPixel.data = JSON.stringify(pixel.data);
+            } else {
+                delete serializedPixel.data; // Supprimer au lieu de mettre undefined
+            }
+
+            if (pixel.colors) {
+                serializedPixel.colors = JSON.stringify(pixel.colors);
+            } else {
+                delete serializedPixel.colors; // Supprimer au lieu de mettre undefined
+            }
+
+            serializedCollection[key] = serializedPixel;
         }
 
         const data = {
