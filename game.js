@@ -23,7 +23,8 @@ let userCollection = {};
 let userStats = {
     chestsOpened: 0,
     totalPixels: 0,
-    uniquePixels: 0
+    uniquePixels: 0,
+    lastChestTime: 0
 };
 let currentAlbum = 'all'; // Album actuellement affiché
 
@@ -321,6 +322,8 @@ async function loadUserData() {
                 totalPixels: 0,
                 uniquePixels: 0
             };
+            // Charger le lastChestTime pour la limite quotidienne
+            userStats.lastChestTime = data.lastChestTime || 0;
         } else {
             // Premier accès, initialiser les données
             await initializeUserData(currentUser.uid);
@@ -350,14 +353,10 @@ async function saveUserData() {
 // === SYSTÈME DE COFFRES ===
 
 function canOpenChest() {
-    // MODE DEV : Toujours autoriser l'ouverture de coffres
-    return true;
-
-    // Production (à réactiver plus tard) :
-    // const lastTime = userStats.lastChestTime || 0;
-    // const now = Date.now();
-    // const hoursSince = (now - lastTime) / (1000 * 60 * 60);
-    // return hoursSince >= 24;
+    const lastTime = userStats.lastChestTime || 0;
+    const now = Date.now();
+    const hoursSince = (now - lastTime) / (1000 * 60 * 60);
+    return hoursSince >= 24;
 }
 
 async function openChest() {
