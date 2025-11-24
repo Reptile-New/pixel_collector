@@ -1590,7 +1590,7 @@ function displayMyPixelsForTrade() {
     myPixels.forEach(pixel => {
         const item = document.createElement('div');
         item.style.cssText = 'cursor: pointer; padding: 5px; border-radius: 5px; transition: all 0.3s; background: rgba(255,255,255,0.1);';
-        item.onclick = () => selectMyPixel(pixel);
+        item.onclick = () => selectMyPixel(pixel, item);
 
         const canvas = document.createElement('canvas');
         canvas.width = 80;
@@ -1634,7 +1634,7 @@ function displayTheirPixelsForTrade() {
     theirPixels.forEach(pixel => {
         const item = document.createElement('div');
         item.style.cssText = 'cursor: pointer; padding: 5px; border-radius: 5px; transition: all 0.3s; background: rgba(255,255,255,0.1);';
-        item.onclick = () => selectTheirPixel(pixel);
+        item.onclick = () => selectTheirPixel(pixel, item);
 
         const canvas = document.createElement('canvas');
         canvas.width = 80;
