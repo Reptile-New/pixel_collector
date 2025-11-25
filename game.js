@@ -1422,11 +1422,16 @@ async function handleSendTrade() {
         return;
     }
 
-    if (!confirm(`Proposer d'échanger ton ${selectedMyPixel.name} contre le ${selectedTheirPixel.name} de ${selectedTradePlayer.displayName} ?`)) {
+    if (!confirm(`Proposer d'échanger ton ${selectedMyPixel.name} contre le ${selectedTheirPixel.name} de ${selectedTradePlayer.displayName} ?\n\nTon pixel sera retiré de ta collection jusqu'à ce que l'échange soit accepté ou annulé.`)) {
         return;
     }
 
     try {
+        // 1. Retirer le pixel de MA collection
+        delete userCollection[selectedMyPixel.id];
+        await saveUserData();
+
+        // 2. Créer la proposition d'échange avec les pixels
         await addDoc(collection(db, 'trades'), {
             fromUserId: currentUser.uid,
             fromUserName: currentUser.displayName || 'Joueur',
@@ -1439,15 +1444,19 @@ async function handleSendTrade() {
             toPixelName: selectedTheirPixel.name,
             toPixelData: cleanPixelForFirestore(selectedTheirPixel),
             status: 'pending',
+            fromClaimed: false, // Moi (émetteur) n'ai pas encore récupéré le pixel
+            toClaimed: false,   // Destinataire n'a pas encore récupéré le pixel
             createdAt: serverTimestamp()
         });
 
-        alert('Proposition d\'échange envoyée !');
+        alert('Proposition d\'échange envoyée ! Ton pixel a été retiré de ta collection.');
 
-        // Reset
+        // Reset et recharger
         selectedMyPixel = null;
         selectedTheirPixel = null;
         document.getElementById('selectPlayer').value = '';
+        await loadUserData();
+        displayCollection();
         handlePlayerSelect({ target: document.getElementById('selectPlayer') });
     } catch (error) {
         console.error('Erreur d\'envoi de la proposition:', error);
@@ -1635,6 +1644,16 @@ function createTradeCard(trade, type) {
         `;
     } else if (type === 'sent' && trade.status === 'pending') {
         actions = `<button onclick="cancelTrade('${trade.id}')" class="open-button" style="width: 100%; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); margin-top: 10px;">🗑️ Annuler</button>`;
+    } else if (type === 'history') {
+        // Dans l'historique, afficher le bouton Récupérer si applicable
+        const amISender = trade.fromUserId === currentUser.uid;
+        const alreadyClaimed = amISender ? trade.fromClaimed : trade.toClaimed;
+
+        if (!alreadyClaimed && (trade.status === 'accepted' || trade.status === 'cancelled' || (trade.status === 'refused' && amISender))) {
+            actions = `<button onclick="claimTrade('${trade.id}')" class="open-button" style="width: 100%; background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%); margin-top: 10px;">🎁 Récupérer le pixel</button>`;
+        } else if (alreadyClaimed) {
+            actions = `<div style="text-align: center; padding: 10px; margin-top: 10px; opacity: 0.7; font-size: 0.9em;">✅ Pixel récupéré</div>`;
+        }
     }
 
     card.innerHTML = `
@@ -1663,7 +1682,7 @@ function createTradeCard(trade, type) {
 }
 
 window.acceptTrade = async function(tradeId) {
-    if (!confirm('Accepter cet échange ?')) return;
+    if (!confirm('Accepter cet échange ?\n\nTon pixel sera retiré de ta collection et tu pourras récupérer le pixel proposé.')) return;
 
     try {
         const tradeDoc = await getDoc(doc(db, 'trades', tradeId));
@@ -1674,61 +1693,29 @@ window.acceptTrade = async function(tradeId) {
 
         const trade = tradeDoc.data();
 
-        // Vérifier que les deux joueurs ont toujours les pixels
-        const fromUserDoc = await getDoc(doc(db, 'users', trade.fromUserId));
-        const toUserDoc = await getDoc(doc(db, 'users', trade.toUserId));
-
-        if (!fromUserDoc.exists() || !toUserDoc.exists()) {
-            alert('Un des utilisateurs n\'existe plus');
+        // Vérifier que JE possède toujours le pixel demandé
+        if (!userCollection[trade.toPixelId]) {
+            alert('Tu n\'as plus ce pixel !');
             return;
         }
 
-        const fromUserData = fromUserDoc.data();
-        const toUserData = toUserDoc.data();
+        // 1. Retirer MON pixel de ma collection
+        delete userCollection[trade.toPixelId];
+        await saveUserData();
 
-        if (!fromUserData.collection[trade.fromPixelId]) {
-            alert(`${trade.fromUserName} n'a plus ce pixel`);
-            return;
-        }
-
-        if (!toUserData.collection[trade.toPixelId]) {
-            alert('Tu n\'as plus ce pixel');
-            return;
-        }
-
-        // Effectuer l'échange
-        const fromPixel = fromUserData.collection[trade.fromPixelId];
-        const toPixel = toUserData.collection[trade.toPixelId];
-
-        // Mettre à jour les collections
-        delete fromUserData.collection[trade.fromPixelId];
-        fromUserData.collection[trade.toPixelId] = toPixel;
-
-        delete toUserData.collection[trade.toPixelId];
-        toUserData.collection[trade.fromPixelId] = fromPixel;
-
-        // Sauvegarder dans Firestore
-        await updateDoc(doc(db, 'users', trade.fromUserId), {
-            collection: fromUserData.collection,
-            updatedAt: serverTimestamp()
-        });
-
-        await updateDoc(doc(db, 'users', trade.toUserId), {
-            collection: toUserData.collection,
-            updatedAt: serverTimestamp()
-        });
-
-        // Marquer l'échange comme accepté
+        // 2. Marquer l'échange comme accepté
         await updateDoc(doc(db, 'trades', tradeId), {
             status: 'accepted',
             acceptedAt: serverTimestamp()
         });
 
-        alert('Échange effectué avec succès !');
+        alert('Échange accepté ! Ton pixel a été retiré. Va dans l\'historique pour récupérer ton nouveau pixel.');
 
         // Recharger les données
         await loadUserData();
+        displayCollection();
         await loadPendingTrades();
+        await loadTradeHistory();
     } catch (error) {
         console.error('Erreur lors de l\'acceptation:', error);
         alert('Erreur: ' + error.message);
@@ -1736,16 +1723,18 @@ window.acceptTrade = async function(tradeId) {
 }
 
 window.refuseTrade = async function(tradeId) {
-    if (!confirm('Refuser cet échange ?')) return;
+    if (!confirm('Refuser cet échange ?\n\nLe pixel de l\'autre joueur lui sera rendu.')) return;
 
     try {
+        // Marquer comme refusé (le pixel de fromUser sera rendu via claimTrade)
         await updateDoc(doc(db, 'trades', tradeId), {
             status: 'refused',
             refusedAt: serverTimestamp()
         });
 
-        alert('Échange refusé');
+        alert('Échange refusé. Le pixel sera rendu à son propriétaire.');
         await loadPendingTrades();
+        await loadTradeHistory();
     } catch (error) {
         console.error('Erreur lors du refus:', error);
         alert('Erreur: ' + error.message);
@@ -1753,17 +1742,99 @@ window.refuseTrade = async function(tradeId) {
 }
 
 window.cancelTrade = async function(tradeId) {
-    if (!confirm('Annuler cette proposition ?')) return;
+    if (!confirm('Annuler cette proposition ?\n\nTon pixel te sera rendu.')) return;
 
     try {
+        // Marquer comme annulé (le pixel sera rendu via claimTrade)
         await updateDoc(doc(db, 'trades', tradeId), {
             status: 'cancelled',
             cancelledAt: serverTimestamp()
         });
-        alert('Proposition annulée');
+        alert('Proposition annulée. Récupère ton pixel dans l\'historique.');
         await loadPendingTrades();
+        await loadTradeHistory();
     } catch (error) {
         console.error('Erreur lors de l\'annulation:', error);
+        alert('Erreur: ' + error.message);
+    }
+}
+
+window.claimTrade = async function(tradeId) {
+    try {
+        const tradeDoc = await getDoc(doc(db, 'trades', tradeId));
+        if (!tradeDoc.exists()) {
+            alert('Échange introuvable');
+            return;
+        }
+
+        const trade = tradeDoc.data();
+        const amISender = trade.fromUserId === currentUser.uid;
+        const amIReceiver = trade.toUserId === currentUser.uid;
+
+        if (!amISender && !amIReceiver) {
+            alert('Cet échange ne te concerne pas');
+            return;
+        }
+
+        // Déterminer quel pixel je récupère
+        let pixelToReceive = null;
+        let claimField = null;
+
+        if (trade.status === 'accepted') {
+            // Échange accepté : chacun récupère le pixel de l'autre
+            if (amISender) {
+                pixelToReceive = trade.toPixelData; // Je récupère le pixel du destinataire
+                claimField = 'fromClaimed';
+            } else {
+                pixelToReceive = trade.fromPixelData; // Je récupère le pixel de l'émetteur
+                claimField = 'toClaimed';
+            }
+        } else if (trade.status === 'refused' || trade.status === 'cancelled') {
+            // Échange refusé/annulé : chacun récupère son propre pixel
+            if (amISender) {
+                pixelToReceive = trade.fromPixelData; // Je récupère MON pixel
+                claimField = 'fromClaimed';
+            } else if (trade.status === 'refused') {
+                // Le destinataire ne peut rien récupérer si refusé (il n'avait rien donné)
+                alert('Tu n\'as rien à récupérer de cet échange refusé.');
+                return;
+            }
+        } else {
+            alert('Cet échange n\'est pas terminé');
+            return;
+        }
+
+        // Vérifier si déjà récupéré
+        if (trade[claimField]) {
+            alert('Tu as déjà récupéré ton pixel !');
+            return;
+        }
+
+        // Désérialiser le pixel
+        const pixel = {
+            ...pixelToReceive,
+            data: pixelToReceive.data && typeof pixelToReceive.data === 'string' ? JSON.parse(pixelToReceive.data) : pixelToReceive.data,
+            colors: pixelToReceive.colors && typeof pixelToReceive.colors === 'string' ? JSON.parse(pixelToReceive.colors) : pixelToReceive.colors
+        };
+
+        // Ajouter le pixel à ma collection
+        userCollection[pixel.id] = pixel;
+        await saveUserData();
+
+        // Marquer comme récupéré
+        await updateDoc(doc(db, 'trades', tradeId), {
+            [claimField]: true,
+            [`${claimField}At`]: serverTimestamp()
+        });
+
+        alert(`Pixel "${pixel.name}" récupéré avec succès !`);
+
+        // Recharger
+        await loadUserData();
+        displayCollection();
+        await loadTradeHistory();
+    } catch (error) {
+        console.error('Erreur lors de la récupération:', error);
         alert('Erreur: ' + error.message);
     }
 }
