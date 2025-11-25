@@ -1397,15 +1397,17 @@ function cleanPixelForFirestore(pixel) {
     if (pixel.rarity !== undefined) cleaned.rarity = pixel.rarity;
     if (pixel.size !== undefined) cleaned.size = pixel.size;
 
-    // Ajouter data - TOUJOURS, car c'est obligatoire pour le rendu
-    if (pixel.data !== undefined && pixel.data !== null) {
-        cleaned.data = typeof pixel.data === 'string' ? pixel.data : JSON.stringify(removeUndefined(pixel.data));
-    } else {
-        console.warn('Pixel sans data:', pixel);
-        cleaned.data = ''; // Valeur par défaut pour éviter undefined
+    // Ajouter pattern (pour les pixels 2x2 et 1x1)
+    if (pixel.pattern !== undefined) {
+        cleaned.pattern = pixel.pattern;
     }
 
-    // Ajouter colors si défini
+    // Ajouter data (pour les pixel arts 8x8)
+    if (pixel.data !== undefined && pixel.data !== null) {
+        cleaned.data = typeof pixel.data === 'string' ? pixel.data : JSON.stringify(removeUndefined(pixel.data));
+    }
+
+    // Ajouter colors (pour les pixel arts 8x8)
     if (pixel.colors !== undefined && pixel.colors !== null) {
         cleaned.colors = typeof pixel.colors === 'string' ? pixel.colors : JSON.stringify(removeUndefined(pixel.colors));
     }
