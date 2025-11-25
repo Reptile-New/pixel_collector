@@ -36,6 +36,14 @@ const PixelRenderer = {
         // [1 2]
         // [3 4]
 
+        // Vérification de sécurité
+        if (!pattern || pattern.length < 4) {
+            console.error('Pattern invalide pour pixel 2x2:', pattern);
+            ctx.fillStyle = '#ff0000'; // Rouge pour signaler l'erreur
+            ctx.fillRect(0, 0, pixelSize * 2, pixelSize * 2);
+            return;
+        }
+
         // Haut-gauche
         ctx.fillStyle = this.colors[parseInt(pattern[0]) - 1];
         ctx.fillRect(0, 0, pixelSize, pixelSize);
@@ -65,6 +73,14 @@ const PixelRenderer = {
         canvas.height = pixelSize * 8;
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = false;
+
+        // Vérification de sécurité
+        if (!pattern || !Array.isArray(pattern) || pattern.length !== 8) {
+            console.error('Pattern invalide pour pixel art 8x8:', pattern);
+            ctx.fillStyle = '#ff0000'; // Rouge pour signaler l'erreur
+            ctx.fillRect(0, 0, pixelSize * 8, pixelSize * 8);
+            return;
+        }
 
         for (let y = 0; y < 8; y++) {
             for (let x = 0; x < 8; x++) {
