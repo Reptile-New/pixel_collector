@@ -114,6 +114,9 @@ function setupEventListeners() {
         }
     });
 
+    // Bouton nettoyer pixels corrompus
+    document.getElementById('cleanCorruptedPixels').addEventListener('click', cleanCorruptedPixels);
+
     // Recherche dans la modal
     document.getElementById('modalSearchCollection').addEventListener('input', (e) => {
         filterModalCollection(e.target.value);
@@ -394,6 +397,72 @@ async function handleDeleteAccount() {
         } else {
             alert('Erreur lors de la suppression du compte: ' + error.message);
         }
+    }
+}
+
+async function cleanCorruptedPixels() {
+    if (!confirm('Nettoyer les pixels corrompus ?\n\nCette action va supprimer tous les pixels qui ont des données manquantes ou invalides (pixels noirs ou rouges).\n\nVoulez-vous continuer ?')) {
+        return;
+    }
+
+    try {
+        let cleanedCount = 0;
+        const pixelsToRemove = [];
+
+        // Parcourir tous les pixels et identifier les corrompus
+        for (const [pixelId, pixel] of Object.entries(userCollection)) {
+            let isCorrupted = false;
+
+            // Vérifier selon le type
+            if (pixel.type === '1x1') {
+                // Les pixels 1x1 doivent avoir un pattern
+                if (!pixel.pattern) {
+                    isCorrupted = true;
+                }
+            } else if (pixel.type === '2x2') {
+                // Les pixels 2x2 doivent avoir un pattern de 4 caractères
+                if (!pixel.pattern || pixel.pattern.length !== 4) {
+                    isCorrupted = true;
+                }
+            } else if (pixel.type === 'art') {
+                // Les pixel arts doivent avoir data (grille 8x8) et colors
+                if (!pixel.data || !Array.isArray(pixel.data) || pixel.data.length !== 8 || !pixel.colors) {
+                    isCorrupted = true;
+                }
+            }
+
+            if (isCorrupted) {
+                pixelsToRemove.push(pixelId);
+                cleanedCount++;
+            }
+        }
+
+        if (cleanedCount === 0) {
+            alert('Aucun pixel corrompu trouvé ! 🎉');
+            return;
+        }
+
+        // Confirmation avec le nombre de pixels à supprimer
+        if (!confirm(`${cleanedCount} pixel(s) corrompu(s) trouvé(s).\n\nConfirmer la suppression ?`)) {
+            return;
+        }
+
+        // Supprimer les pixels corrompus
+        for (const pixelId of pixelsToRemove) {
+            delete userCollection[pixelId];
+        }
+
+        // Sauvegarder
+        await saveUserData();
+
+        alert(`${cleanedCount} pixel(s) corrompu(s) supprimé(s) avec succès ! ✨`);
+
+        // Recharger l'affichage
+        await loadUserData();
+        displayCollection();
+    } catch (error) {
+        console.error('Erreur lors du nettoyage:', error);
+        alert('Erreur: ' + error.message);
     }
 }
 
