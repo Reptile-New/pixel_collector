@@ -319,6 +319,12 @@ async function handleGoogleSignIn() {
 
 async function handleLogout() {
     try {
+        // Arrêter tous les listeners Firestore AVANT la déconnexion
+        if (tradesUnsubscribe) {
+            tradesUnsubscribe();
+            tradesUnsubscribe = null;
+        }
+
         await signOut(auth);
         // onAuthStateChanged gérera la suite
     } catch (error) {
@@ -1885,8 +1891,8 @@ window.claimTrade = async function(tradeId) {
             colors: pixelToReceive.colors && typeof pixelToReceive.colors === 'string' ? JSON.parse(pixelToReceive.colors) : pixelToReceive.colors
         };
 
-        // Ajouter le pixel à ma collection
-        userCollection[pixel.id] = pixel;
+        // Ajouter le pixel à ma collection avec initialisation correcte du count
+        addPixelToCollection(pixel);
         await saveUserData();
 
         // Marquer comme récupéré
