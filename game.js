@@ -1618,7 +1618,7 @@ function displayTheirPixelsForTrade() {
 
     // Désérialiser la collection
     const theirPixels = [];
-    for (const [key, pixel] of Object.entries(selectedTradePlayer.collection)) {
+    for (const pixel of Object.values(selectedTradePlayer.collection)) {
         theirPixels.push({
             ...pixel,
             data: pixel.data && typeof pixel.data === 'string' ? JSON.parse(pixel.data) : pixel.data,
@@ -1864,8 +1864,9 @@ async function loadPendingTrades() {
             container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Aucun échange en attente</p>';
         }
 
-        // Mettre à jour le compteur
-        document.getElementById('pendingTradesCount').textContent = receivedSnap.size;
+        // Mettre à jour le compteur (total des échanges reçus + envoyés)
+        const totalPending = receivedSnap.size + sentSnap.size;
+        document.getElementById('pendingTradesCount').textContent = totalPending;
     } catch (error) {
         console.error('Erreur de chargement des échanges:', error);
         container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Erreur de chargement</p>';
@@ -2095,16 +2096,32 @@ function subscribeToTrades() {
         tradesUnsubscribe();
     }
 
-    // S'abonner aux échanges en temps réel
-    const q = query(
+    // S'abonner aux échanges reçus en temps réel
+    const qReceived = query(
         collection(db, 'trades'),
         where('toUserId', '==', currentUser.uid),
         where('status', '==', 'pending')
     );
 
-    tradesUnsubscribe = onSnapshot(q, (snapshot) => {
-        const count = snapshot.size;
-        document.getElementById('pendingTradesCount').textContent = count;
+    // S'abonner aux échanges envoyés en temps réel
+    const qSent = query(
+        collection(db, 'trades'),
+        where('fromUserId', '==', currentUser.uid),
+        where('status', '==', 'pending')
+    );
+
+    let receivedCount = 0;
+    let sentCount = 0;
+
+    const updateCounter = () => {
+        const total = receivedCount + sentCount;
+        document.getElementById('pendingTradesCount').textContent = total;
+    };
+
+    // Écouter les échanges reçus
+    const unsubReceived = onSnapshot(qReceived, (snapshot) => {
+        receivedCount = snapshot.size;
+        updateCounter();
 
         // Si on est sur l'onglet pending, rafraîchir
         const activeTab = document.querySelector('.trade-tab.active');
@@ -2112,4 +2129,22 @@ function subscribeToTrades() {
             loadPendingTrades();
         }
     });
+
+    // Écouter les échanges envoyés
+    const unsubSent = onSnapshot(qSent, (snapshot) => {
+        sentCount = snapshot.size;
+        updateCounter();
+
+        // Si on est sur l'onglet pending, rafraîchir
+        const activeTab = document.querySelector('.trade-tab.active');
+        if (activeTab && activeTab.dataset.tradeTab === 'pending') {
+            loadPendingTrades();
+        }
+    });
+
+    // Fonction pour se désabonner des deux listeners
+    tradesUnsubscribe = () => {
+        unsubReceived();
+        unsubSent();
+    };
 }
