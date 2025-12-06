@@ -601,6 +601,12 @@ async function openChest() {
         return;
     }
 
+    // Créer des particules explosives
+    createChestExplosion();
+
+    // Attendre un peu pour l'effet visuel
+    await new Promise(resolve => setTimeout(resolve, 600));
+
     // Générer 3 pixels aléatoires
     const pixels = [
         generateRandomPixel(),
@@ -629,6 +635,57 @@ async function openChest() {
 
     // Mettre à jour l'UI
     updateUI();
+}
+
+// Créer une explosion de particules lors de l'ouverture du coffre
+function createChestExplosion() {
+    const chestCanvas = document.getElementById('chestCanvas');
+    const rect = chestCanvas.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA500', '#FF1493'];
+
+    // Créer 50 particules
+    for (let i = 0; i < 50; i++) {
+        const particle = document.createElement('div');
+        const isSparkle = Math.random() > 0.7;
+        particle.className = isSparkle ? 'sparkle' : (Math.random() > 0.5 ? 'particle' : 'confetti');
+
+        const angle = (Math.PI * 2 * i) / 50;
+        const velocity = 100 + Math.random() * 150;
+        const tx = Math.cos(angle) * velocity;
+        const ty = Math.sin(angle) * velocity;
+
+        particle.style.cssText = `
+            left: ${centerX}px;
+            top: ${centerY}px;
+            background: ${colors[Math.floor(Math.random() * colors.length)]};
+            --tx: ${tx}px;
+            --ty: ${ty}px;
+        `;
+
+        document.body.appendChild(particle);
+
+        setTimeout(() => particle.remove(), 3000);
+    }
+
+    // Créer des confettis supplémentaires
+    for (let i = 0; i < 30; i++) {
+        setTimeout(() => {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.cssText = `
+                left: ${centerX + (Math.random() - 0.5) * 100}px;
+                top: ${centerY}px;
+                background: ${colors[Math.floor(Math.random() * colors.length)]};
+                --tx: ${(Math.random() - 0.5) * 300}px;
+                --ty: ${200 + Math.random() * 200}px;
+            `;
+            document.body.appendChild(confetti);
+            setTimeout(() => confetti.remove(), 3000);
+        }, i * 20);
+    }
 }
 
 function generateRandomPixel() {
@@ -695,22 +752,64 @@ function showResult(pixels) {
     chestView.style.display = 'none';
     resultView.classList.add('active');
 
-    // Afficher les 3 pixels
+    // Afficher les 3 pixels avec animation décalée
     pixels.forEach((pixel, index) => {
-        const canvas = document.getElementById(`resultCanvas${index + 1}`);
-        PixelRenderer.drawPixel(canvas, pixel, 80);
+        setTimeout(() => {
+            const canvas = document.getElementById(`resultCanvas${index + 1}`);
+            PixelRenderer.drawPixel(canvas, pixel, 80);
 
-        // Ajouter la bordure de rareté
-        const resultPixel = document.getElementById(`resultPixel${index + 1}`);
-        const rarity = PixelRenderer.getRarity(pixel.type);
-        resultPixel.className = 'result-pixel rarity-' + rarity;
+            // Ajouter la bordure de rareté
+            const resultPixel = document.getElementById(`resultPixel${index + 1}`);
+            const rarity = PixelRenderer.getRarity(pixel.type);
+            resultPixel.className = 'result-pixel rarity-' + rarity;
 
-        // Ajouter aux dernières trouvailles
-        addToRecentPixels(pixel);
+            // Animation d'apparition avec particules
+            createPixelRevealEffect(resultPixel, rarity);
+
+            // Ajouter aux dernières trouvailles
+            addToRecentPixels(pixel);
+        }, index * 300); // Décalage de 300ms entre chaque pixel
     });
 
     // Afficher le label
     document.getElementById('resultLabel').textContent = '3 pixels obtenus !';
+}
+
+// Effet d'apparition des pixels avec particules
+function createPixelRevealEffect(element, rarity) {
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    const colors = {
+        'common': ['#999', '#ccc'],
+        'rare': ['#4169E1', '#6495ED'],
+        'legendary': ['#FFD700', '#FFA500']
+    };
+
+    const pixelColors = colors[rarity] || colors['common'];
+
+    // Créer 20 petites particules autour du pixel
+    for (let i = 0; i < 20; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'sparkle';
+
+        const angle = (Math.PI * 2 * i) / 20;
+        const velocity = 30 + Math.random() * 50;
+        const tx = Math.cos(angle) * velocity;
+        const ty = Math.sin(angle) * velocity;
+
+        particle.style.cssText = `
+            left: ${centerX}px;
+            top: ${centerY}px;
+            background: ${pixelColors[Math.floor(Math.random() * pixelColors.length)]};
+            --tx: ${tx}px;
+            --ty: ${ty}px;
+        `;
+
+        document.body.appendChild(particle);
+        setTimeout(() => particle.remove(), 1500);
+    }
 }
 
 function closeResult() {
