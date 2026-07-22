@@ -2,6 +2,8 @@
 
 Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2 et des pixel arts rares en ouvrant des coffres quotidiens !
 
+**🎮 Jouer en ligne : https://reptile-new.github.io/pixel_collector/**
+
 ## 🎮 Fonctionnalités actuelles
 
 ### ✅ Atelier (recyclage & craft)
