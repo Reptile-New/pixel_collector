@@ -33,8 +33,21 @@ let userStats = {
     chestsOpened: 0,
     totalPixels: 0,
     uniquePixels: 0,
-    lastChestTime: 0
+    lastChestTime: 0,
+    shards: 0,
+    streak: 0,
+    chestsSinceLegendary: 0
 };
+
+// === ÉCONOMIE DE L'ATELIER ===
+// Valeur en éclats d'un doublon recyclé, par type de pixel
+const SHARD_VALUES = { '1x1': 2, '2x2': 8, 'art': 80 };
+// Coût des crafts en éclats
+const CRAFT_COSTS = { craft2x2: 20, bonusChest: 60, craftArt: 150 };
+// Un légendaire est garanti tous les PITY_THRESHOLD coffres sans légendaire
+const PITY_THRESHOLD = 25;
+// Bonus de série : +1 pixel à partir de 3 jours consécutifs, +2 à partir de 7
+const STREAK_BONUSES = [{ days: 3, extra: 1 }, { days: 7, extra: 2 }];
 // Configuration des albums
 const ALBUMS = [
     { id: 'all', label: 'Tous' },
@@ -121,6 +134,12 @@ function setupEventListeners() {
     document.getElementById('modalSearchCollection').addEventListener('input', (e) => {
         filterModalCollection(e.target.value);
     });
+
+    // Atelier
+    document.getElementById('recycleAllButton').addEventListener('click', recycleAllDuplicates);
+    document.getElementById('craft2x2Button').addEventListener('click', craft2x2);
+    document.getElementById('craftChestButton').addEventListener('click', craftBonusChest);
+    document.getElementById('craftArtButton').addEventListener('click', craftLegendary);
 
     // Trade system event listeners
     document.querySelectorAll('.trade-tab').forEach(tab => {
@@ -495,7 +514,10 @@ async function initializeUserData(uid, displayName) {
         stats: {
             chestsOpened: 0,
             totalPixels: 0,
-            uniquePixels: 0
+            uniquePixels: 0,
+            shards: 0,
+            streak: 0,
+            chestsSinceLegendary: 0
         },
         lastChestTime: 0,
         createdAt: serverTimestamp()
@@ -537,6 +559,10 @@ async function loadUserData() {
                 totalPixels: 0,
                 uniquePixels: 0
             };
+            // Valeurs par défaut pour les comptes créés avant l'Atelier / le pity / la série
+            userStats.shards = userStats.shards || 0;
+            userStats.streak = userStats.streak || 0;
+            userStats.chestsSinceLegendary = userStats.chestsSinceLegendary || 0;
             // Charger le lastChestTime pour la limite quotidienne
             userStats.lastChestTime = data.lastChestTime || 0;
         } else {
@@ -575,7 +601,9 @@ async function saveUserData() {
         const data = {
             collection: serializedCollection,
             stats: userStats,
-            lastChestTime: Date.now(),
+            // Ne pas écraser le timer du coffre : toute sauvegarde (échange, recyclage...)
+            // remettait la limite quotidienne à zéro
+            lastChestTime: userStats.lastChestTime || 0,
             updatedAt: serverTimestamp()
         };
 
@@ -601,39 +629,68 @@ async function openChest() {
         return;
     }
 
-    // Générer 3 pixels aléatoires
-    const pixels = [
-        generateRandomPixel(),
-        generateRandomPixel(),
-        generateRandomPixel()
-    ];
+    // Mettre à jour la série quotidienne : elle continue si le dernier coffre
+    // date de moins de 48h, sinon elle repart à 1
+    const lastTime = userStats.lastChestTime || 0;
+    const hoursSince = (Date.now() - lastTime) / (1000 * 60 * 60);
+    userStats.streak = (lastTime > 0 && hoursSince < 48) ? (userStats.streak || 0) + 1 : 1;
 
-    // Ajouter à la collection
-    pixels.forEach(pixel => {
-        addPixelToCollection(pixel);
-        userStats.totalPixels++;
+    // Nombre de pixels : 3 de base + bonus de série
+    let pixelCount = 3;
+    STREAK_BONUSES.forEach(bonus => {
+        if (userStats.streak >= bonus.days) pixelCount = 3 + bonus.extra;
     });
+
+    // Tirer les pixels (avec pity : légendaire garanti tous les PITY_THRESHOLD coffres)
+    const pixels = drawPixelsFromChest(pixelCount, true);
 
     // Mettre à jour les stats
     userStats.chestsOpened++;
     updateUniquePixelsCount();
-
-    // Mettre à jour le lastChestTime dans userStats
     userStats.lastChestTime = Date.now();
 
     // Sauvegarder dans Firestore
     await saveUserData();
 
     // Afficher le résultat
-    showResult(pixels);
+    let subtitle = `🔥 Série de ${userStats.streak} jour${userStats.streak > 1 ? 's' : ''}`;
+    if (pixelCount > 3) {
+        subtitle += ` — +${pixelCount - 3} pixel${pixelCount - 3 > 1 ? 's' : ''} bonus !`;
+    }
+    showResult(pixels, `${pixelCount} pixels obtenus !`, subtitle);
 
     // Mettre à jour l'UI
     updateUI();
 }
 
-function generateRandomPixel() {
+// Tire `count` pixels, les ajoute à la collection et gère le compteur de pity.
+// Si pityApplies et que le seuil est atteint, le premier pixel est un légendaire garanti.
+function drawPixelsFromChest(count, pityApplies) {
+    const pityDue = pityApplies && (userStats.chestsSinceLegendary || 0) >= PITY_THRESHOLD - 1;
+    const pixels = [];
+
+    for (let i = 0; i < count; i++) {
+        const pixel = generateRandomPixel(pityDue && i === 0);
+        const isNew = !userCollection[pixel.id];
+        addPixelToCollection(pixel);
+        userStats.totalPixels++;
+        // Flag posé après l'ajout pour ne pas le persister dans la collection
+        pixel.isNew = isNew;
+        pixels.push(pixel);
+    }
+
+    if (pixels.some(p => p.type === 'art')) {
+        userStats.chestsSinceLegendary = 0;
+    } else {
+        userStats.chestsSinceLegendary = (userStats.chestsSinceLegendary || 0) + 1;
+    }
+
+    return pixels;
+}
+
+function generateRandomPixel(forceLegendary = false) {
     const dropRates = PixelRenderer.getDropRates();
-    const rand = Math.random();
+    const rand = forceLegendary ? 0 : Math.random();
 
     let pixel;
 
@@ -688,29 +745,49 @@ function updateUniquePixelsCount() {
 
 // === AFFICHAGE DU RÉSULTAT ===
 
-function showResult(pixels) {
+function showResult(pixels, title = 'Vous avez obtenu :', subtitle = '') {
     const chestView = document.getElementById('chestView');
     const resultView = document.getElementById('resultView');
 
     chestView.style.display = 'none';
     resultView.classList.add('active');
 
-    // Afficher les 3 pixels
-    pixels.forEach((pixel, index) => {
-        const canvas = document.getElementById(`resultCanvas${index + 1}`);
-        PixelRenderer.drawPixel(canvas, pixel, 80);
+    // Générer dynamiquement les pixels obtenus
+    const container = document.getElementById('resultPixels');
+    container.innerHTML = '';
 
-        // Ajouter la bordure de rareté
-        const resultPixel = document.getElementById(`resultPixel${index + 1}`);
+    pixels.forEach((pixel, index) => {
         const rarity = PixelRenderer.getRarity(pixel.type);
-        resultPixel.className = 'result-pixel rarity-' + rarity;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'result-pixel rarity-' + rarity;
+        wrapper.style.animationDelay = `${index * 0.15}s`;
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'pixel-canvas';
+        PixelRenderer.drawPixel(canvas, pixel, 80);
+        wrapper.appendChild(canvas);
+
+        const rarityLabel = document.createElement('div');
+        rarityLabel.className = 'rarity-label rarity-label-' + rarity;
+        rarityLabel.textContent = PixelRenderer.getRarityLabel(rarity);
+        wrapper.appendChild(rarityLabel);
+
+        if (pixel.isNew) {
+            const badge = document.createElement('div');
+            badge.className = 'new-badge';
+            badge.textContent = 'NOUVEAU !';
+            wrapper.appendChild(badge);
+        }
+
+        container.appendChild(wrapper);
 
         // Ajouter aux dernières trouvailles
         addToRecentPixels(pixel);
     });
 
-    // Afficher le label
-    document.getElementById('resultLabel').textContent = '3 pixels obtenus !';
+    document.getElementById('resultLabel').textContent = title;
+    document.getElementById('resultSubtitle').textContent = subtitle;
 }
 
 function closeResult() {
@@ -820,6 +897,13 @@ function displayCollection() {
             });
         });
     }
+
+    // Barre de progression de l'album affiché
+    const ownedCount = allPossiblePixels.filter(p => p.owned).length;
+    const totalCount = allPossiblePixels.length;
+    document.getElementById('collectionProgressText').textContent = `${ownedCount} / ${totalCount}`;
+    document.getElementById('collectionProgressFill').style.width =
+        totalCount > 0 ? `${(ownedCount / totalCount) * 100}%` : '0%';
 
     // Trier par type puis par nom
     allPossiblePixels.sort((a, b) => {
@@ -937,6 +1021,8 @@ function switchTab(tabName) {
         loadPlayers();
     } else if (tabName === 'market') {
         initTradeSystem();
+    } else if (tabName === 'atelier') {
+        updateAtelierUI();
     }
 }
 
@@ -1222,6 +1308,8 @@ function updateUI() {
     document.getElementById('totalPixels').textContent = userStats.totalPixels;
     document.getElementById('uniquePixels').textContent = `${userStats.uniquePixels} / 294`;
     document.getElementById('chestsOpened').textContent = userStats.chestsOpened;
+    document.getElementById('shardCount').textContent = `${userStats.shards || 0} ✨`;
+    document.getElementById('streakCount').textContent = `${userStats.streak || 0} 🔥`;
 
     // État du coffre
     if (canOpenChest()) {
@@ -1232,6 +1320,13 @@ function updateUI() {
         const hoursLeft = 24 - Math.floor((now - lastTime) / (1000 * 60 * 60));
         document.getElementById('chestTimer').textContent = `Disponible dans ${hoursLeft}h`;
     }
+
+    // Infos série + pity sous le coffre
+    const pityLeft = Math.max(1, PITY_THRESHOLD - (userStats.chestsSinceLegendary || 0));
+    document.getElementById('chestExtraInfo').innerHTML =
+        `🔥 Série : <strong>${userStats.streak || 0} jour${(userStats.streak || 0) > 1 ? 's' : ''}</strong>` +
+        ` &nbsp;·&nbsp; 💎 Légendaire garanti dans <strong>${pityLeft} coffre${pityLeft > 1 ? 's' : ''}</strong>` +
+        `<div class="chest-hint">Ouvre ton coffre chaque jour : +1 pixel dès 3 jours de série, +2 dès 7 jours !</div>`;
 
     // Afficher les derniers pixels
     updateRecentPixels();
@@ -1264,6 +1359,147 @@ function updateRecentPixels() {
     if (pixels.length === 0) {
         container.innerHTML = '<p style="text-align: center; padding: 20px; opacity: 0.7; font-size: 0.9em;">Aucun pixel encore</p>';
     }
+}
+
+// === ATELIER : RECYCLAGE ET CRAFT ===
+
+function getRecyclableShards() {
+    let total = 0;
+    let duplicates = 0;
+
+    for (const pixel of Object.values(userCollection)) {
+        if (pixel.count > 1) {
+            const extras = pixel.count - 1;
+            duplicates += extras;
+            total += extras * (SHARD_VALUES[pixel.type] || 0);
+        }
+    }
+
+    return { total, duplicates };
+}
+
+async function recycleAllDuplicates() {
+    const { total, duplicates } = getRecyclableShards();
+
+    if (duplicates === 0) {
+        alert('Aucun doublon à recycler ! Ouvre des coffres pour en obtenir.');
+        return;
+    }
+
+    if (!confirm(`Recycler ${duplicates} doublon(s) contre ${total} éclats ✨ ?\n\nTu gardes toujours 1 exemplaire de chaque pixel : ta collection n'est pas affectée.`)) {
+        return;
+    }
+
+    for (const pixel of Object.values(userCollection)) {
+        if (pixel.count > 1) {
+            userStats.totalPixels -= (pixel.count - 1);
+            pixel.count = 1;
+        }
+    }
+
+    userStats.shards = (userStats.shards || 0) + total;
+    await saveUserData();
+
+    updateAtelierUI();
+    updateUI();
+    alert(`♻️ ${duplicates} doublon(s) recyclé(s) : +${total} éclats ✨`);
+}
+
+function spendShards(cost) {
+    if ((userStats.shards || 0) < cost) {
+        alert(`Pas assez d'éclats ! Il en faut ${cost} ✨ (tu en as ${userStats.shards || 0}).\n\nRecycle tes doublons pour en obtenir.`);
+        return false;
+    }
+    userStats.shards -= cost;
+    return true;
+}
+
+// Ajoute un pixel crafté à la collection et l'affiche dans l'écran de résultat
+async function finalizeCraft(pixel, title) {
+    const isNew = !userCollection[pixel.id];
+    addPixelToCollection(pixel);
+    userStats.totalPixels++;
+    pixel.isNew = isNew;
+
+    updateUniquePixelsCount();
+    await saveUserData();
+
+    switchTab('chest');
+    showResult([pixel], title, isNew ? '✨ Un pixel que tu n\'avais pas encore !' : 'Tu possédais déjà ce pixel (doublon).');
+    updateUI();
+}
+
+async function craft2x2() {
+    if (!spendShards(CRAFT_COSTS.craft2x2)) return;
+
+    // Priorité aux patterns manquants pour aider à compléter la collection
+    const all = PixelRenderer.generateAll2x2();
+    const missing = all.filter(p => !userCollection[`2x2_${p}`]);
+    const pool = missing.length > 0 ? missing : all;
+    const pattern = pool[Math.floor(Math.random() * pool.length)];
+
+    const pixel = {
+        type: '2x2',
+        pattern: pattern,
+        id: `2x2_${pattern}`,
+        name: `Pixel 2x2 #${pattern}`
+    };
+
+    await finalizeCraft(pixel, '🔨 Craft réussi !');
+}
+
+async function craftLegendary() {
+    if (!spendShards(CRAFT_COSTS.craftArt)) return;
+
+    // Priorité aux pixel arts manquants
+    const missing = PixelArts.filter(art => !userCollection[art.id]);
+    const pool = missing.length > 0 ? missing : PixelArts;
+    const art = pool[Math.floor(Math.random() * pool.length)];
+
+    const pixel = {
+        type: 'art',
+        id: art.id,
+        name: art.name,
+        data: art.data,
+        colors: art.colors
+    };
+
+    await finalizeCraft(pixel, '💎 Légendaire crafté !');
+}
+
+async function craftBonusChest() {
+    if (!spendShards(CRAFT_COSTS.bonusChest)) return;
+
+    // Coffre bonus : 3 pixels aux taux normaux, sans toucher au timer quotidien.
+    // Il compte dans les coffres ouverts et fait avancer le compteur de pity.
+    const pixels = drawPixelsFromChest(3, true);
+    userStats.chestsOpened++;
+    updateUniquePixelsCount();
+    await saveUserData();
+
+    switchTab('chest');
+    showResult(pixels, '🎁 Coffre bonus ouvert !', '3 pixels obtenus grâce à tes éclats');
+    updateUI();
+}
+
+function updateAtelierUI() {
+    const { total, duplicates } = getRecyclableShards();
+
+    document.getElementById('shardBalance').textContent = userStats.shards || 0;
+
+    const preview = document.getElementById('recyclePreview');
+    if (duplicates === 0) {
+        preview.textContent = 'Aucun doublon à recycler pour le moment.';
+    } else {
+        preview.innerHTML = `<strong>${duplicates}</strong> doublon(s) recyclable(s) → <strong>+${total} ✨</strong>`;
+    }
+    document.getElementById('recycleAllButton').disabled = duplicates === 0;
+
+    // Activer/désactiver les boutons de craft selon le solde
+    const shards = userStats.shards || 0;
+    document.getElementById('craft2x2Button').disabled = shards < CRAFT_COSTS.craft2x2;
+    document.getElementById('craftChestButton').disabled = shards < CRAFT_COSTS.bonusChest;
+    document.getElementById('craftArtButton').disabled = shards < CRAFT_COSTS.craftArt;
 }
 
 // === SYSTÈME D'ÉCHANGE ===

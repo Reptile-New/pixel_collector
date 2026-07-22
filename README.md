@@ -4,6 +4,24 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 
 ## 🎮 Fonctionnalités actuelles
 
+### ✅ Atelier (recyclage & craft)
+- Recyclez vos doublons en **Éclats ✨** (1×1 = 2, 2×2 = 8, Pixel Art = 80)
+- Vous gardez toujours 1 exemplaire de chaque pixel : la collection n'est jamais affectée
+- Dépensez vos éclats en crafts :
+  - **Pixel 2×2** (20 ✨) : un 2×2 aléatoire, en priorité un qui vous manque
+  - **Coffre bonus** (60 ✨) : ouvre immédiatement un coffre supplémentaire
+  - **Pixel Art légendaire** (150 ✨) : un légendaire garanti, en priorité un qui vous manque
+
+### ✅ Série quotidienne (streak)
+- Ouvrez votre coffre chaque jour pour faire monter votre série 🔥
+- **3 jours consécutifs** : +1 pixel par coffre (4 au lieu de 3)
+- **7 jours consécutifs** : +2 pixels par coffre (5 au lieu de 3)
+- La série est perdue si vous laissez passer plus de 48h
+
+### ✅ Système de pitié (pity)
+- Un pixel art **légendaire est garanti tous les 25 coffres** sans légendaire
+- Le compteur est affiché sous le coffre quotidien
+
 ### ✅ Système de connexion
 - Création de compte avec email/mot de passe
 - Connexion/déconnexion
@@ -72,13 +90,9 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 
 ## 📋 À venir
 
-- [ ] Intégration Firebase pour le backend
-- [ ] Système de marketplace pour échanger des pixels
-- [ ] Mode premium pour ouvrir plus de coffres
+- [ ] Sécuriser l'ouverture des coffres et les échanges côté serveur (Cloud Functions)
 - [ ] Succès et défis
-- [ ] Leaderboard des collectionneurs
-- [ ] Système d'échange entre joueurs
-- [ ] Affichage détaillé de chaque pixel
+- [ ] Affichage détaillé de chaque pixel (avec recyclage individuel)
 - [ ] Statistiques avancées
 
 ## 🎨 Structure du projet

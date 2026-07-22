@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pixel Collector - Collectionnez des pixels uniques !</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -13,7 +16,8 @@
 
         body {
             font-family: 'Courier New', monospace;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(160deg, #0f0c29 0%, #302b63 55%, #24243e 100%);
+            background-attachment: fixed;
             color: #fff;
             min-height: 100vh;
             overflow-x: hidden;
@@ -34,9 +38,12 @@
         }
 
         h1 {
-            font-size: 3em;
-            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.5);
-            margin-bottom: 10px;
+            font-family: 'Press Start 2P', 'Courier New', monospace;
+            font-size: 1.8em;
+            color: #FFD700;
+            text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6);
+            margin-bottom: 15px;
+            letter-spacing: 2px;
         }
 
         .subtitle {
@@ -227,6 +234,156 @@
             font-weight: bold;
         }
 
+        .result-subtitle {
+            font-size: 1.1em;
+            opacity: 0.85;
+            text-align: center;
+        }
+
+        .result-pixel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rarity-label {
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .rarity-label-common { color: #bbb; }
+        .rarity-label-rare { color: #7b9fff; }
+        .rarity-label-legendary { color: #FFD700; }
+
+        .new-badge {
+            background: #FFD700;
+            color: #000;
+            font-size: 0.75em;
+            font-weight: bold;
+            padding: 3px 10px;
+            border-radius: 12px;
+            animation: pulse-badge 0.8s infinite alternate;
+        }
+
+        @keyframes pulse-badge {
+            from { transform: scale(1); }
+            to { transform: scale(1.12); }
+        }
+
+        .chest-extra {
+            text-align: center;
+            font-size: 1em;
+            opacity: 0.9;
+            background: rgba(0, 0, 0, 0.25);
+            padding: 12px 20px;
+            border-radius: 10px;
+        }
+
+        .chest-hint {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-top: 8px;
+        }
+
+        /* Barre de progression de collection */
+        .progress-track {
+            background: rgba(0, 0, 0, 0.35);
+            border-radius: 8px;
+            height: 14px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #FFD700, #FFA500);
+            height: 100%;
+            width: 0%;
+            border-radius: 8px;
+            transition: width 0.5s ease;
+        }
+
+        /* Atelier */
+        .atelier-shards {
+            text-align: center;
+            font-size: 1.6em;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.25);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            color: #FFD700;
+        }
+
+        .atelier-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .atelier-card h3 {
+            margin-bottom: 10px;
+        }
+
+        .atelier-card p {
+            opacity: 0.85;
+            font-size: 0.95em;
+            margin-bottom: 10px;
+        }
+
+        .craft-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 15px;
+        }
+
+        .craft-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            text-align: center;
+        }
+
+        .craft-card .craft-icon {
+            font-size: 2.5em;
+        }
+
+        .craft-card .craft-title {
+            font-weight: bold;
+            font-size: 1.05em;
+        }
+
+        .craft-card .craft-desc {
+            font-size: 0.85em;
+            opacity: 0.8;
+            flex: 1;
+        }
+
+        .craft-card .craft-cost {
+            color: #FFD700;
+            font-weight: bold;
+        }
+
+        .craft-card button {
+            width: 100%;
+        }
+
+        .craft-card button:disabled {
+            background: #555;
+            color: #999;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
         .continue-button {
             background: linear-gradient(145deg, #4169E1, #1E90FF);
             color: #fff;
@@ -297,9 +454,12 @@
         }
 
         .login-title {
-            font-size: 2em;
+            font-family: 'Press Start 2P', 'Courier New', monospace;
+            font-size: 1.2em;
+            color: #FFD700;
             margin-bottom: 30px;
             text-align: center;
+            text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
         }
 
         .login-input {
@@ -493,6 +653,14 @@
                         <span class="stat-label">Coffres ouverts</span>
                         <span class="stat-value" id="chestsOpened">0</span>
                     </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Éclats</span>
+                        <span class="stat-value" id="shardCount">0 ✨</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Série</span>
+                        <span class="stat-value" id="streakCount">0 🔥</span>
+                    </div>
                     <button id="logoutButton" class="open-button" style="margin-top: 20px; width: 100%; padding: 10px;">
                         Déconnexion
                     </button>
@@ -510,6 +678,7 @@
                 <div class="tabs">
                     <div class="tab active" data-tab="chest">📦 Coffres</div>
                     <div class="tab" data-tab="collection">🎨 Collection</div>
+                    <div class="tab" data-tab="atelier">🛠️ Atelier</div>
                     <div class="tab" data-tab="players">👥 Joueurs</div>
                     <div class="tab" data-tab="market">🏪 Marché</div>
                 </div>
@@ -522,20 +691,14 @@
                             <canvas id="chestCanvas" width="320" height="240"></canvas>
                         </div>
                         <div class="chest-timer" id="chestTimer">Cliquez sur le coffre pour l'ouvrir !</div>
+                        <div class="chest-extra" id="chestExtraInfo"></div>
                     </div>
 
                     <div class="result-container" id="resultView">
                         <div class="result-label" id="resultLabel">Vous avez obtenu :</div>
+                        <div class="result-subtitle" id="resultSubtitle"></div>
                         <div id="resultPixels" style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
-                            <div class="result-pixel" id="resultPixel1">
-                                <canvas id="resultCanvas1" width="80" height="80"></canvas>
-                            </div>
-                            <div class="result-pixel" id="resultPixel2">
-                                <canvas id="resultCanvas2" width="80" height="80"></canvas>
-                            </div>
-                            <div class="result-pixel" id="resultPixel3">
-                                <canvas id="resultCanvas3" width="80" height="80"></canvas>
-                            </div>
+                            <!-- Pixels obtenus, générés dynamiquement -->
                         </div>
                         <button class="continue-button" id="continueButton">Continuer</button>
                     </div>
@@ -549,11 +712,61 @@
                     </div>
 
                     <div style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 5px;">
+                            <span>Progression de l'album</span>
+                            <span id="collectionProgressText">0 / 0</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" id="collectionProgressFill"></div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
                         <input type="text" id="searchCollection" placeholder="Rechercher..."
                                style="width: 100%; padding: 10px; border-radius: 8px; border: none; background: rgba(0,0,0,0.2); color: #fff;">
                     </div>
                     <div id="collectionGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 15px; max-height: 500px; overflow-y: auto;">
                         <!-- Les pixels seront ajoutés ici dynamiquement -->
+                    </div>
+                </div>
+
+                <!-- Contenu : Atelier -->
+                <div class="tab-content" id="atelierTab">
+                    <div style="padding: 10px;">
+                        <div class="atelier-shards">✨ <span id="shardBalance">0</span> éclats</div>
+
+                        <div class="atelier-card">
+                            <h3>♻️ Recyclage</h3>
+                            <p>Transforme tes doublons en éclats. Tu gardes toujours 1 exemplaire de chaque pixel, ta collection reste intacte.</p>
+                            <p style="font-size: 0.85em;">Valeur des doublons : 1×1 = <strong>2 ✨</strong> &nbsp;·&nbsp; 2×2 = <strong>8 ✨</strong> &nbsp;·&nbsp; Pixel Art = <strong>80 ✨</strong></p>
+                            <p id="recyclePreview">Aucun doublon à recycler pour le moment.</p>
+                            <button id="recycleAllButton" class="open-button" style="width: 100%;" disabled>♻️ Recycler tous les doublons</button>
+                        </div>
+
+                        <h3 style="margin-bottom: 15px;">🔨 Crafts</h3>
+                        <div class="craft-grid">
+                            <div class="craft-card">
+                                <div class="craft-icon">🟦</div>
+                                <div class="craft-title">Pixel 2×2</div>
+                                <div class="craft-desc">Un pixel 2×2 aléatoire, en priorité un que tu ne possèdes pas encore.</div>
+                                <div class="craft-cost">20 ✨</div>
+                                <button id="craft2x2Button" class="open-button" disabled>Crafter</button>
+                            </div>
+                            <div class="craft-card">
+                                <div class="craft-icon">🎁</div>
+                                <div class="craft-title">Coffre bonus</div>
+                                <div class="craft-desc">Ouvre immédiatement un coffre supplémentaire (3 pixels, taux normaux).</div>
+                                <div class="craft-cost">60 ✨</div>
+                                <button id="craftChestButton" class="open-button" disabled>Ouvrir</button>
+                            </div>
+                            <div class="craft-card">
+                                <div class="craft-icon">💎</div>
+                                <div class="craft-title">Pixel Art légendaire</div>
+                                <div class="craft-desc">Un pixel art légendaire garanti, en priorité un qui manque à ta collection.</div>
+                                <div class="craft-cost">150 ✨</div>
+                                <button id="craftArtButton" class="open-button" disabled>Crafter</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -648,7 +861,7 @@
 
     <!-- Modal profil joueur -->
     <div id="playerProfileModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto;">
-        <div style="max-width: 900px; margin: 50px auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; padding: 30px; position: relative;">
+        <div style="max-width: 900px; margin: 50px auto; background: linear-gradient(160deg, #302b63 0%, #24243e 100%); border-radius: 15px; padding: 30px; position: relative;">
             <button id="closeProfileModal" style="position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;">×</button>
 
             <div style="text-align: center; margin-bottom: 30px;">
