@@ -11,7 +11,8 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
   - 1×1 = 1 ✨ · 2×2 (4 pixels) = 4 ✨ · Pixel Art 8×8 (64 pixels) = 64 ✨
 - Vous gardez toujours 1 exemplaire de chaque pixel : la collection n'est jamais affectée
 - Dépensez vos éclats en assemblant les pixels d'un item (coût = sa surface) :
-  - **Pixel 2×2** (4 ✨) : un 2×2 aléatoire, en priorité un qui vous manque
+  - **Pixel 1×1** (1 ✨) : un 1×1 aléatoire parmi les 4 couleurs
+  - **Pixel 2×2** (4 ✨) : un 2×2 aléatoire parmi les 256 combinaisons
   - **Coffre bonus** (16 ✨) : ouvre immédiatement un coffre supplémentaire
   - **Pixel Art légendaire** (64 ✨) : un légendaire garanti, en priorité un qui vous manque
 
