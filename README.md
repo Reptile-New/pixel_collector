@@ -7,12 +7,13 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 ## 🎮 Fonctionnalités actuelles
 
 ### ✅ Atelier (recyclage & craft)
-- Recyclez vos doublons en **Éclats ✨** (1×1 = 2, 2×2 = 8, Pixel Art = 80)
+- Recyclez vos doublons en **Éclats ✨** — règle : **1 pixel = 1 éclat**, selon la surface :
+  - 1×1 = 1 ✨ · 2×2 (4 pixels) = 4 ✨ · Pixel Art 8×8 (64 pixels) = 64 ✨
 - Vous gardez toujours 1 exemplaire de chaque pixel : la collection n'est jamais affectée
 - Dépensez vos éclats en crafts :
-  - **Pixel 2×2** (20 ✨) : un 2×2 aléatoire, en priorité un qui vous manque
-  - **Coffre bonus** (60 ✨) : ouvre immédiatement un coffre supplémentaire
-  - **Pixel Art légendaire** (150 ✨) : un légendaire garanti, en priorité un qui vous manque
+  - **Pixel 2×2** (8 ✨) : un 2×2 aléatoire, en priorité un qui vous manque
+  - **Coffre bonus** (32 ✨) : ouvre immédiatement un coffre supplémentaire
+  - **Pixel Art légendaire** (128 ✨) : un légendaire garanti, en priorité un qui vous manque
 
 ### ✅ Série quotidienne (streak)
 - Ouvrez votre coffre chaque jour pour faire monter votre série 🔥
