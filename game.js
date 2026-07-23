@@ -24,7 +24,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=8'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=9'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // Variables globales
 let currentUser = null;
@@ -43,9 +43,11 @@ let userStats = {
 // Règle : 1 pixel = 1 éclat. La valeur d'un doublon est sa surface en pixels :
 // un 1x1 vaut 1, un 2x2 en contient 4, un pixel art 8x8 en contient 64.
 const SHARD_VALUES = { '1x1': 1, '2x2': 4, 'art': 64 };
-// Coût des crafts = assembler les pixels de l'item : un 2x2 coûte ses 4 pixels,
-// un pixel art ses 64 pixels. Le coffre bonus (contenu aléatoire) coûte 16.
-const CRAFT_COSTS = { craft2x2: 4, bonusChest: 16, craftArt: 64 };
+// Coût des crafts = assembler les pixels de l'item : un 1x1 coûte 1 pixel,
+// un 2x2 ses 4 pixels, un pixel art ses 64 pixels. Coffre bonus : 16.
+// Contrepartie du prix bas : les crafts 1x1 et 2x2 sont 100% aléatoires ;
+// seul le légendaire (cher) privilégie un pixel art manquant.
+const CRAFT_COSTS = { craft1x1: 1, craft2x2: 4, bonusChest: 16, craftArt: 64 };
 // Un légendaire est garanti tous les PITY_THRESHOLD coffres sans légendaire
 const PITY_THRESHOLD = 25;
 // Bonus de série : +1 pixel à partir de 3 jours consécutifs, +2 à partir de 7
@@ -155,6 +157,7 @@ function setupEventListeners() {
 
     // Atelier
     document.getElementById('recycleAllButton').addEventListener('click', recycleAllDuplicates);
+    document.getElementById('craft1x1Button').addEventListener('click', craft1x1);
     document.getElementById('craft2x2Button').addEventListener('click', craft2x2);
     document.getElementById('craftChestButton').addEventListener('click', craftBonusChest);
     document.getElementById('craftArtButton').addEventListener('click', craftLegendary);
@@ -1477,14 +1480,29 @@ async function finalizeCraft(pixel, title) {
     updateUI();
 }
 
+async function craft1x1() {
+    if (!spendShards(CRAFT_COSTS.craft1x1)) return;
+
+    // Tirage 100% aléatoire parmi les 4 couleurs
+    const all = PixelRenderer.generateAll1x1();
+    const pattern = all[Math.floor(Math.random() * all.length)];
+
+    const pixel = {
+        type: '1x1',
+        pattern: pattern,
+        id: `1x1_${pattern}`,
+        name: `Pixel 1x1 #${pattern}`
+    };
+
+    await finalizeCraft(pixel, '🔨 Craft réussi !');
+}
+
 async function craft2x2() {
     if (!spendShards(CRAFT_COSTS.craft2x2)) return;
 
-    // Priorité aux patterns manquants pour aider à compléter la collection
+    // Tirage 100% aléatoire parmi les 256 combinaisons (contrepartie du prix bas)
     const all = PixelRenderer.generateAll2x2();
-    const missing = all.filter(p => !userCollection[`2x2_${p}`]);
-    const pool = missing.length > 0 ? missing : all;
-    const pattern = pool[Math.floor(Math.random() * pool.length)];
+    const pattern = all[Math.floor(Math.random() * all.length)];
 
     const pixel = {
         type: '2x2',
@@ -1545,6 +1563,7 @@ function updateAtelierUI() {
 
     // Activer/désactiver les boutons de craft selon le solde
     const shards = userStats.shards || 0;
+    document.getElementById('craft1x1Button').disabled = shards < CRAFT_COSTS.craft1x1;
     document.getElementById('craft2x2Button').disabled = shards < CRAFT_COSTS.craft2x2;
     document.getElementById('craftChestButton').disabled = shards < CRAFT_COSTS.bonusChest;
     document.getElementById('craftArtButton').disabled = shards < CRAFT_COSTS.craftArt;
