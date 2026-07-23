@@ -112,6 +112,7 @@ function uiConfirm(message, options = {}) {
 
 // Variables globales
 let currentUser = null;
+let chestOpening = false; // verrou pendant l'animation d'ouverture du coffre
 let userCollection = {};
 let userStats = {
     chestsOpened: 0,
@@ -831,11 +832,42 @@ function canOpenChest() {
     return getDayKey(lastTime) !== getDayKey(Date.now());
 }
 
+// Joue la séquence d'ouverture (tremblement + halo + rayons + flash).
+// Résout la promesse quand l'animation est terminée.
+function playChestOpening(hasLegendary) {
+    return new Promise(resolve => {
+        const stage = document.querySelector('.chest-stage');
+        const chest = document.querySelector('.chest');
+        const flash = document.getElementById('chestFlash');
+
+        // Repli : pas d'animation si le markup n'est pas là
+        if (!stage || !chest) { resolve(); return; }
+
+        const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduce) { resolve(); return; }
+
+        stage.classList.add('is-opening');
+        if (hasLegendary) stage.classList.add('is-legendary');
+        chest.classList.add('opening');
+
+        // Éclair de lumière juste avant la révélation
+        setTimeout(() => flash && flash.classList.add('burst'), 830);
+        setTimeout(() => {
+            chest.classList.remove('opening');
+            stage.classList.remove('is-opening', 'is-legendary');
+            flash && flash.classList.remove('burst');
+            resolve();
+        }, 1120);
+    });
+}
+
 async function openChest() {
+    if (chestOpening) return;
     if (!canOpenChest()) {
         showToast('Tu as déjà ouvert ton coffre aujourd\'hui. Reviens après minuit !');
         return;
     }
+    chestOpening = true;
 
     // Mettre à jour la série quotidienne : elle continue si le dernier coffre
     // a été ouvert hier (jour calendaire), sinon elle repart à 1
@@ -859,18 +891,25 @@ async function openChest() {
     updateUniquePixelsCount();
     userStats.lastChestTime = Date.now();
 
-    // Sauvegarder dans Firestore
-    await saveUserData();
+    // Lancer l'animation d'ouverture et sauvegarder en parallèle
+    const hasLegendary = pixels.some(p => p.type === 'art');
+    const savePromise = saveUserData();
+    try {
+        await playChestOpening(hasLegendary);
+        await savePromise;
 
-    // Afficher le résultat
-    let subtitle = `🔥 Série de ${userStats.streak} jour${userStats.streak > 1 ? 's' : ''}`;
-    if (pixelCount > 3) {
-        subtitle += ` — +${pixelCount - 3} pixel${pixelCount - 3 > 1 ? 's' : ''} bonus !`;
+        // Afficher le résultat
+        let subtitle = `🔥 Série de ${userStats.streak} jour${userStats.streak > 1 ? 's' : ''}`;
+        if (pixelCount > 3) {
+            subtitle += ` — +${pixelCount - 3} pixel${pixelCount - 3 > 1 ? 's' : ''} bonus !`;
+        }
+        showResult(pixels, `${pixelCount} pixels obtenus !`, subtitle);
+
+        // Mettre à jour l'UI
+        updateUI();
+    } finally {
+        chestOpening = false;
     }
-    showResult(pixels, `${pixelCount} pixels obtenus !`, subtitle);
-
-    // Mettre à jour l'UI
-    updateUI();
 }
 
 // Tire `count` pixels, les ajoute à la collection et gère le compteur de pity.
@@ -961,6 +1000,10 @@ function showResult(pixels, title = 'Vous avez obtenu :', subtitle = '') {
 
     chestView.style.display = 'none';
     resultView.classList.add('active');
+
+    // Bandeau spécial si un légendaire a été obtenu
+    const banner = document.getElementById('legendaryBanner');
+    if (banner) banner.classList.toggle('show', pixels.some(p => p.type === 'art'));
 
     // Générer dynamiquement les pixels obtenus
     const container = document.getElementById('resultPixels');

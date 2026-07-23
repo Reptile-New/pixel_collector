@@ -1534,6 +1534,188 @@
         @media (max-width: 768px) {
             .player-card__stats { gap: 12px; font-size: 0.8em; }
         }
+
+        /* ============================================================
+           EXPÉRIENCE D'OUVERTURE DU COFFRE
+           ============================================================ */
+        .chest-label {
+            font-family: var(--font-pixel);
+            font-size: 1em;
+            color: var(--accent);
+            text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+            letter-spacing: 0.5px;
+        }
+
+        .chest-stage {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 340px;
+            height: 290px;
+        }
+
+        /* Halo doux qui respire */
+        .chest-glow {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.34) 0%, rgba(255, 165, 0, 0.12) 40%, transparent 68%);
+            filter: blur(6px);
+            animation: chest-glow-pulse 3.2s ease-in-out infinite;
+            pointer-events: none;
+        }
+        @keyframes chest-glow-pulse {
+            0%, 100% { opacity: 0.5; transform: scale(0.94); }
+            50% { opacity: 0.9; transform: scale(1.05); }
+        }
+
+        /* Rayons rotatifs (visibles pendant l'ouverture) */
+        .chest-rays {
+            position: absolute;
+            width: 460px;
+            height: 460px;
+            background: repeating-conic-gradient(rgba(255, 224, 130, 0.16) 0deg 7deg, transparent 7deg 20deg);
+            -webkit-mask: radial-gradient(circle, #000 26%, transparent 66%);
+            mask: radial-gradient(circle, #000 26%, transparent 66%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            pointer-events: none;
+        }
+        .chest-stage.is-opening .chest-rays {
+            opacity: 1;
+            animation: chest-rays-spin 2.4s linear infinite;
+        }
+        @keyframes chest-rays-spin { to { transform: rotate(360deg); } }
+
+        /* Le coffre lévite doucement */
+        .chest {
+            position: relative;
+            z-index: 2;
+            animation: chest-float 3.2s ease-in-out infinite;
+            will-change: transform;
+        }
+        @keyframes chest-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+        .chest:hover {
+            animation-play-state: paused;
+            transform: translateY(-12px) scale(1.05);
+        }
+
+        /* Tremblement d'ouverture, d'intensité croissante */
+        .chest.opening {
+            animation: chest-rattle 1s ease-in-out;
+            pointer-events: none;
+        }
+        @keyframes chest-rattle {
+            0%   { transform: translateY(0) rotate(0); }
+            12%  { transform: translate(-3px, 1px) rotate(-3deg); }
+            24%  { transform: translate(3px, -1px) rotate(3deg); }
+            36%  { transform: translate(-4px, 1px) rotate(-4deg); }
+            48%  { transform: translate(4px, -1px) rotate(4deg); }
+            60%  { transform: translate(-6px, 1px) rotate(-5deg); }
+            72%  { transform: translate(6px, -1px) rotate(5deg); }
+            82%  { transform: translateY(-4px) scale(1.06) rotate(0); }
+            100% { transform: translateY(0) scale(1) rotate(0); }
+        }
+
+        .chest-stage.is-opening .chest-glow {
+            animation: chest-glow-surge 1s ease-in forwards;
+        }
+        @keyframes chest-glow-surge {
+            0% { opacity: 0.6; transform: scale(1); }
+            100% { opacity: 1; transform: scale(1.45); }
+        }
+        .chest-stage.is-legendary .chest-glow {
+            background: radial-gradient(circle, rgba(255, 215, 0, 0.5) 0%, rgba(236, 130, 220, 0.22) 45%, transparent 70%);
+        }
+
+        /* Éclair de lumière au moment de l'ouverture */
+        .chest-flash {
+            position: absolute;
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #fff 0%, rgba(255, 244, 214, 0.85) 22%, transparent 62%);
+            opacity: 0;
+            z-index: 3;
+            pointer-events: none;
+        }
+        .chest-flash.burst { animation: chest-flash 0.5s ease-out; }
+        @keyframes chest-flash {
+            0% { opacity: 0; transform: scale(0.2); }
+            40% { opacity: 1; }
+            100% { opacity: 0; transform: scale(1.7); }
+        }
+
+        /* Révélation des pixels obtenus */
+        .result-container.active { animation: result-fade-in 0.4s ease-out; }
+        @keyframes result-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+        .result-label {
+            font-family: var(--font-pixel);
+            font-size: 1.1em;
+            line-height: 1.5;
+            color: var(--accent);
+            text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .result-pixel {
+            position: relative;
+            background: var(--surface-1);
+            border: 1px solid var(--hairline);
+            padding: 22px 22px 18px;
+            border-radius: var(--r-md);
+            animation: pixel-reveal 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.35) both;
+        }
+        @keyframes pixel-reveal {
+            0% { opacity: 0; transform: translateY(16px) scale(0.55) rotate(-7deg); }
+            60% { transform: translateY(0) scale(1.09) rotate(2deg); }
+            100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+        }
+        .result-pixel .pixel-canvas { border: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); }
+        .result-pixel.rarity-rare {
+            border-color: rgba(79, 195, 247, 0.55);
+            box-shadow: 0 0 22px rgba(79, 195, 247, 0.45);
+        }
+        .result-pixel.rarity-legendary {
+            border-color: rgba(255, 215, 0, 0.6);
+            box-shadow: 0 0 32px rgba(255, 215, 0, 0.55);
+            animation: pixel-reveal 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.35) both,
+                       legendary-halo 1.8s ease-in-out 0.6s infinite;
+        }
+        @keyframes legendary-halo {
+            0%, 100% { box-shadow: 0 0 26px rgba(255, 215, 0, 0.45); }
+            50% { box-shadow: 0 0 44px rgba(255, 215, 0, 0.8); }
+        }
+
+        /* Bandeau spécial légendaire */
+        .legendary-banner {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 6px auto 4px;
+            padding: 10px 22px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(255, 215, 0, 0.18), rgba(236, 130, 220, 0.18));
+            border: 1px solid rgba(255, 215, 0, 0.5);
+            font-family: var(--font-pixel);
+            font-size: 0.72em;
+            color: var(--accent);
+            letter-spacing: 1px;
+            animation: legendary-halo 1.8s ease-in-out infinite;
+        }
+        .legendary-banner.show { display: flex; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .chest, .chest-glow, .chest-rays, .result-pixel,
+            .result-pixel.rarity-legendary, .legendary-banner { animation: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -1613,14 +1795,20 @@
                 <div class="tab-content active" id="chestTab">
                     <div class="chest-container" id="chestView">
                         <div class="chest-label">Coffre quotidien</div>
-                        <div class="chest">
-                            <canvas id="chestCanvas" width="320" height="240"></canvas>
+                        <div class="chest-stage">
+                            <div class="chest-rays" aria-hidden="true"></div>
+                            <div class="chest-glow" aria-hidden="true"></div>
+                            <div class="chest">
+                                <canvas id="chestCanvas" width="320" height="240"></canvas>
+                            </div>
+                            <div class="chest-flash" id="chestFlash" aria-hidden="true"></div>
                         </div>
-                        <div class="chest-timer" id="chestTimer">Cliquez sur le coffre pour l'ouvrir !</div>
+                        <div class="chest-timer" id="chestTimer">Clique sur le coffre pour l'ouvrir !</div>
                         <div class="chest-extra" id="chestExtraInfo"></div>
                     </div>
 
                     <div class="result-container" id="resultView">
+                        <div class="legendary-banner" id="legendaryBanner">✨ LÉGENDAIRE ! ✨</div>
                         <div class="result-label" id="resultLabel">Vous avez obtenu :</div>
                         <div class="result-subtitle" id="resultSubtitle"></div>
                         <div id="resultPixels" style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
