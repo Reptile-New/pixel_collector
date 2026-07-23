@@ -24,7 +24,91 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=12'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=13'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+
+// ============================================================
+// UI : notifications (toasts) + dialogue de confirmation stylé
+// Remplacent les alert()/confirm() natifs du navigateur.
+// ============================================================
+function showToast(message, type) {
+    const host = document.getElementById('appToast');
+    if (!host) { console.log(message); return; }
+
+    // Détection automatique du ton si non précisé
+    if (!type) {
+        const m = message.toLowerCase();
+        if (/erreur|incorrect|invalide|impossible|pas assez|déjà|introuvable|trop faible|ne peut pas|plus ce pixel/.test(m)) type = 'error';
+        else if (/réussi|succès|✅|✨|🎉|envoyé|modifié|récupéré|recyclé|supprimé avec succès/.test(m)) type = 'success';
+        else type = 'info';
+    }
+
+    const icons = { success: '✅', error: '⚠️', warn: '⚠️', info: 'ℹ️' };
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    const icon = document.createElement('span');
+    icon.className = 'toast__icon';
+    icon.textContent = icons[type] || icons.info;
+    const msg = document.createElement('span');
+    msg.className = 'toast__msg';
+    msg.textContent = message;
+    toast.append(icon, msg);
+    host.appendChild(toast);
+
+    const remove = () => {
+        toast.classList.add('leaving');
+        setTimeout(() => toast.remove(), 250);
+    };
+    setTimeout(remove, type === 'error' ? 5200 : 3800);
+    toast.addEventListener('click', remove);
+}
+
+// Dialogue de confirmation — renvoie une Promise<boolean>
+function uiConfirm(message, options = {}) {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('appDialog');
+        const box = document.getElementById('appDialogBox');
+        const titleEl = document.getElementById('appDialogTitle');
+        const msgEl = document.getElementById('appDialogMsg');
+        const iconEl = document.getElementById('appDialogIcon');
+        const okBtn = document.getElementById('appDialogConfirm');
+        const cancelBtn = document.getElementById('appDialogCancel');
+
+        // Repli si le markup n'est pas présent
+        if (!overlay) { resolve(window.confirm(message)); return; }
+
+        const danger = !!options.danger;
+        box.classList.toggle('danger', danger);
+        iconEl.textContent = options.icon || (danger ? '🗑️' : '❓');
+        titleEl.textContent = options.title || 'Confirmer';
+        msgEl.textContent = message;
+        okBtn.textContent = options.confirmLabel || 'Confirmer';
+        cancelBtn.textContent = options.cancelLabel || 'Annuler';
+
+        const cleanup = (result) => {
+            overlay.classList.remove('open');
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            overlay.removeEventListener('click', onBackdrop);
+            document.removeEventListener('keydown', onKey);
+            resolve(result);
+        };
+        const onOk = () => cleanup(true);
+        const onCancel = () => cleanup(false);
+        const onBackdrop = (e) => { if (e.target === overlay) cleanup(false); };
+        const onKey = (e) => {
+            if (e.key === 'Escape') cleanup(false);
+            if (e.key === 'Enter') cleanup(true);
+        };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+
+        overlay.classList.add('open');
+        okBtn.focus();
+    });
+}
 
 // Variables globales
 let currentUser = null;
@@ -291,7 +375,7 @@ async function handleLogin() {
     const password = document.getElementById('loginPassword').value;
 
     if (!email || !password) {
-        alert('Veuillez remplir tous les champs');
+        showToast('Veuillez remplir tous les champs');
         return;
     }
 
@@ -308,12 +392,12 @@ async function handleLogin() {
                 console.warn('Impossible de créer le document utilisateur:', e);
             }
 
-            if (confirm('Ton email n\'est pas encore vérifié : clique sur le lien reçu par mail pour activer ton compte.\n\nRenvoyer l\'email de vérification ?')) {
+            if (await uiConfirm('Ton email n\'est pas encore vérifié : clique sur le lien reçu par mail pour activer ton compte.\n\nRenvoyer l\'email de vérification ?')) {
                 try {
                     await sendEmailVerification(userCredential.user);
-                    alert('Email renvoyé ! Vérifie ta boîte mail (et le dossier spam).');
+                    showToast('Email renvoyé ! Vérifie ta boîte mail (et le dossier spam).');
                 } catch (e) {
-                    alert('Impossible de renvoyer l\'email : ' + e.message);
+                    showToast('Impossible de renvoyer l\'email : ' + e.message);
                 }
             }
 
@@ -325,11 +409,11 @@ async function handleLogin() {
     } catch (error) {
         console.error('Erreur de connexion:', error);
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-            alert('Email ou mot de passe incorrect');
+            showToast('Email ou mot de passe incorrect');
         } else if (error.code === 'auth/invalid-email') {
-            alert('Email invalide');
+            showToast('Email invalide');
         } else {
-            alert('Erreur de connexion: ' + error.message);
+            showToast('Erreur de connexion: ' + error.message);
         }
     }
 }
@@ -340,17 +424,17 @@ async function handleRegister() {
     const password = document.getElementById('registerPassword').value;
 
     if (!pseudo || !email || !password) {
-        alert('Veuillez remplir tous les champs');
+        showToast('Veuillez remplir tous les champs');
         return;
     }
 
     if (pseudo.length < 3) {
-        alert('Le pseudo doit contenir au moins 3 caractères');
+        showToast('Le pseudo doit contenir au moins 3 caractères');
         return;
     }
 
     if (password.length < 6) {
-        alert('Le mot de passe doit contenir au moins 6 caractères');
+        showToast('Le mot de passe doit contenir au moins 6 caractères');
         return;
     }
 
@@ -379,20 +463,20 @@ async function handleRegister() {
 
         // Déconnecter l'utilisateur et afficher un message
         await signOut(auth);
-        alert('Inscription réussie ! Un email de confirmation a été envoyé à ' + email + '. Veuillez vérifier votre boîte mail pour activer votre compte.');
+        showToast('Inscription réussie ! Un email de confirmation a été envoyé à ' + email + '. Veuillez vérifier votre boîte mail pour activer votre compte.');
 
         // Revenir à l'onglet connexion
         window.switchAuthTab('login');
     } catch (error) {
         console.error('Erreur d\'inscription:', error);
         if (error.code === 'auth/email-already-in-use') {
-            alert('Cet email est déjà utilisé');
+            showToast('Cet email est déjà utilisé');
         } else if (error.code === 'auth/invalid-email') {
-            alert('Email invalide');
+            showToast('Email invalide');
         } else if (error.code === 'auth/weak-password') {
-            alert('Le mot de passe est trop faible');
+            showToast('Le mot de passe est trop faible');
         } else {
-            alert('Erreur d\'inscription: ' + error.message);
+            showToast('Erreur d\'inscription: ' + error.message);
         }
     }
 }
@@ -424,7 +508,7 @@ async function handleGoogleSignIn() {
         } else if (error.code === 'auth/cancelled-popup-request') {
             // Une autre popup était déjà ouverte
         } else {
-            alert('Erreur de connexion avec Google: ' + error.message);
+            showToast('Erreur de connexion avec Google: ' + error.message);
         }
     }
 }
@@ -441,7 +525,7 @@ async function handleLogout() {
         // onAuthStateChanged gérera la suite
     } catch (error) {
         console.error('Erreur de déconnexion:', error);
-        alert('Erreur de déconnexion: ' + error.message);
+        showToast('Erreur de déconnexion: ' + error.message);
     }
 }
 
@@ -449,12 +533,12 @@ async function handleSaveName() {
     const newName = document.getElementById('userNameInput').value.trim();
 
     if (!newName) {
-        alert('Le pseudo ne peut pas être vide');
+        showToast('Le pseudo ne peut pas être vide');
         return;
     }
 
     if (newName.length < 3) {
-        alert('Le pseudo doit contenir au moins 3 caractères');
+        showToast('Le pseudo doit contenir au moins 3 caractères');
         return;
     }
 
@@ -470,23 +554,23 @@ async function handleSaveName() {
             updatedAt: serverTimestamp()
         });
 
-        alert('Pseudo modifié avec succès !');
+        showToast('Pseudo modifié avec succès !');
         updateUI();
     } catch (error) {
         console.error('Erreur de modification du pseudo:', error);
-        alert('Erreur lors de la modification du pseudo: ' + error.message);
+        showToast('Erreur lors de la modification du pseudo: ' + error.message);
     }
 }
 
 async function handleDeleteAccount() {
-    const confirmation = confirm('Êtes-vous sûr de vouloir supprimer votre compte ?\n\nCette action est irréversible et supprimera :\n- Votre compte\n- Toutes vos données\n- Votre collection de pixels\n- Vos statistiques\n\nVoulez-vous vraiment continuer ?');
+    const confirmation = await uiConfirm('Cette action est irréversible et supprimera :\n- Votre compte\n- Toutes vos données\n- Votre collection de pixels\n- Vos statistiques', { danger: true, title: 'Supprimer le compte ?', confirmLabel: 'Supprimer', icon: '🗑️' });
 
     if (!confirmation) {
         return;
     }
 
     // Demander une double confirmation
-    const doubleConfirmation = confirm('DERNIÈRE CONFIRMATION\n\nVotre compte sera définitivement supprimé.\nTapez sur OK pour confirmer la suppression.');
+    const doubleConfirmation = await uiConfirm('Votre compte sera définitivement supprimé. Cette action ne peut pas être annulée.', { danger: true, title: 'Dernière confirmation', confirmLabel: 'Supprimer définitivement', icon: '⚠️' });
 
     if (!doubleConfirmation) {
         return;
@@ -505,21 +589,21 @@ async function handleDeleteAccount() {
         // 2. Supprimer l'utilisateur Firebase Auth
         await deleteUser(currentUser);
 
-        alert('Votre compte a été supprimé avec succès.');
+        showToast('Votre compte a été supprimé avec succès.');
         // onAuthStateChanged redirigera automatiquement vers l'écran de connexion
     } catch (error) {
         console.error('Erreur de suppression du compte:', error);
 
         if (error.code === 'auth/requires-recent-login') {
-            alert('Pour des raisons de sécurité, vous devez vous reconnecter avant de supprimer votre compte.\n\nVeuillez vous déconnecter puis vous reconnecter, et réessayez.');
+            showToast('Pour des raisons de sécurité, vous devez vous reconnecter avant de supprimer votre compte.\n\nVeuillez vous déconnecter puis vous reconnecter, et réessayez.');
         } else {
-            alert('Erreur lors de la suppression du compte: ' + error.message);
+            showToast('Erreur lors de la suppression du compte: ' + error.message);
         }
     }
 }
 
 async function cleanCorruptedPixels() {
-    if (!confirm('Nettoyer les pixels corrompus ?\n\nCette action va supprimer tous les pixels qui ont des données manquantes ou invalides (pixels noirs ou rouges).\n\nVoulez-vous continuer ?')) {
+    if (!await uiConfirm('Nettoyer les pixels corrompus ?\n\nCette action va supprimer tous les pixels qui ont des données manquantes ou invalides (pixels noirs ou rouges).\n\nVoulez-vous continuer ?')) {
         return;
     }
 
@@ -556,12 +640,12 @@ async function cleanCorruptedPixels() {
         }
 
         if (cleanedCount === 0) {
-            alert('Aucun pixel corrompu trouvé ! 🎉');
+            showToast('Aucun pixel corrompu trouvé ! 🎉');
             return;
         }
 
         // Confirmation avec le nombre de pixels à supprimer
-        if (!confirm(`${cleanedCount} pixel(s) corrompu(s) trouvé(s).\n\nConfirmer la suppression ?`)) {
+        if (!await uiConfirm(`${cleanedCount} pixel(s) corrompu(s) trouvé(s).\n\nConfirmer la suppression ?`)) {
             return;
         }
 
@@ -573,14 +657,14 @@ async function cleanCorruptedPixels() {
         // Sauvegarder
         await saveUserData();
 
-        alert(`${cleanedCount} pixel(s) corrompu(s) supprimé(s) avec succès ! ✨`);
+        showToast(`${cleanedCount} pixel(s) corrompu(s) supprimé(s) avec succès ! ✨`);
 
         // Recharger l'affichage
         await loadUserData();
         displayCollection();
     } catch (error) {
         console.error('Erreur lors du nettoyage:', error);
-        alert('Erreur: ' + error.message);
+        showToast('Erreur: ' + error.message);
     }
 }
 
@@ -675,7 +759,7 @@ async function loadUserData() {
         }
     } catch (error) {
         console.error('Erreur de chargement des données:', error);
-        alert('Erreur de chargement des données. Veuillez réessayer.');
+        showToast('Erreur de chargement des données. Veuillez réessayer.');
     }
 }
 
@@ -714,7 +798,7 @@ async function saveUserData() {
         await updateDoc(doc(db, 'users', currentUser.uid), data);
     } catch (error) {
         console.error('Erreur de sauvegarde des données:', error);
-        alert('Erreur de sauvegarde. Vos progrès pourraient ne pas être sauvegardés.');
+        showToast('Erreur de sauvegarde. Vos progrès pourraient ne pas être sauvegardés.');
     }
 }
 
@@ -749,7 +833,7 @@ function canOpenChest() {
 
 async function openChest() {
     if (!canOpenChest()) {
-        alert('Tu as déjà ouvert ton coffre aujourd\'hui. Reviens après minuit !');
+        showToast('Tu as déjà ouvert ton coffre aujourd\'hui. Reviens après minuit !');
         return;
     }
 
@@ -1200,28 +1284,22 @@ function displayPlayers(players) {
     }
 
     players.forEach((player, index) => {
-        const playerCard = document.createElement('div');
-        playerCard.style.cssText = 'background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; cursor: pointer; transition: all 0.3s;';
-        playerCard.onmouseover = () => playerCard.style.background = 'rgba(255,255,255,0.2)';
-        playerCard.onmouseout = () => playerCard.style.background = 'rgba(255,255,255,0.1)';
-        playerCard.onclick = () => openPlayerProfile(player);
-
         const isCurrentUser = player.uid === currentUser.uid;
 
+        const playerCard = document.createElement('div');
+        playerCard.className = 'player-card' + (isCurrentUser ? ' is-me' : '');
+        playerCard.onclick = () => openPlayerProfile(player);
+
         playerCard.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="flex: 1;">
-                    <div style="font-size: 1.2em; font-weight: bold; margin-bottom: 5px;">
-                        ${index + 1}. ${player.displayName} ${isCurrentUser ? '(Vous)' : ''}
-                    </div>
-                    <div style="display: flex; gap: 20px; opacity: 0.8; font-size: 0.9em;">
-                        <span>🎨 ${player.stats.uniquePixels} / 294 uniques</span>
-                        <span>📦 ${player.stats.totalPixels} totaux</span>
-                        <span>🎁 ${player.stats.chestsOpened} coffres</span>
-                    </div>
+            <div>
+                <div class="player-card__name">${index + 1}. ${player.displayName} ${isCurrentUser ? '(Vous)' : ''}</div>
+                <div class="player-card__stats">
+                    <span>🎨 ${player.stats.uniquePixels} / 294 uniques</span>
+                    <span>📦 ${player.stats.totalPixels} totaux</span>
+                    <span>🎁 ${player.stats.chestsOpened} coffres</span>
                 </div>
-                <div style="font-size: 1.5em; opacity: 0.5;">→</div>
             </div>
+            <div class="player-card__arrow">→</div>
         `;
 
         container.appendChild(playerCard);
@@ -1516,11 +1594,11 @@ async function recycleAllDuplicates() {
     const { total, duplicates } = getRecyclableShards();
 
     if (duplicates === 0) {
-        alert('Aucun doublon à recycler ! Ouvre des coffres pour en obtenir.');
+        showToast('Aucun doublon à recycler ! Ouvre des coffres pour en obtenir.');
         return;
     }
 
-    if (!confirm(`Recycler ${duplicates} doublon(s) contre ${total} éclats ✨ ?\n\nTu gardes toujours 1 exemplaire de chaque pixel : ta collection n'est pas affectée.`)) {
+    if (!await uiConfirm(`Recycler ${duplicates} doublon(s) contre ${total} éclats ✨ ?\n\nTu gardes toujours 1 exemplaire de chaque pixel : ta collection n'est pas affectée.`)) {
         return;
     }
 
@@ -1536,12 +1614,12 @@ async function recycleAllDuplicates() {
 
     updateAtelierUI();
     updateUI();
-    alert(`♻️ ${duplicates} doublon(s) recyclé(s) : +${total} éclats ✨`);
+    showToast(`♻️ ${duplicates} doublon(s) recyclé(s) : +${total} éclats ✨`);
 }
 
 function spendShards(cost) {
     if ((userStats.shards || 0) < cost) {
-        alert(`Pas assez d'éclats ! Il en faut ${cost} ✨ (tu en as ${userStats.shards || 0}).\n\nRecycle tes doublons pour en obtenir.`);
+        showToast(`Pas assez d'éclats ! Il en faut ${cost} ✨ (tu en as ${userStats.shards || 0}).\n\nRecycle tes doublons pour en obtenir.`);
         return false;
     }
     userStats.shards -= cost;
@@ -1684,7 +1762,7 @@ async function craftCustom2x2() {
     // Revérifier le stock au moment du clic
     for (const [digit, needed] of Object.entries(needs)) {
         if ((userCollection[`1x1_${digit}`]?.count || 0) < needed) {
-            alert('Il te manque des pixels 1×1 pour cet assemblage !');
+            showToast('Il te manque des pixels 1×1 pour cet assemblage !');
             return;
         }
     }
@@ -1698,7 +1776,7 @@ async function craftCustom2x2() {
     if (lastOnes.length > 0) {
         msg += `\n\n⚠️ Tu vas consommer ton DERNIER exemplaire de : ${lastOnes.join(', ')}`;
     }
-    if (!confirm(msg)) return;
+    if (!await uiConfirm(msg)) return;
 
     // Consommer les pixels 1x1
     for (const [digit, needed] of Object.entries(needs)) {
@@ -2004,7 +2082,7 @@ function cleanPixelForFirestore(pixel) {
 
 async function handleSendTrade() {
     if (!selectedMyPixel || !selectedTheirPixel || !selectedTradePlayer) {
-        alert('Sélectionne les deux pixels à échanger');
+        showToast('Sélectionne les deux pixels à échanger');
         return;
     }
 
@@ -2013,7 +2091,7 @@ async function handleSendTrade() {
         ? `✅ Tu en possèdes ${ownedCount} : tu échanges un doublon, ta collection reste complète.`
         : `⚠️ ATTENTION : c'est ton SEUL exemplaire de ce pixel !`;
 
-    if (!confirm(`Proposer d'échanger ton ${selectedMyPixel.name} contre le ${selectedTheirPixel.name} de ${selectedTradePlayer.displayName} ?\n\n${stockWarning}\n\nUn exemplaire sera retiré de ta collection jusqu'à ce que l'échange soit accepté ou annulé.`)) {
+    if (!await uiConfirm(`Proposer d'échanger ton ${selectedMyPixel.name} contre le ${selectedTheirPixel.name} de ${selectedTradePlayer.displayName} ?\n\n${stockWarning}\n\nUn exemplaire sera retiré de ta collection jusqu'à ce que l'échange soit accepté ou annulé.`)) {
         return;
     }
 
@@ -2040,7 +2118,7 @@ async function handleSendTrade() {
             createdAt: serverTimestamp()
         });
 
-        alert('Proposition d\'échange envoyée ! Ton pixel a été retiré de ta collection.');
+        showToast('Proposition d\'échange envoyée ! Ton pixel a été retiré de ta collection.');
 
         // Reset et recharger
         selectedMyPixel = null;
@@ -2051,7 +2129,7 @@ async function handleSendTrade() {
         handlePlayerSelect({ target: document.getElementById('selectPlayer') });
     } catch (error) {
         console.error('Erreur d\'envoi de la proposition:', error);
-        alert('Erreur: ' + error.message);
+        showToast('Erreur: ' + error.message);
     }
 }
 
@@ -2278,12 +2356,12 @@ function createTradeCard(trade, type) {
 }
 
 window.acceptTrade = async function(tradeId) {
-    if (!confirm('Accepter cet échange ?\n\nTon pixel sera retiré de ta collection et tu pourras récupérer le pixel proposé.')) return;
+    if (!await uiConfirm('Ton pixel sera retiré de ta collection et tu pourras récupérer le pixel proposé.', { title: 'Accepter cet échange ?', confirmLabel: 'Accepter', icon: '🤝' })) return;
 
     try {
         const tradeDoc = await getDoc(doc(db, 'trades', tradeId));
         if (!tradeDoc.exists()) {
-            alert('Échange introuvable');
+            showToast('Échange introuvable');
             return;
         }
 
@@ -2291,7 +2369,7 @@ window.acceptTrade = async function(tradeId) {
 
         // Vérifier que JE possède toujours le pixel demandé
         if (!userCollection[trade.toPixelId]) {
-            alert('Tu n\'as plus ce pixel !');
+            showToast('Tu n\'as plus ce pixel !');
             return;
         }
 
@@ -2305,7 +2383,7 @@ window.acceptTrade = async function(tradeId) {
             acceptedAt: serverTimestamp()
         });
 
-        alert('Échange accepté ! Ton pixel a été retiré. Va dans l\'historique pour récupérer ton nouveau pixel.');
+        showToast('Échange accepté ! Ton pixel a été retiré. Va dans l\'historique pour récupérer ton nouveau pixel.');
 
         // Recharger les données
         await loadUserData();
@@ -2314,12 +2392,12 @@ window.acceptTrade = async function(tradeId) {
         await loadTradeHistory();
     } catch (error) {
         console.error('Erreur lors de l\'acceptation:', error);
-        alert('Erreur: ' + error.message);
+        showToast('Erreur: ' + error.message);
     }
 }
 
 window.refuseTrade = async function(tradeId) {
-    if (!confirm('Refuser cet échange ?\n\nLe pixel de l\'autre joueur lui sera rendu.')) return;
+    if (!await uiConfirm('Le pixel de l\'autre joueur lui sera rendu.', { danger: true, title: 'Refuser cet échange ?', confirmLabel: 'Refuser', icon: '❌' })) return;
 
     try {
         // Marquer comme refusé (le pixel de fromUser sera rendu via claimTrade)
@@ -2328,17 +2406,17 @@ window.refuseTrade = async function(tradeId) {
             refusedAt: serverTimestamp()
         });
 
-        alert('Échange refusé. Le pixel sera rendu à son propriétaire.');
+        showToast('Échange refusé. Le pixel sera rendu à son propriétaire.');
         await loadPendingTrades();
         await loadTradeHistory();
     } catch (error) {
         console.error('Erreur lors du refus:', error);
-        alert('Erreur: ' + error.message);
+        showToast('Erreur: ' + error.message);
     }
 }
 
 window.cancelTrade = async function(tradeId) {
-    if (!confirm('Annuler cette proposition ?\n\nTon pixel te sera rendu.')) return;
+    if (!await uiConfirm('Ton pixel te sera rendu.', { title: 'Annuler la proposition ?', confirmLabel: 'Oui, annuler', cancelLabel: 'Non', icon: '🗑️' })) return;
 
     try {
         // Marquer comme annulé (le pixel sera rendu via claimTrade)
@@ -2346,12 +2424,12 @@ window.cancelTrade = async function(tradeId) {
             status: 'cancelled',
             cancelledAt: serverTimestamp()
         });
-        alert('Proposition annulée. Récupère ton pixel dans l\'historique.');
+        showToast('Proposition annulée. Récupère ton pixel dans l\'historique.');
         await loadPendingTrades();
         await loadTradeHistory();
     } catch (error) {
         console.error('Erreur lors de l\'annulation:', error);
-        alert('Erreur: ' + error.message);
+        showToast('Erreur: ' + error.message);
     }
 }
 
@@ -2359,7 +2437,7 @@ window.claimTrade = async function(tradeId) {
     try {
         const tradeDoc = await getDoc(doc(db, 'trades', tradeId));
         if (!tradeDoc.exists()) {
-            alert('Échange introuvable');
+            showToast('Échange introuvable');
             return;
         }
 
@@ -2368,7 +2446,7 @@ window.claimTrade = async function(tradeId) {
         const amIReceiver = trade.toUserId === currentUser.uid;
 
         if (!amISender && !amIReceiver) {
-            alert('Cet échange ne te concerne pas');
+            showToast('Cet échange ne te concerne pas');
             return;
         }
 
@@ -2392,17 +2470,17 @@ window.claimTrade = async function(tradeId) {
                 claimField = 'fromClaimed';
             } else if (trade.status === 'refused') {
                 // Le destinataire ne peut rien récupérer si refusé (il n'avait rien donné)
-                alert('Tu n\'as rien à récupérer de cet échange refusé.');
+                showToast('Tu n\'as rien à récupérer de cet échange refusé.');
                 return;
             }
         } else {
-            alert('Cet échange n\'est pas terminé');
+            showToast('Cet échange n\'est pas terminé');
             return;
         }
 
         // Vérifier si déjà récupéré
         if (trade[claimField]) {
-            alert('Tu as déjà récupéré ton pixel !');
+            showToast('Tu as déjà récupéré ton pixel !');
             return;
         }
 
@@ -2423,7 +2501,7 @@ window.claimTrade = async function(tradeId) {
             [`${claimField}At`]: serverTimestamp()
         });
 
-        alert(`Pixel "${pixel.name}" récupéré avec succès !`);
+        showToast(`Pixel "${pixel.name}" récupéré avec succès !`);
 
         // Recharger
         await loadUserData();
@@ -2431,7 +2509,7 @@ window.claimTrade = async function(tradeId) {
         await loadTradeHistory();
     } catch (error) {
         console.error('Erreur lors de la récupération:', error);
-        alert('Erreur: ' + error.message);
+        showToast('Erreur: ' + error.message);
     }
 }
 
