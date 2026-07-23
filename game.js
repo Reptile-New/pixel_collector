@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=17'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=18'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -267,7 +267,9 @@ function setupEventListeners() {
 
     // Atelier
     document.getElementById('recycleAllButton').addEventListener('click', recycleAllDuplicates);
-    document.getElementById('craft1x1Button').addEventListener('click', craft1x1);
+    document.querySelectorAll('.color-craft-btn').forEach(btn => {
+        btn.addEventListener('click', () => craft1x1(btn.dataset.craftColor));
+    });
     document.getElementById('craft2x2Button').addEventListener('click', craft2x2);
     document.getElementById('craftChestButton').addEventListener('click', craftBonusChest);
     document.getElementById('craftArtButton').addEventListener('click', craftLegendary);
@@ -1871,21 +1873,28 @@ async function finalizeCraft(pixel, title) {
     updateUI();
 }
 
-async function craft1x1() {
-    if (!spendShards(CRAFT_COSTS.craft1x1)) return;
+// Correspondance chiffre de pattern → couleur (aligné sur PixelRenderer.colors)
+const PIXEL_1X1_COLORS = [
+    { pattern: '1', name: 'Rouge', hex: '#FF0000' },
+    { pattern: '2', name: 'Bleu', hex: '#0000FF' },
+    { pattern: '3', name: 'Vert', hex: '#00FF00' },
+    { pattern: '4', name: 'Jaune', hex: '#FFFF00' }
+];
 
-    // Tirage 100% aléatoire parmi les 4 couleurs
-    const all = PixelRenderer.generateAll1x1();
-    const pattern = all[Math.floor(Math.random() * all.length)];
+// Achète un pixel 1×1 de la COULEUR CHOISIE pour 1 éclat (plus aléatoire).
+async function craft1x1(pattern) {
+    const choice = PIXEL_1X1_COLORS.find(c => c.pattern === String(pattern));
+    if (!choice) return;
+    if (!spendShards(CRAFT_COSTS.craft1x1)) return;
 
     const pixel = {
         type: '1x1',
-        pattern: pattern,
-        id: `1x1_${pattern}`,
-        name: `Pixel 1x1 #${pattern}`
+        pattern: choice.pattern,
+        id: `1x1_${choice.pattern}`,
+        name: `Pixel 1x1 #${choice.pattern}`
     };
 
-    await finalizeCraft(pixel, '🔨 Craft réussi !');
+    await finalizeCraft(pixel, `🔨 Pixel 1×1 ${choice.name} acheté !`);
 }
 
 async function craft2x2() {
@@ -2040,7 +2049,9 @@ function updateAtelierUI() {
 
     // Activer/désactiver les boutons de craft selon le solde
     const shards = userStats.shards || 0;
-    document.getElementById('craft1x1Button').disabled = shards < CRAFT_COSTS.craft1x1;
+    document.querySelectorAll('.color-craft-btn').forEach(btn => {
+        btn.disabled = shards < CRAFT_COSTS.craft1x1;
+    });
     document.getElementById('craft2x2Button').disabled = shards < CRAFT_COSTS.craft2x2;
     document.getElementById('craftChestButton').disabled = shards < CRAFT_COSTS.bonusChest;
     document.getElementById('craftArtButton').disabled = shards < CRAFT_COSTS.craftArt;

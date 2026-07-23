@@ -580,6 +580,31 @@
             gap: 4px;
         }
 
+        /* Achat d'un 1×1 par couleur choisie */
+        .color-craft {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            width: 100%;
+        }
+        .color-craft-btn {
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(255, 255, 255, 0.55);
+            border-radius: 8px;
+            cursor: pointer;
+            image-rendering: pixelated;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+        .color-craft-btn:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.06);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+        }
+        .color-craft-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
         /* Bande de conversion visuelle (recyclage) */
         .convert-strip {
             display: flex;
@@ -2046,9 +2071,14 @@
                             <div class="craft-card">
                                 <canvas class="craft-px" data-demo="1x1"></canvas>
                                 <div class="craft-title">Pixel 1×1</div>
-                                <div class="craft-meta">🎲 4 couleurs</div>
+                                <div class="craft-meta">🎨 couleur au choix</div>
                                 <div class="craft-cost">1 ✨</div>
-                                <button id="craft1x1Button" class="open-button" disabled>Crafter</button>
+                                <div class="color-craft">
+                                    <button class="color-craft-btn" data-craft-color="1" style="background:#FF0000" title="Rouge — 1 ✨" disabled></button>
+                                    <button class="color-craft-btn" data-craft-color="2" style="background:#0000FF" title="Bleu — 1 ✨" disabled></button>
+                                    <button class="color-craft-btn" data-craft-color="3" style="background:#00FF00" title="Vert — 1 ✨" disabled></button>
+                                    <button class="color-craft-btn" data-craft-color="4" style="background:#FFFF00" title="Jaune — 1 ✨" disabled></button>
+                                </div>
                             </div>
                             <div class="craft-card">
                                 <canvas class="craft-px" data-demo="2x2"></canvas>
@@ -2284,10 +2314,10 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=17"></script>
-    <script src="pixel_data.js?v=17"></script>
-    <script src="pixel_renderer.js?v=17"></script>
-    <script type="module" src="game.js?v=17"></script>
+    <script type="module" src="firebase-config.js?v=18"></script>
+    <script src="pixel_data.js?v=18"></script>
+    <script src="pixel_renderer.js?v=18"></script>
+    <script type="module" src="game.js?v=18"></script>
     <script>
         // Dessine les vignettes de démonstration (vraies grilles de pixels)
         // dans l'Atelier : 1×1 = 1 case, 2×2 = 4 cases, 8×8 = 64 cases.
