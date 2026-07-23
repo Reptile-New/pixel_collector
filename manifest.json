@@ -1,0 +1,32 @@
+{
+    "name": "Pixel Collector",
+    "short_name": "Pixel Collector",
+    "description": "Collectionnez des pixels uniques et rares en ouvrant des coffres quotidiens !",
+    "lang": "fr",
+    "start_url": "./index.html",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#0f0c29",
+    "theme_color": "#0f0c29",
+    "icons": [
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

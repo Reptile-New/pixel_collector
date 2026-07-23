@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pixel Collector - Collectionnez des pixels uniques !</title>
+
+    <!-- PWA : installable sur l'écran d'accueil (Android + iPhone) -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f0c29">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Pixel Collector">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -1096,9 +1106,17 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=10"></script>
-    <script src="pixel_data.js?v=10"></script>
-    <script src="pixel_renderer.js?v=10"></script>
-    <script type="module" src="game.js?v=10"></script>
+    <script type="module" src="firebase-config.js?v=11"></script>
+    <script src="pixel_data.js?v=11"></script>
+    <script src="pixel_renderer.js?v=11"></script>
+    <script type="module" src="game.js?v=11"></script>
+    <script>
+        // Enregistrement du service worker (mode hors ligne + installation)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => {
+                console.warn('Service worker non enregistré :', err);
+            });
+        }
+    </script>
 </body>
 </html>
