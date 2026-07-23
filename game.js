@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=19'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=20'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -551,20 +551,13 @@ async function handleGoogleSignIn() {
         prompt: 'select_account'
     });
 
-    // Dans l'app installée (PWA en mode standalone), la popup Google est
-    // bloquée ou ne peut pas rendre la main à l'application : on passe par
-    // une redirection complète de la page. Le retour est traité par
-    // getRedirectResult au chargement, puis onAuthStateChanged.
-    if (isAppInstalled()) {
-        try {
-            await signInWithRedirect(auth, provider);
-        } catch (error) {
-            console.error('Erreur de connexion Google (redirection):', error);
-            showToast('Erreur de connexion avec Google: ' + error.message);
-        }
-        return;
-    }
-
+    // On tente TOUJOURS la popup d'abord : elle fonctionne sur navigateur et
+    // sur PWA installée (Android / desktop) et rend la main à l'app.
+    // La redirection (signInWithRedirect) est gardée en dernier recours car
+    // elle casse quand le site (reptile-new.github.io) et l'authDomain
+    // (pixel-collector-online.firebaseapp.com) sont sur des domaines
+    // différents : les navigateurs récents bloquent les cookies tiers dont
+    // elle a besoin, et le retour de connexion est perdu.
     try {
         const result = await signInWithPopup(auth, provider);
 
@@ -581,22 +574,23 @@ async function handleGoogleSignIn() {
         // onAuthStateChanged gérera la suite
     } catch (error) {
         console.error('Erreur de connexion Google:', error);
-        if (error.code === 'auth/popup-closed-by-user') {
-            // L'utilisateur a fermé la popup, ne rien faire
-        } else if (error.code === 'auth/cancelled-popup-request') {
-            // Une autre popup était déjà ouverte
-        } else if (error.code === 'auth/popup-blocked'
+        if (error.code === 'auth/popup-closed-by-user'
+            || error.code === 'auth/cancelled-popup-request') {
+            // L'utilisateur a fermé/annulé la popup, ne rien faire
+            return;
+        }
+        if (error.code === 'auth/popup-blocked'
             || error.code === 'auth/operation-not-supported-in-this-environment') {
-            // Popup bloquée par le navigateur : repli sur la redirection
+            // Popup vraiment impossible (souvent PWA iOS) : repli sur la redirection
             try {
                 await signInWithRedirect(auth, provider);
             } catch (e) {
                 console.error('Erreur de connexion Google (redirection):', e);
                 showToast('Erreur de connexion avec Google: ' + e.message);
             }
-        } else {
-            showToast('Erreur de connexion avec Google: ' + error.message);
+            return;
         }
+        showToast('Erreur de connexion avec Google: ' + error.message);
     }
 }
 
