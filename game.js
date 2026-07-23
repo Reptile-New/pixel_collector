@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=21'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=22'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -1410,6 +1410,17 @@ async function loadPlayers() {
     }
 }
 
+// Stats d'affichage calculées depuis la collection (source de vérité), pour
+// ne pas dépendre des compteurs stockés qui pourraient être désynchronisés
+// (utile pour les autres joueurs dont on n'a que le document Firestore).
+function statsFromCollection(coll) {
+    const entries = Object.values(coll || {});
+    return {
+        unique: entries.length,
+        total: entries.reduce((sum, p) => sum + (p.count || 1), 0)
+    };
+}
+
 function displayPlayers(players) {
     const container = document.getElementById('playersList');
     container.innerHTML = '';
@@ -1426,13 +1437,14 @@ function displayPlayers(players) {
         playerCard.className = 'player-card' + (isCurrentUser ? ' is-me' : '');
         playerCard.onclick = () => openPlayerProfile(player);
 
+        const s = statsFromCollection(player.collection);
         playerCard.innerHTML = `
             <div>
                 <div class="player-card__name">${index + 1}. ${player.displayName} ${isCurrentUser ? '(Vous)' : ''}</div>
                 <div class="player-card__stats">
-                    <span>🎨 ${player.stats.uniquePixels} / 294 uniques</span>
-                    <span>📦 ${player.stats.totalPixels} totaux</span>
-                    <span>📦 ${player.stats.chestsOpened} coffres</span>
+                    <span>🎨 ${s.unique} / 294 uniques</span>
+                    <span>🔢 ${s.total} au total</span>
+                    <span>📦 ${player.stats.chestsOpened || 0} coffres</span>
                 </div>
             </div>
             <div class="player-card__arrow">→</div>
@@ -1458,11 +1470,13 @@ async function openPlayerProfile(player) {
     currentModalPlayer = player;
     currentModalAlbum = 'all';
 
-    // Mettre à jour les informations
+    // Mettre à jour les informations — nombres calculés depuis la collection
+    // pour être justes même si les compteurs stockés sont désynchronisés
+    const s = statsFromCollection(player.collection);
     document.getElementById('modalPlayerName').textContent = player.displayName;
-    document.getElementById('modalTotalPixels').textContent = player.stats.totalPixels;
-    document.getElementById('modalUniquePixels').textContent = `${player.stats.uniquePixels} / 294`;
-    document.getElementById('modalChestsOpened').textContent = player.stats.chestsOpened;
+    document.getElementById('modalTotalPixels').textContent = s.total;
+    document.getElementById('modalUniquePixels').textContent = `${s.unique} / 294`;
+    document.getElementById('modalChestsOpened').textContent = player.stats.chestsOpened || 0;
 
     // Générer dynamiquement les boutons d'albums
     generateModalAlbumTabs();
@@ -1974,7 +1988,7 @@ async function loadPlayersForTrade() {
             if (uid !== currentUser.uid && !data.deleted) {
                 const option = document.createElement('option');
                 option.value = uid;
-                option.textContent = `${data.displayName || 'Joueur'} (${data.stats?.uniquePixels || 0} pixels)`;
+                option.textContent = `${data.displayName || 'Joueur'} (${statsFromCollection(data.collection).unique} pixels)`;
                 option.dataset.player = JSON.stringify({
                     uid,
                     displayName: data.displayName,
