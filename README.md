@@ -4,6 +4,10 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 
 **🎮 Jouer en ligne : https://reptile-new.github.io/pixel_collector/**
 
+📱 **Installable comme une app** (PWA) :
+- **Android (Chrome)** : menu ⋮ → « Installer l'application »
+- **iPhone (Safari)** : bouton Partager → « Sur l'écran d'accueil »
+
 ## 🎮 Fonctionnalités actuelles
 
 ### ✅ Atelier (recyclage & craft)
