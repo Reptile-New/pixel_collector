@@ -90,6 +90,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupEventListeners() {
+    // Modal profil / paramètres du compte
+    document.getElementById('profileButton').addEventListener('click', () => {
+        document.getElementById('profileModal').style.display = 'block';
+    });
+    document.getElementById('closeProfileSettings').addEventListener('click', () => {
+        document.getElementById('profileModal').style.display = 'none';
+    });
+    document.getElementById('profileModal').addEventListener('click', (e) => {
+        if (e.target.id === 'profileModal') {
+            document.getElementById('profileModal').style.display = 'none';
+        }
+    });
+
     // Boutons de connexion
     document.getElementById('loginButton').addEventListener('click', handleLogin);
     document.getElementById('registerButton').addEventListener('click', handleRegister);
@@ -1329,12 +1342,13 @@ window.switchModalAlbum = function(album) {
 function updateUI() {
     // Stats utilisateur
     const displayName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Joueur';
+    document.getElementById('profileName').textContent = displayName;
     document.getElementById('userNameInput').value = displayName;
     document.getElementById('totalPixels').textContent = userStats.totalPixels;
     document.getElementById('uniquePixels').textContent = `${userStats.uniquePixels} / 294`;
     document.getElementById('chestsOpened').textContent = userStats.chestsOpened;
-    document.getElementById('shardCount').textContent = `${userStats.shards || 0} ✨`;
-    document.getElementById('streakCount').textContent = `${userStats.streak || 0} 🔥`;
+    document.getElementById('shardCount').textContent = userStats.shards || 0;
+    document.getElementById('streakCount').textContent = userStats.streak || 0;
 
     // État du coffre
     updateChestStatus();

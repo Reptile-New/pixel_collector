@@ -30,32 +30,103 @@
         }
 
         header {
-            text-align: center;
-            padding: 30px 0;
+            padding: 18px 25px;
             background: rgba(0, 0, 0, 0.3);
             border-radius: 15px;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
         h1 {
             font-family: 'Press Start 2P', 'Courier New', monospace;
-            font-size: 1.8em;
+            font-size: 1.3em;
             color: #FFD700;
             text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6);
-            margin-bottom: 15px;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
         }
 
-        .subtitle {
-            font-size: 1.2em;
-            opacity: 0.9;
+        .header-stats {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .stat-chip {
+            background: rgba(0, 0, 0, 0.35);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.95em;
+            white-space: nowrap;
+        }
+
+        .profile-chip {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #fff;
+            padding: 8px 18px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.95em;
+            font-weight: bold;
+            transition: background 0.3s;
+            white-space: nowrap;
+        }
+
+        .profile-chip:hover {
+            background: rgba(255, 255, 255, 0.25);
         }
 
         .main-content {
-            display: grid;
-            grid-template-columns: 1fr 2fr 1fr;
-            gap: 20px;
-            margin-bottom: 30px;
+            max-width: 950px;
+            margin: 0 auto 30px;
+        }
+
+        /* Modales */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .profile-panel {
+            max-width: 420px;
+            margin: 60px auto;
+            background: linear-gradient(160deg, #302b63 0%, #24243e 100%);
+            border-radius: 15px;
+            padding: 30px;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .panel {
@@ -167,9 +238,23 @@
 
         /* Panneau de droite - Collection */
         .collection-preview {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            display: flex;
+            flex-wrap: wrap;
             gap: 10px;
+            justify-content: center;
+        }
+
+        .recent-section {
+            margin-top: 25px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 15px 20px;
+        }
+
+        .recent-title {
+            font-weight: bold;
+            margin-bottom: 12px;
+            opacity: 0.9;
         }
 
         .pixel-item {
@@ -584,11 +669,15 @@
         /* Responsive Design pour Mobile */
         @media (max-width: 768px) {
             h1 {
-                font-size: 2em;
+                font-size: 1em;
             }
 
-            .subtitle {
-                font-size: 1em;
+            .header-top {
+                justify-content: center;
+            }
+
+            .header-stats {
+                justify-content: center;
             }
 
             .login-panel {
@@ -604,10 +693,6 @@
                 font-size: 16px; /* Évite le zoom auto sur iOS */
             }
 
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-
             .panel-title {
                 font-size: 1.2em;
             }
@@ -615,12 +700,6 @@
             .chest canvas {
                 width: 200px !important;
                 height: 150px !important;
-            }
-        }
-
-        @media (max-width: 1024px) {
-            .main-content {
-                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -676,55 +755,19 @@
     <!-- Écran principal du jeu -->
     <div id="gameScreen" class="container" style="display: none;">
         <header>
-            <h1>🎨 Pixel Collector</h1>
-            <p class="subtitle">Collectionnez des pixels uniques et rares !</p>
+            <div class="header-top">
+                <h1>🎨 Pixel Collector</h1>
+                <button id="profileButton" class="profile-chip">👤 <span id="profileName">Joueur</span></button>
+            </div>
+            <div class="header-stats">
+                <div class="stat-chip">🎨 <span id="uniquePixels">0 / 294</span></div>
+                <div class="stat-chip">✨ <span id="shardCount">0</span> éclats</div>
+                <div class="stat-chip">🔥 Série : <span id="streakCount">0</span></div>
+            </div>
         </header>
 
         <div class="main-content">
-            <!-- Panneau gauche - Stats -->
-            <div class="panel">
-                <div class="panel-title">👤 Profil</div>
-                <div class="user-stats">
-                    <div class="stat-item" style="flex-direction: column; align-items: stretch; gap: 5px;">
-                        <span class="stat-label">Pseudo</span>
-                        <div style="display: flex; gap: 5px; align-items: center;">
-                            <input type="text" id="userNameInput" class="login-input" style="flex: 1; margin: 0; padding: 8px;" value="Joueur">
-                            <button id="saveNameButton" class="open-button" style="padding: 8px 12px; margin: 0; min-width: auto;">✓</button>
-                        </div>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Pixels totaux</span>
-                        <span class="stat-value" id="totalPixels">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Pixels uniques</span>
-                        <span class="stat-value" id="uniquePixels">0 / 294</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Coffres ouverts</span>
-                        <span class="stat-value" id="chestsOpened">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Éclats</span>
-                        <span class="stat-value" id="shardCount">0 ✨</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Série</span>
-                        <span class="stat-value" id="streakCount">0 🔥</span>
-                    </div>
-                    <button id="logoutButton" class="open-button" style="margin-top: 20px; width: 100%; padding: 10px;">
-                        Déconnexion
-                    </button>
-                    <button id="cleanCorruptedPixels" class="open-button" style="margin-top: 10px; width: 100%; padding: 10px; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); opacity: 0.8;">
-                        🧹 Nettoyer les pixels corrompus
-                    </button>
-                    <button id="deleteAccountButton" class="open-button" style="margin-top: 10px; width: 100%; padding: 10px; background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); opacity: 0.8;">
-                        🗑️ Supprimer mon compte
-                    </button>
-                </div>
-            </div>
-
-            <!-- Panneau central - Zone principale -->
+            <!-- Zone principale -->
             <div class="panel main-panel">
                 <div class="tabs">
                     <div class="tab active" data-tab="chest">📦 Coffres</div>
@@ -752,6 +795,14 @@
                             <!-- Pixels obtenus, générés dynamiquement -->
                         </div>
                         <button class="continue-button" id="continueButton">Continuer</button>
+                    </div>
+
+                    <!-- Dernières trouvailles -->
+                    <div class="recent-section">
+                        <div class="recent-title">✨ Dernières trouvailles</div>
+                        <div class="collection-preview" id="recentPixels">
+                            <!-- Les derniers pixels obtenus seront affichés ici -->
+                        </div>
                     </div>
                 </div>
 
@@ -899,13 +950,39 @@
                 </div>
 
             </div>
+        </div>
+    </div>
 
-            <!-- Panneau droit - Derniers pixels obtenus -->
-            <div class="panel">
-                <div class="panel-title">✨ Dernières trouvailles</div>
-                <div class="collection-preview" id="recentPixels">
-                    <!-- Les derniers pixels obtenus seront affichés ici -->
+    <!-- Modal profil / paramètres du compte -->
+    <div id="profileModal" class="modal-overlay">
+        <div class="profile-panel">
+            <button id="closeProfileSettings" class="modal-close">×</button>
+            <h2 style="margin-bottom: 25px;">👤 Mon profil</h2>
+            <div class="user-stats">
+                <div class="stat-item" style="flex-direction: column; align-items: stretch; gap: 5px;">
+                    <span class="stat-label">Pseudo</span>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <input type="text" id="userNameInput" class="login-input" style="flex: 1; margin: 0; padding: 8px;" value="Joueur">
+                        <button id="saveNameButton" class="open-button" style="padding: 8px 12px; margin: 0; min-width: auto;">✓</button>
+                    </div>
                 </div>
+                <div class="stat-item">
+                    <span class="stat-label">Pixels totaux</span>
+                    <span class="stat-value" id="totalPixels">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Coffres ouverts</span>
+                    <span class="stat-value" id="chestsOpened">0</span>
+                </div>
+                <button id="logoutButton" class="open-button" style="margin-top: 20px; width: 100%; padding: 10px;">
+                    Déconnexion
+                </button>
+                <button id="cleanCorruptedPixels" class="open-button" style="margin-top: 10px; width: 100%; padding: 10px; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); opacity: 0.8;">
+                    🧹 Nettoyer les pixels corrompus
+                </button>
+                <button id="deleteAccountButton" class="open-button" style="margin-top: 10px; width: 100%; padding: 10px; background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); opacity: 0.8;">
+                    🗑️ Supprimer mon compte
+                </button>
             </div>
         </div>
     </div>
