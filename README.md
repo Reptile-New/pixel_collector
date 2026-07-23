@@ -18,7 +18,7 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - Ouvrez votre coffre chaque jour pour faire monter votre série 🔥
 - **3 jours consécutifs** : +1 pixel par coffre (4 au lieu de 3)
 - **7 jours consécutifs** : +2 pixels par coffre (5 au lieu de 3)
-- La série est perdue si vous laissez passer plus de 48h
+- La série est perdue si vous sautez un jour
 
 ### ✅ Système de pitié (pity)
 - Un pixel art **légendaire est garanti tous les 25 coffres** sans légendaire
@@ -30,7 +30,7 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - Sauvegarde locale (localStorage pour l'instant)
 
 ### ✅ Système de coffres
-- 1 coffre gratuit toutes les 24h
+- 1 coffre gratuit par jour — il se recharge à minuit (heure de Paris) pour tout le monde
 - Ouverture de coffre avec animation
 - Système de rareté :
   - **Commun (70%)** : Pixels 1x1 (4 variantes)
