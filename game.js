@@ -24,7 +24,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=7'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=8'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // Variables globales
 let currentUser = null;
@@ -43,8 +43,9 @@ let userStats = {
 // Règle : 1 pixel = 1 éclat. La valeur d'un doublon est sa surface en pixels :
 // un 1x1 vaut 1, un 2x2 en contient 4, un pixel art 8x8 en contient 64.
 const SHARD_VALUES = { '1x1': 1, '2x2': 4, 'art': 64 };
-// Coût des crafts : le double de la valeur de recyclage (en puissances de 2)
-const CRAFT_COSTS = { craft2x2: 8, bonusChest: 32, craftArt: 128 };
+// Coût des crafts = assembler les pixels de l'item : un 2x2 coûte ses 4 pixels,
+// un pixel art ses 64 pixels. Le coffre bonus (contenu aléatoire) coûte 16.
+const CRAFT_COSTS = { craft2x2: 4, bonusChest: 16, craftArt: 64 };
 // Un légendaire est garanti tous les PITY_THRESHOLD coffres sans légendaire
 const PITY_THRESHOLD = 25;
 // Bonus de série : +1 pixel à partir de 3 jours consécutifs, +2 à partir de 7
