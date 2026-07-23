@@ -24,7 +24,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=12'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=13'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // Variables globales
 let currentUser = null;
@@ -250,26 +250,50 @@ function isAppInstalled() {
 
 function setupInstallBanner() {
     const banner = document.getElementById('installBanner');
-    if (!banner || isAppInstalled() || localStorage.getItem('installBannerDismissed')) {
-        return;
-    }
+    if (!banner || isAppInstalled()) return;
 
-    // Android / Chrome : bouton d'installation natif
-    // (l'événement est capturé au plus tôt par un script dans index.html)
-    const showInstallButton = () => {
-        document.getElementById('installBannerButton').style.display = 'inline-block';
+    // Fermée uniquement pour la session en cours : la bannière réapparaît à
+    // la prochaine visite pour rappeler que l'app est installable
+    if (sessionStorage.getItem('installBannerDismissed')) return;
+
+    const btn = document.getElementById('installBannerButton');
+    const help = document.getElementById('installBannerHelp');
+
+    // Android / Chrome / Edge sur ordinateur : installation en UN CLIC
+    // (l'événement beforeinstallprompt est capturé au plus tôt dans index.html)
+    const enableOneClick = () => {
+        btn.style.display = 'inline-block';
+        help.style.display = 'none';
         banner.style.display = 'flex';
     };
-    if (window.deferredInstallPrompt) showInstallButton();
-    window.addEventListener('pc-install-available', showInstallButton);
+    if (window.deferredInstallPrompt) enableOneClick();
+    window.addEventListener('pc-install-available', enableOneClick);
 
-    // iPhone / iPad : pas d'API d'installation, on affiche la marche à suivre
-    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-        document.getElementById('installBannerIos').style.display = 'block';
-        banner.style.display = 'flex';
-    }
+    // Sinon (iPhone surtout : Apple interdit l'installation en un clic),
+    // on affiche la bonne marche à suivre selon le navigateur.
+    setTimeout(() => {
+        if (window.deferredInstallPrompt || isAppInstalled()) return;
 
-    document.getElementById('installBannerButton').addEventListener('click', async () => {
+        const ua = navigator.userAgent;
+        const isIOS = /iPhone|iPad|iPod/.test(ua)
+            || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const iOSNonSafari = /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua); // Chrome, Firefox... sur iOS
+
+        if (isIOS && iOSNonSafari) {
+            // Sur iPhone, l'ajout à l'écran d'accueil n'est fiable que dans Safari
+            help.innerHTML = 'Sur iPhone, l\'installation se fait depuis <strong>Safari</strong> : ouvre ce lien dans Safari, puis bouton <strong>Partager</strong> ⬆️ → « Sur l\'écran d\'accueil ».';
+            help.style.display = 'block';
+            banner.style.display = 'flex';
+        } else if (isIOS) {
+            // iOS Safari
+            help.innerHTML = 'Appuie sur le bouton <strong>Partager</strong> ⬆️ (en bas), puis « <strong>Sur l\'écran d\'accueil</strong> ».';
+            help.style.display = 'block';
+            banner.style.display = 'flex';
+        }
+        // Autres navigateurs sans support d'installation : on n'affiche rien
+    }, 1500);
+
+    btn.addEventListener('click', async () => {
         const promptEvent = window.deferredInstallPrompt;
         if (!promptEvent) return;
         promptEvent.prompt();
@@ -280,7 +304,7 @@ function setupInstallBanner() {
 
     document.getElementById('installBannerClose').addEventListener('click', () => {
         banner.style.display = 'none';
-        localStorage.setItem('installBannerDismissed', '1');
+        sessionStorage.setItem('installBannerDismissed', '1');
     });
 }
 
