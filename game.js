@@ -279,6 +279,18 @@ function setupEventListeners() {
     });
     document.getElementById('selectPlayer').addEventListener('change', handlePlayerSelect);
     document.getElementById('sendTradeOffer').addEventListener('click', handleSendTrade);
+    ['offerShards', 'requestShards'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', checkTradeReady);
+    });
+}
+
+// Lit un champ d'éclats (entier positif, borné au solde pour l'offre)
+function readShardField(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const n = Math.floor(Number(el.value));
+    return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 // Fonction pour changer d'onglet dans l'authentification
@@ -956,8 +968,10 @@ function playChestOpening(hasLegendary) {
 async function openChest() {
     if (chestOpening) return;
     if (!canOpenChest()) {
-        const nextLabel = getParisHour(Date.now()) < 12 ? 'midi' : 'minuit';
-        showToast(`Tu as déjà ouvert ce coffre. Reviens à ${nextLabel} pour le prochain !`);
+        const ms = msUntilNextReset();
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        showToast(`Coffre déjà ouvert — reviens dans ${h}h${String(m).padStart(2, '0')}.`);
         return;
     }
     chestOpening = true;
@@ -983,6 +997,10 @@ async function openChest() {
     // Tirer les pixels (avec pity : légendaire garanti tous les PITY_THRESHOLD coffres)
     const pixels = drawPixelsFromChest(pixelCount, true);
 
+    // Bonus : 1 ou 2 éclats à chaque ouverture de coffre
+    const shardReward = 1 + Math.floor(Math.random() * 2);
+    userStats.shards = (userStats.shards || 0) + shardReward;
+
     // Mettre à jour les stats
     userStats.chestsOpened++;
     updateUniquePixelsCount();
@@ -996,9 +1014,9 @@ async function openChest() {
         await savePromise;
 
         // Afficher le résultat
-        let subtitle = `🔥 Série de ${userStats.streak} jour${userStats.streak > 1 ? 's' : ''}`;
+        let subtitle = `🔥 Série de ${userStats.streak} jour${userStats.streak > 1 ? 's' : ''} &nbsp;·&nbsp; +${shardReward} ✨`;
         if (pixelCount > 3) {
-            subtitle += ` — +${pixelCount - 3} pixel${pixelCount - 3 > 1 ? 's' : ''} bonus !`;
+            subtitle += ` &nbsp;·&nbsp; +${pixelCount - 3} pixel${pixelCount - 3 > 1 ? 's' : ''} bonus !`;
         }
         showResult(pixels, `${pixelCount} pixels obtenus !`, subtitle);
 
@@ -1137,7 +1155,7 @@ function showResult(pixels, title = 'Vous avez obtenu :', subtitle = '') {
     });
 
     document.getElementById('resultLabel').textContent = title;
-    document.getElementById('resultSubtitle').textContent = subtitle;
+    document.getElementById('resultSubtitle').innerHTML = subtitle;
 }
 
 function closeResult() {
@@ -1670,14 +1688,15 @@ function updateChestStatus() {
     if (!currentUser) return;
 
     if (canOpenChest()) {
-        document.getElementById('chestTimer').textContent = 'Cliquez sur le coffre pour l\'ouvrir !';
+        document.getElementById('chestTimer').textContent = 'Clique sur le coffre pour l\'ouvrir !';
     } else {
+        // On n'affiche que le délai restant (pas d'heure absolue : le prochain
+        // coffre tombe au même instant pour tout le monde, quel que soit le fuseau).
         const ms = msUntilNextReset();
         const h = Math.floor(ms / 3600000);
         const m = Math.floor((ms % 3600000) / 60000);
-        const nextLabel = getParisHour(Date.now()) < 12 ? 'midi' : 'minuit';
         document.getElementById('chestTimer').textContent =
-            `Coffre déjà ouvert — prochain à ${nextLabel} (dans ${h}h${String(m).padStart(2, '0')})`;
+            `Prochain coffre dans ${h}h${String(m).padStart(2, '0')}`;
     }
 
     // Infos série + pity sous le coffre — en badges visuels, pas en paragraphe
@@ -1700,10 +1719,15 @@ function getMineState() {
     // Première visite : on démarre le compteur maintenant (réserve vide)
     if (!userStats.mineLastCollect) userStats.mineLastCollect = now;
     const last = userStats.mineLastCollect;
-    const produced = Math.floor((now - last) / MINE_RATE_MS);
+    // Production alignée sur une horloge universelle : un éclat par palier
+    // global de MINE_RATE_MS (compté sur l'epoch, pas sur le fuseau du joueur).
+    // Résultat : le compte à rebours est identique pour tout le monde et
+    // l'éclat « tombe » au même instant pour tous — impossible d'accélérer
+    // en changeant l'heure locale du navigateur.
+    const produced = Math.floor(now / MINE_RATE_MS) - Math.floor(last / MINE_RATE_MS);
     const ready = Math.max(0, Math.min(produced, MINE_CAP));
     const isFull = ready >= MINE_CAP;
-    const msToNext = isFull ? 0 : MINE_RATE_MS - ((now - last) % MINE_RATE_MS);
+    const msToNext = MINE_RATE_MS - (now % MINE_RATE_MS);
     return { ready, isFull, msToNext };
 }
 
@@ -1715,10 +1739,10 @@ async function collectMine() {
         return;
     }
 
-    // Avancer le compteur du temps réellement récolté pour conserver le reliquat.
-    // Si la réserve était pleine, on repart de maintenant (le surplus au-delà du
-    // plafond n'est pas conservé — c'est le rôle du plafond).
-    userStats.mineLastCollect = state.isFull ? now : userStats.mineLastCollect + state.ready * MINE_RATE_MS;
+    // On repart du dernier palier global franchi : le reliquat (temps déjà
+    // écoulé vers le prochain palier) est conservé et reste synchronisé avec
+    // tous les autres joueurs. Le surplus au-delà du plafond n'est pas gardé.
+    userStats.mineLastCollect = Math.floor(now / MINE_RATE_MS) * MINE_RATE_MS;
     userStats.shards = (userStats.shards || 0) + state.ready;
 
     await saveUserData();
@@ -1742,11 +1766,11 @@ function updateMineUI() {
     button.disabled = ready <= 0;
 
     if (isFull) {
-        statusEl.textContent = '⚠️ Réserve pleine — récolte pour ne rien perdre !';
+        statusEl.textContent = '⚠️ Réserve pleine — récolte !';
     } else {
         const m = Math.floor(msToNext / 60000);
         const s = Math.floor((msToNext % 60000) / 1000);
-        statusEl.textContent = `Prochain éclat dans ${m}m ${String(s).padStart(2, '0')}s · plafond ${MINE_CAP} ✨`;
+        statusEl.textContent = `Prochain éclat dans ${m}m${String(s).padStart(2, '0')}s`;
     }
 }
 
@@ -2082,10 +2106,24 @@ async function handlePlayerSelect(e) {
 
     selectedTradePlayer = JSON.parse(selectedOption.dataset.player);
 
+    // Réinitialiser les champs d'éclats et afficher mon solde disponible
+    resetShardFields();
+
     // Afficher mes pixels
     displayMyPixelsForTrade();
     // Afficher les pixels du joueur
     displayTheirPixelsForTrade();
+    checkTradeReady();
+}
+
+// Remet les champs d'éclats à zéro et rappelle le solde disponible
+function resetShardFields() {
+    const offer = document.getElementById('offerShards');
+    const request = document.getElementById('requestShards');
+    const avail = document.getElementById('offerShardsAvail');
+    if (offer) offer.value = 0;
+    if (request) request.value = 0;
+    if (avail) avail.textContent = `tu as ${userStats.shards || 0} ✨`;
 }
 
 function displayMyPixelsForTrade() {
@@ -2213,7 +2251,12 @@ function selectTheirPixel(pixel, element) {
 
 function checkTradeReady() {
     const btn = document.getElementById('sendTradeOffer');
-    btn.disabled = !(selectedMyPixel && selectedTheirPixel && selectedTradePlayer);
+    const offerShards = readShardField('offerShards');
+    const requestShards = readShardField('requestShards');
+    const iOfferSomething = !!selectedMyPixel || offerShards > 0;
+    const iRequestSomething = !!selectedTheirPixel || requestShards > 0;
+    const enoughShards = offerShards <= (userStats.shards || 0);
+    btn.disabled = !(selectedTradePlayer && iOfferSomething && iRequestSomething && enoughShards);
 }
 
 // Retire UN SEUL exemplaire d'un pixel : décrémente le compteur s'il y a
@@ -2287,44 +2330,72 @@ function cleanPixelForFirestore(pixel) {
 }
 
 async function handleSendTrade() {
-    if (!selectedMyPixel || !selectedTheirPixel || !selectedTradePlayer) {
-        showToast('Sélectionne les deux pixels à échanger');
+    const offerShards = readShardField('offerShards');
+    const requestShards = readShardField('requestShards');
+    const iOfferSomething = !!selectedMyPixel || offerShards > 0;
+    const iRequestSomething = !!selectedTheirPixel || requestShards > 0;
+
+    if (!selectedTradePlayer || !iOfferSomething || !iRequestSomething) {
+        showToast('Propose au moins une chose de chaque côté (pixel ou éclats)');
+        return;
+    }
+    if (offerShards > (userStats.shards || 0)) {
+        showToast(`Tu n'as que ${userStats.shards || 0} éclats.`);
         return;
     }
 
-    const ownedCount = userCollection[selectedMyPixel.id]?.count || 1;
-    const stockWarning = ownedCount > 1
-        ? `✅ Tu en possèdes ${ownedCount} : tu échanges un doublon, ta collection reste complète.`
-        : `⚠️ ATTENTION : c'est ton SEUL exemplaire de ce pixel !`;
+    // Récapitulatif lisible de ce qui est offert / demandé
+    const offerParts = [];
+    if (selectedMyPixel) offerParts.push(selectedMyPixel.name);
+    if (offerShards > 0) offerParts.push(`${offerShards} ✨`);
+    const requestParts = [];
+    if (selectedTheirPixel) requestParts.push(selectedTheirPixel.name);
+    if (requestShards > 0) requestParts.push(`${requestShards} ✨`);
 
-    if (!await uiConfirm(`Proposer d'échanger ton ${selectedMyPixel.name} contre le ${selectedTheirPixel.name} de ${selectedTradePlayer.displayName} ?\n\n${stockWarning}\n\nUn exemplaire sera retiré de ta collection jusqu'à ce que l'échange soit accepté ou annulé.`)) {
+    let stockWarning = '';
+    if (selectedMyPixel) {
+        const ownedCount = userCollection[selectedMyPixel.id]?.count || 1;
+        stockWarning = ownedCount > 1
+            ? `\n\n✅ Tu possèdes ${ownedCount} ${selectedMyPixel.name} : tu échanges un doublon.`
+            : `\n\n⚠️ ATTENTION : c'est ton SEUL exemplaire de ce pixel !`;
+    }
+
+    if (!await uiConfirm(`Proposer à ${selectedTradePlayer.displayName} :\n\n📤 Tu donnes : ${offerParts.join(' + ')}\n📥 Tu reçois : ${requestParts.join(' + ')}${stockWarning}\n\nCe que tu offres est mis de côté jusqu'à ce que l'échange soit accepté ou annulé.`)) {
         return;
     }
 
     try {
-        // 1. Retirer UN exemplaire de MA collection
-        removeOnePixelFromCollection(selectedMyPixel.id);
+        // 1. Mettre de côté ce que J'OFFRE (escrow) : pixel et/ou éclats
+        if (selectedMyPixel) removeOnePixelFromCollection(selectedMyPixel.id);
+        if (offerShards > 0) userStats.shards = (userStats.shards || 0) - offerShards;
         await saveUserData();
 
-        // 2. Créer la proposition d'échange avec les pixels
-        await addDoc(collection(db, 'trades'), {
+        // 2. Créer la proposition (les champs pixel sont optionnels)
+        const tradeDoc = {
             fromUserId: currentUser.uid,
             fromUserName: currentUser.displayName || 'Joueur',
             toUserId: selectedTradePlayer.uid,
             toUserName: selectedTradePlayer.displayName,
-            fromPixelId: selectedMyPixel.id,
-            fromPixelName: selectedMyPixel.name,
-            fromPixelData: cleanPixelForFirestore(selectedMyPixel),
-            toPixelId: selectedTheirPixel.id,
-            toPixelName: selectedTheirPixel.name,
-            toPixelData: cleanPixelForFirestore(selectedTheirPixel),
+            fromShards: offerShards,
+            toShards: requestShards,
             status: 'pending',
-            fromClaimed: false, // Moi (émetteur) n'ai pas encore récupéré le pixel
-            toClaimed: false,   // Destinataire n'a pas encore récupéré le pixel
+            fromClaimed: false, // Moi (émetteur) n'ai pas encore récupéré ma part
+            toClaimed: false,   // Destinataire n'a pas encore récupéré sa part
             createdAt: serverTimestamp()
-        });
+        };
+        if (selectedMyPixel) {
+            tradeDoc.fromPixelId = selectedMyPixel.id;
+            tradeDoc.fromPixelName = selectedMyPixel.name;
+            tradeDoc.fromPixelData = cleanPixelForFirestore(selectedMyPixel);
+        }
+        if (selectedTheirPixel) {
+            tradeDoc.toPixelId = selectedTheirPixel.id;
+            tradeDoc.toPixelName = selectedTheirPixel.name;
+            tradeDoc.toPixelData = cleanPixelForFirestore(selectedTheirPixel);
+        }
+        await addDoc(collection(db, 'trades'), tradeDoc);
 
-        showToast('Proposition d\'échange envoyée ! Ton pixel a été retiré de ta collection.');
+        showToast('Proposition envoyée ! Ce que tu offres a été mis de côté.');
 
         // Reset et recharger
         selectedMyPixel = null;
@@ -2520,9 +2591,9 @@ function createTradeCard(trade, type) {
         const alreadyClaimed = amISender ? trade.fromClaimed : trade.toClaimed;
 
         if (!alreadyClaimed && (trade.status === 'accepted' || trade.status === 'cancelled' || (trade.status === 'refused' && amISender))) {
-            actions = `<div class="exchange__footer">${statusPill}<button onclick="claimTrade('${trade.id}')" class="btn btn--claim btn--full">🎁 Récupérer le pixel</button></div>`;
+            actions = `<div class="exchange__footer">${statusPill}<button onclick="claimTrade('${trade.id}')" class="btn btn--claim btn--full">🎁 Récupérer ma part</button></div>`;
         } else if (alreadyClaimed) {
-            actions = `<div class="exchange__footer">${statusPill}<span class="status-pill claimed">✅ Pixel récupéré</span></div>`;
+            actions = `<div class="exchange__footer">${statusPill}<span class="status-pill claimed">✅ Part récupérée</span></div>`;
         } else {
             actions = `<div class="exchange__footer">${statusPill}</div>`;
         }
@@ -2531,23 +2602,28 @@ function createTradeCard(trade, type) {
     // En attente : afficher le statut si présent (ne s'applique pas ici car pending)
     const footerFallback = (type !== 'history' && statusPill) ? `<div class="exchange__footer">${statusPill}</div>` : '';
 
+    // Une face d'échange : pixel (optionnel) et/ou éclats
+    const sideHtml = (role, pixelName, hasPixel, shards, canvasClass) => {
+        let inner = `<span class="swap-side__role">${role}</span>`;
+        if (hasPixel) {
+            inner += `<canvas class="${canvasClass}" width="64" height="64"></canvas>`;
+            inner += `<span class="swap-side__name">${pixelName}</span>`;
+        }
+        if (shards > 0) inner += `<span class="swap-shards">${shards} ✨</span>`;
+        return `<div class="swap-side">${inner}</div>`;
+    };
+    const hasFromPixel = !!trade.fromPixelData;
+    const hasToPixel = !!trade.toPixelData;
+
     card.innerHTML = `
         <div class="exchange__top">
             <div class="exchange__players"><b>${trade.fromUserName}</b> ↔ <b>${trade.toUserName}</b></div>
             <div class="exchange__date">${date}</div>
         </div>
         <div class="exchange__body">
-            <div class="swap-side">
-                <span class="swap-side__role">Proposé</span>
-                <canvas class="js-from-canvas" width="64" height="64"></canvas>
-                <span class="swap-side__name">${trade.fromPixelName}</span>
-            </div>
+            ${sideHtml('Proposé', trade.fromPixelName, hasFromPixel, trade.fromShards || 0, 'js-from-canvas')}
             <div class="swap-arrow">⇄</div>
-            <div class="swap-side">
-                <span class="swap-side__role">Demandé</span>
-                <canvas class="js-to-canvas" width="64" height="64"></canvas>
-                <span class="swap-side__name">${trade.toPixelName}</span>
-            </div>
+            ${sideHtml('Demandé', trade.toPixelName, hasToPixel, trade.toShards || 0, 'js-to-canvas')}
         </div>
         ${actions || footerFallback}
     `;
@@ -2562,7 +2638,7 @@ function createTradeCard(trade, type) {
 }
 
 window.acceptTrade = async function(tradeId) {
-    if (!await uiConfirm('Ton pixel sera retiré de ta collection et tu pourras récupérer le pixel proposé.', { title: 'Accepter cet échange ?', confirmLabel: 'Accepter', icon: '🤝' })) return;
+    if (!await uiConfirm('Ta part (pixel et/ou éclats) sera mise de côté, puis tu pourras récupérer ce qui t\'est proposé dans l\'historique.', { title: 'Accepter cet échange ?', confirmLabel: 'Accepter', icon: '🤝' })) return;
 
     try {
         const tradeDoc = await getDoc(doc(db, 'trades', tradeId));
@@ -2572,15 +2648,21 @@ window.acceptTrade = async function(tradeId) {
         }
 
         const trade = tradeDoc.data();
+        const toShards = trade.toShards || 0;
 
-        // Vérifier que JE possède toujours le pixel demandé
-        if (!userCollection[trade.toPixelId]) {
+        // Vérifier que je possède toujours de quoi honorer ma part
+        if (trade.toPixelId && !userCollection[trade.toPixelId]) {
             showToast('Tu n\'as plus ce pixel !');
             return;
         }
+        if (toShards > (userStats.shards || 0)) {
+            showToast(`Il te faut ${toShards} éclats pour cet échange (tu en as ${userStats.shards || 0}).`);
+            return;
+        }
 
-        // 1. Retirer UN exemplaire de MON pixel de ma collection
-        removeOnePixelFromCollection(trade.toPixelId);
+        // 1. Mettre de côté MA part : pixel demandé et/ou éclats demandés
+        if (trade.toPixelId) removeOnePixelFromCollection(trade.toPixelId);
+        if (toShards > 0) userStats.shards = (userStats.shards || 0) - toShards;
         await saveUserData();
 
         // 2. Marquer l'échange comme accepté
@@ -2589,7 +2671,7 @@ window.acceptTrade = async function(tradeId) {
             acceptedAt: serverTimestamp()
         });
 
-        showToast('Échange accepté ! Ton pixel a été retiré. Va dans l\'historique pour récupérer ton nouveau pixel.');
+        showToast('Échange accepté ! Va dans l\'historique pour récupérer ta part.');
 
         // Recharger les données
         await loadUserData();
@@ -2603,7 +2685,7 @@ window.acceptTrade = async function(tradeId) {
 }
 
 window.refuseTrade = async function(tradeId) {
-    if (!await uiConfirm('Le pixel de l\'autre joueur lui sera rendu.', { danger: true, title: 'Refuser cet échange ?', confirmLabel: 'Refuser', icon: '❌' })) return;
+    if (!await uiConfirm('La mise de l\'autre joueur (pixel et/ou éclats) lui sera rendue.', { danger: true, title: 'Refuser cet échange ?', confirmLabel: 'Refuser', icon: '❌' })) return;
 
     try {
         // Marquer comme refusé (le pixel de fromUser sera rendu via claimTrade)
@@ -2612,7 +2694,7 @@ window.refuseTrade = async function(tradeId) {
             refusedAt: serverTimestamp()
         });
 
-        showToast('Échange refusé. Le pixel sera rendu à son propriétaire.');
+        showToast('Échange refusé. La mise sera rendue à son propriétaire.');
         await loadPendingTrades();
         await loadTradeHistory();
     } catch (error) {
@@ -2622,7 +2704,7 @@ window.refuseTrade = async function(tradeId) {
 }
 
 window.cancelTrade = async function(tradeId) {
-    if (!await uiConfirm('Ton pixel te sera rendu.', { title: 'Annuler la proposition ?', confirmLabel: 'Oui, annuler', cancelLabel: 'Non', icon: '🗑️' })) return;
+    if (!await uiConfirm('Ta mise (pixel et/ou éclats) te sera rendue.', { title: 'Annuler la proposition ?', confirmLabel: 'Oui, annuler', cancelLabel: 'Non', icon: '🗑️' })) return;
 
     try {
         // Marquer comme annulé (le pixel sera rendu via claimTrade)
@@ -2630,7 +2712,7 @@ window.cancelTrade = async function(tradeId) {
             status: 'cancelled',
             cancelledAt: serverTimestamp()
         });
-        showToast('Proposition annulée. Récupère ton pixel dans l\'historique.');
+        showToast('Proposition annulée. Récupère ta part dans l\'historique.');
         await loadPendingTrades();
         await loadTradeHistory();
     } catch (error) {
@@ -2656,27 +2738,31 @@ window.claimTrade = async function(tradeId) {
             return;
         }
 
-        // Déterminer quel pixel je récupère
+        // Déterminer ce que je récupère : pixel (optionnel) + éclats
         let pixelToReceive = null;
+        let shardsToReceive = 0;
         let claimField = null;
 
         if (trade.status === 'accepted') {
-            // Échange accepté : chacun récupère le pixel de l'autre
+            // Échange accepté : chacun récupère la part de l'autre
             if (amISender) {
-                pixelToReceive = trade.toPixelData; // Je récupère le pixel du destinataire
+                pixelToReceive = trade.toPixelData || null;   // la part du destinataire
+                shardsToReceive = trade.toShards || 0;
                 claimField = 'fromClaimed';
             } else {
-                pixelToReceive = trade.fromPixelData; // Je récupère le pixel de l'émetteur
+                pixelToReceive = trade.fromPixelData || null; // la part de l'émetteur
+                shardsToReceive = trade.fromShards || 0;
                 claimField = 'toClaimed';
             }
         } else if (trade.status === 'refused' || trade.status === 'cancelled') {
-            // Échange refusé/annulé : chacun récupère son propre pixel
+            // Refusé/annulé : chacun récupère sa propre mise
             if (amISender) {
-                pixelToReceive = trade.fromPixelData; // Je récupère MON pixel
+                pixelToReceive = trade.fromPixelData || null; // MA mise
+                shardsToReceive = trade.fromShards || 0;
                 claimField = 'fromClaimed';
-            } else if (trade.status === 'refused') {
-                // Le destinataire ne peut rien récupérer si refusé (il n'avait rien donné)
-                showToast('Tu n\'as rien à récupérer de cet échange refusé.');
+            } else {
+                // Le destinataire n'avait rien engagé (l'escrow ne se fait qu'à l'acceptation)
+                showToast('Tu n\'as rien à récupérer de cet échange.');
                 return;
             }
         } else {
@@ -2686,19 +2772,31 @@ window.claimTrade = async function(tradeId) {
 
         // Vérifier si déjà récupéré
         if (trade[claimField]) {
-            showToast('Tu as déjà récupéré ton pixel !');
+            showToast('Tu as déjà récupéré ta part !');
             return;
         }
 
-        // Désérialiser le pixel
-        const pixel = {
-            ...pixelToReceive,
-            data: pixelToReceive.data && typeof pixelToReceive.data === 'string' ? JSON.parse(pixelToReceive.data) : pixelToReceive.data,
-            colors: pixelToReceive.colors && typeof pixelToReceive.colors === 'string' ? JSON.parse(pixelToReceive.colors) : pixelToReceive.colors
-        };
+        if (!pixelToReceive && shardsToReceive <= 0) {
+            showToast('Rien à récupérer sur cet échange.');
+            return;
+        }
 
-        // Ajouter le pixel à ma collection avec initialisation correcte du count
-        addPixelToCollection(pixel);
+        // Créditer le pixel (si présent)
+        const received = [];
+        if (pixelToReceive) {
+            const pixel = {
+                ...pixelToReceive,
+                data: pixelToReceive.data && typeof pixelToReceive.data === 'string' ? JSON.parse(pixelToReceive.data) : pixelToReceive.data,
+                colors: pixelToReceive.colors && typeof pixelToReceive.colors === 'string' ? JSON.parse(pixelToReceive.colors) : pixelToReceive.colors
+            };
+            addPixelToCollection(pixel);
+            received.push(`"${pixel.name}"`);
+        }
+        // Créditer les éclats (si présents)
+        if (shardsToReceive > 0) {
+            userStats.shards = (userStats.shards || 0) + shardsToReceive;
+            received.push(`${shardsToReceive} ✨`);
+        }
         await saveUserData();
 
         // Marquer comme récupéré
@@ -2707,7 +2805,7 @@ window.claimTrade = async function(tradeId) {
             [`${claimField}At`]: serverTimestamp()
         });
 
-        showToast(`Pixel "${pixel.name}" récupéré avec succès !`);
+        showToast(`Récupéré : ${received.join(' + ')} !`);
 
         // Recharger
         await loadUserData();

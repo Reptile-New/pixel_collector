@@ -1049,6 +1049,40 @@
             font-weight: 400;
         }
 
+        /* Champ éclats dans une proposition d'échange */
+        .shard-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .shard-row__label {
+            font-weight: 600;
+            color: var(--accent);
+            white-space: nowrap;
+        }
+        .shard-input {
+            width: 90px;
+            padding: 9px 12px;
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-sm);
+            background: var(--surface-sunken);
+            color: var(--text);
+            font-family: var(--font-ui);
+            font-size: 1em;
+        }
+        .shard-row__avail {
+            font-size: 0.82em;
+            color: var(--text-dim);
+        }
+        /* Éclats affichés dans une carte d'échange */
+        .swap-shards {
+            font-weight: 700;
+            color: var(--accent);
+            font-size: 1.05em;
+            margin-top: 4px;
+        }
+
         .trade-select {
             width: 100%;
             padding: 13px 14px;
@@ -1923,7 +1957,7 @@
                 <!-- Contenu : Coffres -->
                 <div class="tab-content active" id="chestTab">
                     <div class="chest-container" id="chestView">
-                        <div class="chest-label">Coffre — midi &amp; minuit</div>
+                        <div class="chest-label">Coffre</div>
                         <div class="chest-stage">
                             <div class="chest-rays" aria-hidden="true"></div>
                             <div class="chest-glow" aria-hidden="true"></div>
@@ -2104,6 +2138,11 @@
                                     <div id="myPixelsForTrade" class="pixel-pool">
                                         <p class="pool-empty">Sélectionne un joueur d'abord</p>
                                     </div>
+                                    <div class="shard-row">
+                                        <span class="shard-row__label">✨ + éclats</span>
+                                        <input type="number" id="offerShards" class="shard-input" min="0" step="1" value="0" inputmode="numeric">
+                                        <span class="shard-row__avail" id="offerShardsAvail"></span>
+                                    </div>
                                 </div>
 
                                 <!-- Pixels du joueur -->
@@ -2111,6 +2150,10 @@
                                     <div class="field__label"><span class="field__step">3</span> Contre <span class="trade-hint">⭐ ce qui te manque</span></div>
                                     <div id="theirPixelsForTrade" class="pixel-pool">
                                         <p class="pool-empty">Sélectionne un joueur d'abord</p>
+                                    </div>
+                                    <div class="shard-row">
+                                        <span class="shard-row__label">✨ + éclats</span>
+                                        <input type="number" id="requestShards" class="shard-input" min="0" step="1" value="0" inputmode="numeric">
                                     </div>
                                 </div>
 
