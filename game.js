@@ -8,6 +8,8 @@ import {
     onAuthStateChanged,
     GoogleAuthProvider,
     signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
     updateProfile,
     sendEmailVerification,
     deleteUser,
@@ -24,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=13'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=14'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -167,6 +169,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Bannière d'installation de l'app (PWA)
     setupInstallBanner();
+
+    // Récupérer le résultat d'une connexion Google par redirection
+    // (utilisée dans l'app installée, où la popup ne fonctionne pas).
+    // En cas de succès, onAuthStateChanged prend le relais.
+    getRedirectResult(auth).catch((error) => {
+        console.error('Erreur de connexion Google (redirection):', error);
+        showToast('Erreur de connexion avec Google: ' + error.message);
+    });
 
     // Écouter les changements d'authentification
     onAuthStateChanged(auth, async (user) => {
@@ -512,6 +522,20 @@ async function handleGoogleSignIn() {
         prompt: 'select_account'
     });
 
+    // Dans l'app installée (PWA en mode standalone), la popup Google est
+    // bloquée ou ne peut pas rendre la main à l'application : on passe par
+    // une redirection complète de la page. Le retour est traité par
+    // getRedirectResult au chargement, puis onAuthStateChanged.
+    if (isAppInstalled()) {
+        try {
+            await signInWithRedirect(auth, provider);
+        } catch (error) {
+            console.error('Erreur de connexion Google (redirection):', error);
+            showToast('Erreur de connexion avec Google: ' + error.message);
+        }
+        return;
+    }
+
     try {
         const result = await signInWithPopup(auth, provider);
 
@@ -532,6 +556,15 @@ async function handleGoogleSignIn() {
             // L'utilisateur a fermé la popup, ne rien faire
         } else if (error.code === 'auth/cancelled-popup-request') {
             // Une autre popup était déjà ouverte
+        } else if (error.code === 'auth/popup-blocked'
+            || error.code === 'auth/operation-not-supported-in-this-environment') {
+            // Popup bloquée par le navigateur : repli sur la redirection
+            try {
+                await signInWithRedirect(auth, provider);
+            } catch (e) {
+                console.error('Erreur de connexion Google (redirection):', e);
+                showToast('Erreur de connexion avec Google: ' + e.message);
+            }
         } else {
             showToast('Erreur de connexion avec Google: ' + error.message);
         }
