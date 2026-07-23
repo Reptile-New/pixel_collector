@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=20'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=21'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -835,6 +835,10 @@ async function loadUserData() {
             userStats.mineLastCollect = userStats.mineLastCollect || 0;
             // Charger le lastChestTime pour la limite quotidienne
             userStats.lastChestTime = data.lastChestTime || 0;
+            // Resynchroniser les compteurs sur la collection réelle : corrige
+            // d'éventuelles stats désynchronisées héritées (elles seront
+            // re-persistées correctes à la prochaine sauvegarde).
+            updateUniquePixelsCount();
         } else {
             // Premier accès (ou compte réparé) : initialiser les données
             const name = currentUser.displayName || currentUser.email?.split('@')[0] || 'Joueur';
@@ -848,6 +852,10 @@ async function loadUserData() {
 
 async function saveUserData() {
     try {
+        // Toujours resynchroniser les compteurs sur la collection avant de
+        // persister : ils ne peuvent donc jamais être faux dans Firestore.
+        updateUniquePixelsCount();
+
         // Sérialiser la collection pour éviter les tableaux imbriqués
         const serializedCollection = {};
         for (const [key, pixel] of Object.entries(userCollection)) {
@@ -1096,8 +1104,15 @@ function addPixelToCollection(pixel) {
     userCollection[pixel.id].count++;
 }
 
+// Recalcule les compteurs à partir de la collection (source de vérité) :
+// - uniquePixels = nombre d'entrées distinctes
+// - totalPixels  = somme des exemplaires (doublons inclus)
+// Évite toute dérive des compteurs, quel que soit le chemin (craft, échange,
+// recyclage, coffre…).
 function updateUniquePixelsCount() {
     userStats.uniquePixels = Object.keys(userCollection).length;
+    userStats.totalPixels = Object.values(userCollection)
+        .reduce((sum, p) => sum + (p.count || 1), 0);
 }
 
 // === AFFICHAGE DU RÉSULTAT ===
