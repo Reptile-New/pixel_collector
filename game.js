@@ -24,7 +24,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=11'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=12'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // Variables globales
 let currentUser = null;
@@ -79,6 +79,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Rafraîchir le compte à rebours du coffre (reset à minuit)
     setInterval(updateChestStatus, 30 * 1000);
+
+    // Bannière d'installation de l'app (PWA)
+    setupInstallBanner();
 
     // Écouter les changements d'authentification
     onAuthStateChanged(auth, async (user) => {
@@ -238,6 +241,49 @@ function drawChest() {
     }
 }
 
+// === BANNIÈRE D'INSTALLATION DE L'APP (PWA) ===
+
+function isAppInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+}
+
+function setupInstallBanner() {
+    const banner = document.getElementById('installBanner');
+    if (!banner || isAppInstalled() || localStorage.getItem('installBannerDismissed')) {
+        return;
+    }
+
+    // Android / Chrome : bouton d'installation natif
+    // (l'événement est capturé au plus tôt par un script dans index.html)
+    const showInstallButton = () => {
+        document.getElementById('installBannerButton').style.display = 'inline-block';
+        banner.style.display = 'flex';
+    };
+    if (window.deferredInstallPrompt) showInstallButton();
+    window.addEventListener('pc-install-available', showInstallButton);
+
+    // iPhone / iPad : pas d'API d'installation, on affiche la marche à suivre
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+        document.getElementById('installBannerIos').style.display = 'block';
+        banner.style.display = 'flex';
+    }
+
+    document.getElementById('installBannerButton').addEventListener('click', async () => {
+        const promptEvent = window.deferredInstallPrompt;
+        if (!promptEvent) return;
+        promptEvent.prompt();
+        await promptEvent.userChoice;
+        window.deferredInstallPrompt = null;
+        banner.style.display = 'none';
+    });
+
+    document.getElementById('installBannerClose').addEventListener('click', () => {
+        banner.style.display = 'none';
+        localStorage.setItem('installBannerDismissed', '1');
+    });
+}
+
 // === AUTHENTIFICATION FIREBASE ===
 
 async function handleLogin() {
@@ -254,7 +300,23 @@ async function handleLogin() {
 
         // Vérifier si l'email est vérifié
         if (!userCredential.user.emailVerified) {
-            alert('Veuillez vérifier votre email avant de vous connecter. Un email de confirmation vous a été envoyé lors de votre inscription.');
+            // Réparer/créer le document Firestore tant qu'on est encore
+            // authentifié (les comptes inscrits avant le correctif n'en ont pas)
+            try {
+                await ensureUserDoc(userCredential.user);
+            } catch (e) {
+                console.warn('Impossible de créer le document utilisateur:', e);
+            }
+
+            if (confirm('Ton email n\'est pas encore vérifié : clique sur le lien reçu par mail pour activer ton compte.\n\nRenvoyer l\'email de vérification ?')) {
+                try {
+                    await sendEmailVerification(userCredential.user);
+                    alert('Email renvoyé ! Vérifie ta boîte mail (et le dossier spam).');
+                } catch (e) {
+                    alert('Impossible de renvoyer l\'email : ' + e.message);
+                }
+            }
+
             await signOut(auth);
             return;
         }
@@ -295,16 +357,25 @@ async function handleRegister() {
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-        // Définir le displayName (pseudo)
-        await updateProfile(userCredential.user, {
-            displayName: pseudo
-        });
-
-        // Envoyer l'email de vérification
-        await sendEmailVerification(userCredential.user);
-
-        // Initialiser les données utilisateur dans Firestore avec le pseudo
+        // 1. Créer le document Firestore EN PREMIER : c'est lui qui rend le
+        // compte visible dans le jeu. Avant, un échec des étapes suivantes
+        // (profil, email de vérification) laissait un compte Auth sans données.
         await initializeUserData(userCredential.user.uid, pseudo);
+
+        // 2. Pseudo sur le compte Auth — ne doit pas bloquer l'inscription
+        try {
+            await updateProfile(userCredential.user, { displayName: pseudo });
+        } catch (e) {
+            console.warn('updateProfile a échoué:', e);
+        }
+
+        // 3. Email de vérification — ne doit pas bloquer non plus
+        // (renvoyable depuis l'écran de connexion)
+        try {
+            await sendEmailVerification(userCredential.user);
+        } catch (e) {
+            console.warn('sendEmailVerification a échoué:', e);
+        }
 
         // Déconnecter l'utilisateur et afficher un message
         await signOut(auth);
@@ -526,6 +597,16 @@ function showLoginScreen() {
 
 // === GESTION DES DONNÉES UTILISATEUR AVEC FIRESTORE ===
 
+// Crée le document Firestore du joueur s'il n'existe pas encore.
+// Répare aussi les comptes créés avant le correctif d'inscription.
+async function ensureUserDoc(user) {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    if (!snap.exists()) {
+        const name = user.displayName || user.email?.split('@')[0] || 'Joueur';
+        await initializeUserData(user.uid, name);
+    }
+}
+
 async function initializeUserData(uid, displayName) {
     // S'assurer que displayName n'est jamais undefined
     const safeName = displayName || 'Joueur';
@@ -588,8 +669,9 @@ async function loadUserData() {
             // Charger le lastChestTime pour la limite quotidienne
             userStats.lastChestTime = data.lastChestTime || 0;
         } else {
-            // Premier accès, initialiser les données
-            await initializeUserData(currentUser.uid);
+            // Premier accès (ou compte réparé) : initialiser les données
+            const name = currentUser.displayName || currentUser.email?.split('@')[0] || 'Joueur';
+            await initializeUserData(currentUser.uid, name);
         }
     } catch (error) {
         console.error('Erreur de chargement des données:', error);
