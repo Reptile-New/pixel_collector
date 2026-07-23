@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=16'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=17'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -1680,12 +1680,16 @@ function updateChestStatus() {
             `Coffre déjà ouvert — prochain à ${nextLabel} (dans ${h}h${String(m).padStart(2, '0')})`;
     }
 
-    // Infos série + pity sous le coffre
+    // Infos série + pity sous le coffre — en badges visuels, pas en paragraphe
     const pityLeft = Math.max(1, PITY_THRESHOLD - (userStats.chestsSinceLegendary || 0));
+    const streak = userStats.streak || 0;
     document.getElementById('chestExtraInfo').innerHTML =
-        `🔥 Série : <strong>${userStats.streak || 0} jour${(userStats.streak || 0) > 1 ? 's' : ''}</strong>` +
-        ` &nbsp;·&nbsp; 💎 Légendaire garanti dans <strong>${pityLeft} coffre${pityLeft > 1 ? 's' : ''}</strong>` +
-        `<div class="chest-hint">Deux coffres par jour : un à midi, un à minuit (heure de Paris). Ouvre-en un chaque jour : +1 pixel dès 3 jours de série, +2 dès 7 jours !</div>`;
+        `<div class="chest-chips">` +
+            `<span class="chest-chip">🔥 <strong>${streak}</strong> j</span>` +
+            `<span class="chest-chip">💎 <strong>${pityLeft}</strong> 📦</span>` +
+            `<span class="chest-chip goal${streak >= 3 ? ' reached' : ''}">🔥 3 → +1</span>` +
+            `<span class="chest-chip goal${streak >= 7 ? ' reached' : ''}">🔥 7 → +2</span>` +
+        `</div>`;
 }
 
 // === MINE À ÉCLATS ===

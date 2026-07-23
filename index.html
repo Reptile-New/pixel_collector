@@ -415,9 +415,6 @@
             text-align: center;
             font-size: 1em;
             opacity: 0.9;
-            background: rgba(0, 0, 0, 0.25);
-            padding: 12px 20px;
-            border-radius: 10px;
         }
 
         .chest-hint {
@@ -601,9 +598,51 @@
             padding: 8px 14px;
         }
 
-        .convert-item .convert-emoji { font-size: 1.3em; line-height: 1; }
         .convert-item .convert-arrow { opacity: 0.5; }
         .convert-item .convert-val { color: var(--accent); font-weight: bold; }
+
+        /* Vraies grilles de pixels (rendues au canvas) */
+        .px-demo {
+            width: 30px;
+            height: 30px;
+            image-rendering: pixelated;
+            border-radius: 5px;
+            flex-shrink: 0;
+            box-shadow: 0 0 0 1px var(--hairline);
+        }
+        .craft-px {
+            width: 48px;
+            height: 48px;
+            image-rendering: pixelated;
+            border-radius: 6px;
+            box-shadow: 0 0 0 1px var(--hairline);
+        }
+
+        /* Badges visuels sous le coffre (série / pity / paliers) */
+        .chest-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .chest-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--surface-2);
+            border: 1px solid var(--hairline);
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+        .chest-chip.goal { opacity: 0.45; }
+        .chest-chip.goal.reached {
+            opacity: 1;
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(255, 215, 0, 0.12);
+        }
 
         /* Note discrète (remplace les longs paragraphes) */
         .micro-note {
@@ -1959,9 +1998,9 @@
                         <div class="atelier-card">
                             <h3>♻️ Recyclage</h3>
                             <div class="convert-strip">
-                                <div class="convert-item"><span class="convert-emoji">🟥</span><span class="convert-arrow">→</span><span class="convert-val">1 ✨</span></div>
-                                <div class="convert-item"><span class="convert-emoji">🟦</span><span class="convert-arrow">→</span><span class="convert-val">4 ✨</span></div>
-                                <div class="convert-item"><span class="convert-emoji">🖼️</span><span class="convert-arrow">→</span><span class="convert-val">64 ✨</span></div>
+                                <div class="convert-item"><canvas class="px-demo" data-demo="1x1" title="1 pixel"></canvas><span class="convert-arrow">→</span><span class="convert-val">1 ✨</span></div>
+                                <div class="convert-item"><canvas class="px-demo" data-demo="2x2" title="4 pixels (2×2)"></canvas><span class="convert-arrow">→</span><span class="convert-val">4 ✨</span></div>
+                                <div class="convert-item"><canvas class="px-demo" data-demo="8x8" title="64 pixels (8×8)"></canvas><span class="convert-arrow">→</span><span class="convert-val">64 ✨</span></div>
                             </div>
                             <p class="micro-note">Tes doublons deviennent des éclats — tu gardes toujours 1 exemplaire.</p>
                             <p id="recyclePreview">Aucun doublon à recycler pour le moment.</p>
@@ -1971,14 +2010,14 @@
                         <h3 style="margin-bottom: 15px;">🔨 Assemblage</h3>
                         <div class="craft-grid">
                             <div class="craft-card">
-                                <div class="craft-icon">🟥</div>
+                                <canvas class="craft-px" data-demo="1x1"></canvas>
                                 <div class="craft-title">Pixel 1×1</div>
                                 <div class="craft-meta">🎲 4 couleurs</div>
                                 <div class="craft-cost">1 ✨</div>
                                 <button id="craft1x1Button" class="open-button" disabled>Crafter</button>
                             </div>
                             <div class="craft-card">
-                                <div class="craft-icon">🟦</div>
+                                <canvas class="craft-px" data-demo="2x2"></canvas>
                                 <div class="craft-title">Pixel 2×2</div>
                                 <div class="craft-meta">🎲 256 combis</div>
                                 <div class="craft-cost">4 ✨</div>
@@ -1992,7 +2031,7 @@
                                 <button id="craftChestButton" class="open-button" disabled>Ouvrir</button>
                             </div>
                             <div class="craft-card">
-                                <div class="craft-icon">💎</div>
+                                <canvas class="craft-px" data-demo="8x8"></canvas>
                                 <div class="craft-title">Pixel Art</div>
                                 <div class="craft-meta">🎲 30 designs</div>
                                 <div class="craft-cost">64 ✨</div>
@@ -2202,11 +2241,25 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=16"></script>
-    <script src="pixel_data.js?v=16"></script>
-    <script src="pixel_renderer.js?v=16"></script>
-    <script type="module" src="game.js?v=16"></script>
+    <script type="module" src="firebase-config.js?v=17"></script>
+    <script src="pixel_data.js?v=17"></script>
+    <script src="pixel_renderer.js?v=17"></script>
+    <script type="module" src="game.js?v=17"></script>
     <script>
+        // Dessine les vignettes de démonstration (vraies grilles de pixels)
+        // dans l'Atelier : 1×1 = 1 case, 2×2 = 4 cases, 8×8 = 64 cases.
+        (function drawDemoPixels() {
+            if (typeof PixelRenderer === 'undefined') return;
+            const arts = (typeof PixelArts !== 'undefined' && PixelArts.length) ? PixelArts : null;
+            const art = arts ? (arts.find(a => a.id === 'art_heart') || arts[0]) : null;
+            document.querySelectorAll('canvas[data-demo]').forEach(c => {
+                const kind = c.dataset.demo;
+                if (kind === '1x1') PixelRenderer.draw1x1(c, '1', 40);
+                else if (kind === '2x2') PixelRenderer.draw2x2(c, '1234', 20);
+                else if (kind === '8x8' && art) PixelRenderer.draw8x8(c, art.data, art.colors, 5);
+            });
+        })();
+
         // Enregistrement du service worker (mode hors ligne + installation)
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(err => {
