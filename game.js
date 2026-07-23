@@ -24,7 +24,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=9'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=10'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // Variables globales
 let currentUser = null;
@@ -45,8 +45,8 @@ let userStats = {
 const SHARD_VALUES = { '1x1': 1, '2x2': 4, 'art': 64 };
 // Coût des crafts = assembler les pixels de l'item : un 1x1 coûte 1 pixel,
 // un 2x2 ses 4 pixels, un pixel art ses 64 pixels. Coffre bonus : 16.
-// Contrepartie du prix bas : les crafts 1x1 et 2x2 sont 100% aléatoires ;
-// seul le légendaire (cher) privilégie un pixel art manquant.
+// Tous les crafts payés en éclats sont 100% aléatoires dans leur catégorie.
+// Pour un 2x2 précis : l'assemblage sur mesure, payé en pixels 1x1.
 const CRAFT_COSTS = { craft1x1: 1, craft2x2: 4, bonusChest: 16, craftArt: 64 };
 // Un légendaire est garanti tous les PITY_THRESHOLD coffres sans légendaire
 const PITY_THRESHOLD = 25;
@@ -161,6 +161,7 @@ function setupEventListeners() {
     document.getElementById('craft2x2Button').addEventListener('click', craft2x2);
     document.getElementById('craftChestButton').addEventListener('click', craftBonusChest);
     document.getElementById('craftArtButton').addEventListener('click', craftLegendary);
+    initCustomCraft();
 
     // Trade system event listeners
     document.querySelectorAll('.trade-tab').forEach(tab => {
@@ -1517,10 +1518,8 @@ async function craft2x2() {
 async function craftLegendary() {
     if (!spendShards(CRAFT_COSTS.craftArt)) return;
 
-    // Priorité aux pixel arts manquants
-    const missing = PixelArts.filter(art => !userCollection[art.id]);
-    const pool = missing.length > 0 ? missing : PixelArts;
-    const art = pool[Math.floor(Math.random() * pool.length)];
+    // Tirage 100% aléatoire parmi les 30 pixel arts, comme les autres crafts
+    const art = PixelArts[Math.floor(Math.random() * PixelArts.length)];
 
     const pixel = {
         type: 'art',
@@ -1548,6 +1547,94 @@ async function craftBonusChest() {
     updateUI();
 }
 
+// === ASSEMBLAGE SUR MESURE ===
+// Choisir exactement son 2x2 et le payer avec ses pixels 1x1 des bonnes couleurs
+
+let customPattern = [1, 1, 1, 1]; // 4 cases, couleurs 1 à 4
+const COLOR_NAMES = { 1: 'Rouge', 2: 'Bleu', 3: 'Vert', 4: 'Jaune' };
+
+function initCustomCraft() {
+    document.querySelectorAll('.custom-cell').forEach((cell, i) => {
+        cell.addEventListener('click', () => {
+            customPattern[i] = (customPattern[i] % 4) + 1; // cycle 1→2→3→4→1
+            updateCustomCraftUI();
+        });
+    });
+    document.getElementById('customCraftButton').addEventListener('click', craftCustom2x2);
+}
+
+function getCustomCraftNeeds() {
+    const needs = {};
+    customPattern.forEach(d => { needs[d] = (needs[d] || 0) + 1; });
+    return needs;
+}
+
+function updateCustomCraftUI() {
+    // Colorer les 4 cases selon le pattern choisi
+    document.querySelectorAll('.custom-cell').forEach((cell, i) => {
+        cell.style.background = PixelRenderer.colors[customPattern[i] - 1];
+    });
+
+    const pattern = customPattern.join('');
+    document.getElementById('customCraftTarget').textContent = `Pixel 2x2 #${pattern}`;
+    const owned = userCollection[`2x2_${pattern}`];
+    document.getElementById('customCraftOwned').textContent = owned
+        ? `Déjà possédé ×${owned.count}`
+        : '⭐ Pas encore dans ta collection !';
+
+    // Vérifier les pixels 1x1 nécessaires
+    const needs = getCustomCraftNeeds();
+    let ok = true;
+    const parts = [];
+    for (const [digit, needed] of Object.entries(needs)) {
+        const have = userCollection[`1x1_${digit}`]?.count || 0;
+        if (have < needed) ok = false;
+        parts.push(`${needed}× ${COLOR_NAMES[digit]} ${have >= needed ? '✅' : `❌ (tu en as ${have})`}`);
+    }
+    document.getElementById('customCraftNeeds').innerHTML = 'Coût en pixels 1×1 : ' + parts.join(' &nbsp;·&nbsp; ');
+    document.getElementById('customCraftButton').disabled = !ok;
+}
+
+async function craftCustom2x2() {
+    const pattern = customPattern.join('');
+    const needs = getCustomCraftNeeds();
+
+    // Revérifier le stock au moment du clic
+    for (const [digit, needed] of Object.entries(needs)) {
+        if ((userCollection[`1x1_${digit}`]?.count || 0) < needed) {
+            alert('Il te manque des pixels 1×1 pour cet assemblage !');
+            return;
+        }
+    }
+
+    // Avertir si on consomme un dernier exemplaire
+    const lastOnes = Object.entries(needs)
+        .filter(([digit, needed]) => userCollection[`1x1_${digit}`].count - needed < 1)
+        .map(([digit]) => COLOR_NAMES[digit]);
+
+    let msg = `Assembler le Pixel 2x2 #${pattern} en consommant ${customPattern.length} pixels 1×1 ?`;
+    if (lastOnes.length > 0) {
+        msg += `\n\n⚠️ Tu vas consommer ton DERNIER exemplaire de : ${lastOnes.join(', ')}`;
+    }
+    if (!confirm(msg)) return;
+
+    // Consommer les pixels 1x1
+    for (const [digit, needed] of Object.entries(needs)) {
+        for (let i = 0; i < needed; i++) {
+            removeOnePixelFromCollection(`1x1_${digit}`);
+        }
+    }
+
+    const pixel = {
+        type: '2x2',
+        pattern: pattern,
+        id: `2x2_${pattern}`,
+        name: `Pixel 2x2 #${pattern}`
+    };
+
+    await finalizeCraft(pixel, '🎯 Assemblage réussi !');
+}
+
 function updateAtelierUI() {
     const { total, duplicates } = getRecyclableShards();
 
@@ -1567,6 +1654,9 @@ function updateAtelierUI() {
     document.getElementById('craft2x2Button').disabled = shards < CRAFT_COSTS.craft2x2;
     document.getElementById('craftChestButton').disabled = shards < CRAFT_COSTS.bonusChest;
     document.getElementById('craftArtButton').disabled = shards < CRAFT_COSTS.craftArt;
+
+    // Assemblage sur mesure (payé en pixels 1x1)
+    updateCustomCraftUI();
 }
 
 // === SYSTÈME D'ÉCHANGE ===
