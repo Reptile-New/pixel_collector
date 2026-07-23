@@ -168,7 +168,7 @@ function setupEventListeners() {
 
     // Trade system event listeners
     document.querySelectorAll('.trade-tab').forEach(tab => {
-        tab.addEventListener('click', (e) => switchTradeTab(e.target.dataset.tradeTab));
+        tab.addEventListener('click', (e) => switchTradeTab(e.currentTarget.dataset.tradeTab));
     });
     document.getElementById('selectPlayer').addEventListener('change', handlePlayerSelect);
     document.getElementById('sendTradeOffer').addEventListener('click', handleSendTrade);
@@ -1790,8 +1790,8 @@ async function handlePlayerSelect(e) {
 
     if (!selectedOption.value) {
         selectedTradePlayer = null;
-        document.getElementById('myPixelsForTrade').innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Sélectionne un joueur d\'abord</p>';
-        document.getElementById('theirPixelsForTrade').innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Sélectionne un joueur d\'abord</p>';
+        document.getElementById('myPixelsForTrade').innerHTML = '<p class="pool-empty">Sélectionne un joueur d\'abord</p>';
+        document.getElementById('theirPixelsForTrade').innerHTML = '<p class="pool-empty">Sélectionne un joueur d\'abord</p>';
         document.getElementById('sendTradeOffer').disabled = true;
         return;
     }
@@ -1811,7 +1811,7 @@ function displayMyPixelsForTrade() {
     const myPixels = Object.values(userCollection);
 
     if (myPixels.length === 0) {
-        container.innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Tu n\'as aucun pixel</p>';
+        container.innerHTML = '<p class="pool-empty">Tu n\'as aucun pixel</p>';
         return;
     }
 
@@ -1851,7 +1851,7 @@ function displayTheirPixelsForTrade() {
     container.innerHTML = '';
 
     if (!selectedTradePlayer || !selectedTradePlayer.collection) {
-        container.innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Ce joueur n\'a aucun pixel</p>';
+        container.innerHTML = '<p class="pool-empty">Ce joueur n\'a aucun pixel</p>';
         return;
     }
 
@@ -1866,7 +1866,7 @@ function displayTheirPixelsForTrade() {
     }
 
     if (theirPixels.length === 0) {
-        container.innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Ce joueur n\'a aucun pixel</p>';
+        container.innerHTML = '<p class="pool-empty">Ce joueur n\'a aucun pixel</p>';
         return;
     }
 
@@ -1896,7 +1896,7 @@ function displayTheirPixelsForTrade() {
 
         const badge = document.createElement('div');
         badge.className = 'trade-badge ' + (isMissing ? 'missing' : 'unique');
-        badge.textContent = isMissing ? '⭐ Il te manque !' : `Possédé ×${userCollection[pixel.id].count}`;
+        badge.textContent = isMissing ? '⭐ Manquant' : `Possédé ×${userCollection[pixel.id].count}`;
 
         item.appendChild(canvas);
         item.appendChild(name);
@@ -1908,12 +1908,10 @@ function displayTheirPixelsForTrade() {
 function selectMyPixel(pixel, element) {
     selectedMyPixel = pixel;
     // Highlight visuel
-    document.querySelectorAll('#myPixelsForTrade > div').forEach(div => {
-        div.style.background = 'rgba(255,255,255,0.1)';
-        div.style.transform = 'scale(1)';
+    document.querySelectorAll('#myPixelsForTrade .trade-pixel').forEach(div => {
+        div.classList.remove('selected');
     });
-    element.style.background = 'rgba(100,200,100,0.3)';
-    element.style.transform = 'scale(1.1)';
+    element.classList.add('selected');
 
     checkTradeReady();
 }
@@ -1921,12 +1919,10 @@ function selectMyPixel(pixel, element) {
 function selectTheirPixel(pixel, element) {
     selectedTheirPixel = pixel;
     // Highlight visuel
-    document.querySelectorAll('#theirPixelsForTrade > div').forEach(div => {
-        div.style.background = 'rgba(255,255,255,0.1)';
-        div.style.transform = 'scale(1)';
+    document.querySelectorAll('#theirPixelsForTrade .trade-pixel').forEach(div => {
+        div.classList.remove('selected');
     });
-    element.style.background = 'rgba(100,200,100,0.3)';
-    element.style.transform = 'scale(1.1)';
+    element.classList.add('selected');
 
     checkTradeReady();
 }
@@ -2062,13 +2058,7 @@ async function handleSendTrade() {
 function switchTradeTab(tabName) {
     // Changer les onglets actifs
     document.querySelectorAll('.trade-tab').forEach(tab => {
-        if (tab.dataset.tradeTab === tabName) {
-            tab.style.background = 'rgba(255,255,255,0.3)';
-            tab.style.fontWeight = 'bold';
-        } else {
-            tab.style.background = 'rgba(0,0,0,0.2)';
-            tab.style.fontWeight = 'normal';
-        }
+        tab.classList.toggle('active', tab.dataset.tradeTab === tabName);
     });
 
     // Afficher la bonne section
@@ -2089,7 +2079,7 @@ function switchTradeTab(tabName) {
 
 async function loadPendingTrades() {
     const container = document.getElementById('pendingTradesList');
-    container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Chargement...</p>';
+    container.innerHTML = '<p class="trade-empty">Chargement…</p>';
 
     try {
         // Échanges reçus (en attente)
@@ -2117,9 +2107,9 @@ async function loadPendingTrades() {
 
         // Afficher les échanges reçus
         if (!receivedSnap.empty) {
-            const receivedTitle = document.createElement('h3');
+            const receivedTitle = document.createElement('div');
+            receivedTitle.className = 'trade-list-heading';
             receivedTitle.textContent = '📥 Propositions reçues';
-            receivedTitle.style.color = 'white';
             container.appendChild(receivedTitle);
 
             receivedSnap.forEach(docSnap => {
@@ -2130,10 +2120,9 @@ async function loadPendingTrades() {
 
         // Afficher les échanges envoyés
         if (!sentSnap.empty) {
-            const sentTitle = document.createElement('h3');
+            const sentTitle = document.createElement('div');
+            sentTitle.className = 'trade-list-heading';
             sentTitle.textContent = '📤 Propositions envoyées';
-            sentTitle.style.color = 'white';
-            sentTitle.style.marginTop = '20px';
             container.appendChild(sentTitle);
 
             sentSnap.forEach(docSnap => {
@@ -2143,7 +2132,7 @@ async function loadPendingTrades() {
         }
 
         if (receivedSnap.empty && sentSnap.empty) {
-            container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Aucun échange en attente</p>';
+            container.innerHTML = '<p class="trade-empty">Aucun échange en attente pour l'instant</p>';
         }
 
         // Mettre à jour le compteur (total des échanges reçus + envoyés)
@@ -2151,13 +2140,13 @@ async function loadPendingTrades() {
         document.getElementById('pendingTradesCount').textContent = totalPending;
     } catch (error) {
         console.error('Erreur de chargement des échanges:', error);
-        container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Erreur de chargement</p>';
+        container.innerHTML = '<p class="trade-empty">Erreur de chargement</p>';
     }
 }
 
 async function loadTradeHistory() {
     const container = document.getElementById('historyTradesList');
-    container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Chargement...</p>';
+    container.innerHTML = '<p class="trade-empty">Chargement…</p>';
 
     try {
         // Récupérer les échanges où je suis l'émetteur (fromUserId)
@@ -2200,7 +2189,7 @@ async function loadTradeHistory() {
         });
 
         if (allTrades.length === 0) {
-            container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Aucun historique</p>';
+            container.innerHTML = '<p class="trade-empty">Aucun échange dans l'historique</p>';
             return;
         }
 
@@ -2210,68 +2199,80 @@ async function loadTradeHistory() {
         });
     } catch (error) {
         console.error('Erreur de chargement de l\'historique:', error);
-        container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Erreur de chargement</p>';
+        container.innerHTML = '<p class="trade-empty">Erreur de chargement</p>';
     }
 }
 
 function createTradeCard(trade, type) {
     const card = document.createElement('div');
-    card.style.cssText = 'background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin-bottom: 15px;';
+    card.className = 'exchange';
 
-    const date = trade.createdAt?.toDate ? trade.createdAt.toDate().toLocaleString('fr-FR') : 'Date inconnue';
+    const date = trade.createdAt?.toDate
+        ? trade.createdAt.toDate().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        : 'Date inconnue';
 
-    let statusBadge = '';
+    let statusPill = '';
     if (trade.status === 'accepted') {
-        statusBadge = '<span style="background: #4caf50; padding: 5px 10px; border-radius: 12px; font-size: 0.85em;">✅ Accepté</span>';
+        statusPill = '<span class="status-pill accepted">✅ Accepté</span>';
     } else if (trade.status === 'refused') {
-        statusBadge = '<span style="background: #f44336; padding: 5px 10px; border-radius: 12px; font-size: 0.85em;">❌ Refusé</span>';
+        statusPill = '<span class="status-pill refused">❌ Refusé</span>';
     } else if (trade.status === 'cancelled') {
-        statusBadge = '<span style="background: #9e9e9e; padding: 5px 10px; border-radius: 12px; font-size: 0.85em;">🗑️ Annulé</span>';
+        statusPill = '<span class="status-pill cancelled">🗑️ Annulé</span>';
     }
 
     let actions = '';
     if (type === 'received' && trade.status === 'pending') {
         actions = `
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button onclick="acceptTrade('${trade.id}')" class="open-button" style="flex: 1; background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);">✅ Accepter</button>
-                <button onclick="refuseTrade('${trade.id}')" class="open-button" style="flex: 1; background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);">❌ Refuser</button>
+            <div class="exchange__footer">
+                <button onclick="acceptTrade('${trade.id}')" class="btn btn--accept">✅ Accepter</button>
+                <button onclick="refuseTrade('${trade.id}')" class="btn btn--refuse">❌ Refuser</button>
             </div>
         `;
     } else if (type === 'sent' && trade.status === 'pending') {
-        actions = `<button onclick="cancelTrade('${trade.id}')" class="open-button" style="width: 100%; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); margin-top: 10px;">🗑️ Annuler</button>`;
+        actions = `<div class="exchange__footer"><button onclick="cancelTrade('${trade.id}')" class="btn btn--cancel btn--full">🗑️ Annuler la proposition</button></div>`;
     } else if (type === 'history') {
         // Dans l'historique, afficher le bouton Récupérer si applicable
         const amISender = trade.fromUserId === currentUser.uid;
         const alreadyClaimed = amISender ? trade.fromClaimed : trade.toClaimed;
 
         if (!alreadyClaimed && (trade.status === 'accepted' || trade.status === 'cancelled' || (trade.status === 'refused' && amISender))) {
-            actions = `<button onclick="claimTrade('${trade.id}')" class="open-button" style="width: 100%; background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%); margin-top: 10px;">🎁 Récupérer le pixel</button>`;
+            actions = `<div class="exchange__footer">${statusPill}<button onclick="claimTrade('${trade.id}')" class="btn btn--claim btn--full">🎁 Récupérer le pixel</button></div>`;
         } else if (alreadyClaimed) {
-            actions = `<div style="text-align: center; padding: 10px; margin-top: 10px; opacity: 0.7; font-size: 0.9em;">✅ Pixel récupéré</div>`;
+            actions = `<div class="exchange__footer">${statusPill}<span class="status-pill claimed">✅ Pixel récupéré</span></div>`;
+        } else {
+            actions = `<div class="exchange__footer">${statusPill}</div>`;
         }
     }
 
+    // En attente : afficher le statut si présent (ne s'applique pas ici car pending)
+    const footerFallback = (type !== 'history' && statusPill) ? `<div class="exchange__footer">${statusPill}</div>` : '';
+
     card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <div>
-                <strong>${trade.fromUserName}</strong> ↔️ <strong>${trade.toUserName}</strong>
-            </div>
-            <div style="font-size: 0.85em; opacity: 0.8;">${date}</div>
+        <div class="exchange__top">
+            <div class="exchange__players"><b>${trade.fromUserName}</b> ↔ <b>${trade.toUserName}</b></div>
+            <div class="exchange__date">${date}</div>
         </div>
-        <div style="display: flex; gap: 15px; align-items: center; margin: 15px 0;">
-            <div style="flex: 1; text-align: center;">
-                <div style="font-size: 0.9em; opacity: 0.8; margin-bottom: 5px;">Propose</div>
-                <div style="font-weight: bold;">${trade.fromPixelName}</div>
+        <div class="exchange__body">
+            <div class="swap-side">
+                <span class="swap-side__role">Proposé</span>
+                <canvas class="js-from-canvas" width="64" height="64"></canvas>
+                <span class="swap-side__name">${trade.fromPixelName}</span>
             </div>
-            <div style="font-size: 1.5em;">↔️</div>
-            <div style="flex: 1; text-align: center;">
-                <div style="font-size: 0.9em; opacity: 0.8; margin-bottom: 5px;">Contre</div>
-                <div style="font-weight: bold;">${trade.toPixelName}</div>
+            <div class="swap-arrow">⇄</div>
+            <div class="swap-side">
+                <span class="swap-side__role">Demandé</span>
+                <canvas class="js-to-canvas" width="64" height="64"></canvas>
+                <span class="swap-side__name">${trade.toPixelName}</span>
             </div>
         </div>
-        ${statusBadge}
-        ${actions}
+        ${actions || footerFallback}
     `;
+
+    // Rendu des aperçus de pixels
+    const fromCanvas = card.querySelector('.js-from-canvas');
+    const toCanvas = card.querySelector('.js-to-canvas');
+    if (fromCanvas && trade.fromPixelData) PixelRenderer.drawPixel(fromCanvas, trade.fromPixelData, 64);
+    if (toCanvas && trade.toPixelData) PixelRenderer.drawPixel(toCanvas, trade.toPixelData, 64);
 
     return card;
 }
