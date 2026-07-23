@@ -24,7 +24,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js';
+} from './firebase-config.js?v=6'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // Variables globales
 let currentUser = null;
