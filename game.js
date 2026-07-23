@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=14'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=15'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -2310,7 +2310,7 @@ async function loadPendingTrades() {
         }
 
         if (receivedSnap.empty && sentSnap.empty) {
-            container.innerHTML = '<p class="trade-empty">Aucun échange en attente pour l'instant</p>';
+            container.innerHTML = '<p class="trade-empty">Aucun échange en attente pour l\'instant</p>';
         }
 
         // Mettre à jour le compteur (total des échanges reçus + envoyés)
@@ -2367,7 +2367,7 @@ async function loadTradeHistory() {
         });
 
         if (allTrades.length === 0) {
-            container.innerHTML = '<p class="trade-empty">Aucun échange dans l'historique</p>';
+            container.innerHTML = '<p class="trade-empty">Aucun échange dans l\'historique</p>';
             return;
         }
 
