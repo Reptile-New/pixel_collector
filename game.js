@@ -73,6 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
     drawChest();
     generateCollectionAlbumTabs();
 
+    // Rafraîchir le compte à rebours du coffre (reset à minuit)
+    setInterval(updateChestStatus, 30 * 1000);
+
     // Écouter les changements d'authentification
     onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -616,24 +619,46 @@ async function saveUserData() {
 
 // === SYSTÈME DE COFFRES ===
 
+// Le coffre se réinitialise à heure fixe pour tout le monde : minuit (heure de Paris).
+// Un joueur peut donc l'ouvrir une fois par jour calendaire, quel que soit l'horaire.
+const CHEST_TIMEZONE = 'Europe/Paris';
+
+// Clé de jour "YYYY-MM-DD" dans le fuseau du reset
+function getDayKey(timestamp) {
+    return new Intl.DateTimeFormat('fr-CA', { timeZone: CHEST_TIMEZONE }).format(new Date(timestamp));
+}
+
+// Millisecondes restantes avant le prochain minuit (heure de Paris)
+function msUntilNextReset() {
+    const parts = new Intl.DateTimeFormat('fr-FR', {
+        timeZone: CHEST_TIMEZONE,
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false
+    }).formatToParts(new Date());
+    const get = type => parseInt(parts.find(p => p.type === type).value, 10);
+    const elapsedMs = (get('hour') * 3600 + get('minute') * 60 + get('second')) * 1000;
+    return 24 * 3600 * 1000 - elapsedMs;
+}
+
 function canOpenChest() {
     const lastTime = userStats.lastChestTime || 0;
-    const now = Date.now();
-    const hoursSince = (now - lastTime) / (1000 * 60 * 60);
-    return hoursSince >= 24;
+    if (!lastTime) return true;
+    return getDayKey(lastTime) !== getDayKey(Date.now());
 }
 
 async function openChest() {
     if (!canOpenChest()) {
-        alert('Vous avez déjà ouvert votre coffre quotidien. Revenez demain !');
+        alert('Tu as déjà ouvert ton coffre aujourd\'hui. Reviens après minuit !');
         return;
     }
 
     // Mettre à jour la série quotidienne : elle continue si le dernier coffre
-    // date de moins de 48h, sinon elle repart à 1
+    // a été ouvert hier (jour calendaire), sinon elle repart à 1
     const lastTime = userStats.lastChestTime || 0;
-    const hoursSince = (Date.now() - lastTime) / (1000 * 60 * 60);
-    userStats.streak = (lastTime > 0 && hoursSince < 48) ? (userStats.streak || 0) + 1 : 1;
+    const yesterdayKey = getDayKey(Date.now() - 24 * 3600 * 1000);
+    userStats.streak = (lastTime > 0 && getDayKey(lastTime) === yesterdayKey)
+        ? (userStats.streak || 0) + 1
+        : 1;
 
     // Nombre de pixels : 3 de base + bonus de série
     let pixelCount = 3;
@@ -1312,13 +1337,23 @@ function updateUI() {
     document.getElementById('streakCount').textContent = `${userStats.streak || 0} 🔥`;
 
     // État du coffre
+    updateChestStatus();
+
+    // Afficher les derniers pixels
+    updateRecentPixels();
+}
+
+function updateChestStatus() {
+    if (!currentUser) return;
+
     if (canOpenChest()) {
         document.getElementById('chestTimer').textContent = 'Cliquez sur le coffre pour l\'ouvrir !';
     } else {
-        const lastTime = userStats.lastChestTime || 0;
-        const now = Date.now();
-        const hoursLeft = 24 - Math.floor((now - lastTime) / (1000 * 60 * 60));
-        document.getElementById('chestTimer').textContent = `Disponible dans ${hoursLeft}h`;
+        const ms = msUntilNextReset();
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        document.getElementById('chestTimer').textContent =
+            `Coffre déjà ouvert — prochain à minuit (dans ${h}h${String(m).padStart(2, '0')})`;
     }
 
     // Infos série + pity sous le coffre
@@ -1326,10 +1361,7 @@ function updateUI() {
     document.getElementById('chestExtraInfo').innerHTML =
         `🔥 Série : <strong>${userStats.streak || 0} jour${(userStats.streak || 0) > 1 ? 's' : ''}</strong>` +
         ` &nbsp;·&nbsp; 💎 Légendaire garanti dans <strong>${pityLeft} coffre${pityLeft > 1 ? 's' : ''}</strong>` +
-        `<div class="chest-hint">Ouvre ton coffre chaque jour : +1 pixel dès 3 jours de série, +2 dès 7 jours !</div>`;
-
-    // Afficher les derniers pixels
-    updateRecentPixels();
+        `<div class="chest-hint">Le coffre se recharge à minuit pour tout le monde. Ouvre-le chaque jour : +1 pixel dès 3 jours de série, +2 dès 7 jours !</div>`;
 }
 
 function updateRecentPixels() {
@@ -1576,9 +1608,15 @@ function displayMyPixelsForTrade() {
         return;
     }
 
+    // Doublons en premier (les plus nombreux d'abord) : ce sont eux
+    // qu'on veut échanger en priorité sans appauvrir sa collection
+    myPixels.sort((a, b) => (b.count || 1) - (a.count || 1));
+
     myPixels.forEach(pixel => {
+        const isDup = (pixel.count || 1) > 1;
+
         const item = document.createElement('div');
-        item.style.cssText = 'cursor: pointer; padding: 5px; border-radius: 5px; transition: all 0.3s; background: rgba(255,255,255,0.1);';
+        item.className = 'trade-pixel' + (isDup ? ' is-dup' : '');
         item.onclick = () => selectMyPixel(pixel, item);
 
         const canvas = document.createElement('canvas');
@@ -1590,8 +1628,13 @@ function displayMyPixelsForTrade() {
         name.style.cssText = 'font-size: 0.7em; text-align: center; margin-top: 3px;';
         name.textContent = pixel.name;
 
+        const badge = document.createElement('div');
+        badge.className = 'trade-badge ' + (isDup ? 'dup' : 'unique');
+        badge.textContent = isDup ? `Doublon ×${pixel.count}` : 'Seul exemplaire';
+
         item.appendChild(canvas);
         item.appendChild(name);
+        item.appendChild(badge);
         container.appendChild(item);
     });
 }
@@ -1620,9 +1663,19 @@ function displayTheirPixelsForTrade() {
         return;
     }
 
+    // Les pixels qui manquent à MA collection en premier : ce sont
+    // eux qu'on veut demander en priorité
+    theirPixels.sort((a, b) => {
+        const ownedA = userCollection[a.id] ? 1 : 0;
+        const ownedB = userCollection[b.id] ? 1 : 0;
+        return ownedA - ownedB;
+    });
+
     theirPixels.forEach(pixel => {
+        const isMissing = !userCollection[pixel.id];
+
         const item = document.createElement('div');
-        item.style.cssText = 'cursor: pointer; padding: 5px; border-radius: 5px; transition: all 0.3s; background: rgba(255,255,255,0.1);';
+        item.className = 'trade-pixel' + (isMissing ? ' is-missing' : '');
         item.onclick = () => selectTheirPixel(pixel, item);
 
         const canvas = document.createElement('canvas');
@@ -1634,8 +1687,13 @@ function displayTheirPixelsForTrade() {
         name.style.cssText = 'font-size: 0.7em; text-align: center; margin-top: 3px;';
         name.textContent = pixel.name;
 
+        const badge = document.createElement('div');
+        badge.className = 'trade-badge ' + (isMissing ? 'missing' : 'unique');
+        badge.textContent = isMissing ? '⭐ Il te manque !' : `Possédé ×${userCollection[pixel.id].count}`;
+
         item.appendChild(canvas);
         item.appendChild(name);
+        item.appendChild(badge);
         container.appendChild(item);
     });
 }
@@ -1669,6 +1727,21 @@ function selectTheirPixel(pixel, element) {
 function checkTradeReady() {
     const btn = document.getElementById('sendTradeOffer');
     btn.disabled = !(selectedMyPixel && selectedTheirPixel && selectedTradePlayer);
+}
+
+// Retire UN SEUL exemplaire d'un pixel : décrémente le compteur s'il y a
+// des doublons, ne supprime l'entrée que s'il ne reste qu'un exemplaire.
+// (Avant, un échange supprimait TOUS les exemplaires du pixel proposé.)
+function removeOnePixelFromCollection(pixelId) {
+    const owned = userCollection[pixelId];
+    if (!owned) return;
+
+    if ((owned.count || 1) > 1) {
+        owned.count--;
+    } else {
+        delete userCollection[pixelId];
+    }
+    updateUniquePixelsCount();
 }
 
 // Supprimer récursivement tous les undefined d'un objet
@@ -1732,13 +1805,18 @@ async function handleSendTrade() {
         return;
     }
 
-    if (!confirm(`Proposer d'échanger ton ${selectedMyPixel.name} contre le ${selectedTheirPixel.name} de ${selectedTradePlayer.displayName} ?\n\nTon pixel sera retiré de ta collection jusqu'à ce que l'échange soit accepté ou annulé.`)) {
+    const ownedCount = userCollection[selectedMyPixel.id]?.count || 1;
+    const stockWarning = ownedCount > 1
+        ? `✅ Tu en possèdes ${ownedCount} : tu échanges un doublon, ta collection reste complète.`
+        : `⚠️ ATTENTION : c'est ton SEUL exemplaire de ce pixel !`;
+
+    if (!confirm(`Proposer d'échanger ton ${selectedMyPixel.name} contre le ${selectedTheirPixel.name} de ${selectedTradePlayer.displayName} ?\n\n${stockWarning}\n\nUn exemplaire sera retiré de ta collection jusqu'à ce que l'échange soit accepté ou annulé.`)) {
         return;
     }
 
     try {
-        // 1. Retirer le pixel de MA collection
-        delete userCollection[selectedMyPixel.id];
+        // 1. Retirer UN exemplaire de MA collection
+        removeOnePixelFromCollection(selectedMyPixel.id);
         await saveUserData();
 
         // 2. Créer la proposition d'échange avec les pixels
@@ -2009,8 +2087,8 @@ window.acceptTrade = async function(tradeId) {
             return;
         }
 
-        // 1. Retirer MON pixel de ma collection
-        delete userCollection[trade.toPixelId];
+        // 1. Retirer UN exemplaire de MON pixel de ma collection
+        removeOnePixelFromCollection(trade.toPixelId);
         await saveUserData();
 
         // 2. Marquer l'échange comme accepté

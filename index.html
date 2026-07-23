@@ -384,6 +384,57 @@
             box-shadow: none;
         }
 
+        /* Échanges : mise en avant des doublons et des pixels manquants */
+        .trade-pixel {
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .trade-pixel.is-dup {
+            border-color: #4caf50;
+        }
+
+        .trade-pixel.is-missing {
+            border-color: #FFD700;
+        }
+
+        .trade-badge {
+            font-size: 0.6em;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 8px;
+            margin-top: 4px;
+            white-space: nowrap;
+        }
+
+        .trade-badge.dup {
+            background: #4caf50;
+            color: #fff;
+        }
+
+        .trade-badge.missing {
+            background: #FFD700;
+            color: #000;
+        }
+
+        .trade-badge.unique {
+            background: rgba(255, 255, 255, 0.15);
+            color: #ccc;
+        }
+
+        .trade-hint {
+            font-size: 0.8em;
+            opacity: 0.75;
+            font-weight: normal;
+        }
+
         .continue-button {
             background: linear-gradient(145deg, #4169E1, #1E90FF);
             color: #fff;
@@ -813,7 +864,7 @@
 
                                 <!-- Mes pixels -->
                                 <div style="margin-bottom: 20px;">
-                                    <label style="display: block; margin-bottom: 10px; color: white;">Je propose :</label>
+                                    <label style="display: block; margin-bottom: 10px; color: white;">Je propose : <span class="trade-hint">🟢 tes doublons sont affichés en premier — échange-les en priorité !</span></label>
                                     <div id="myPixelsForTrade" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
                                         <p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Sélectionne un joueur d'abord</p>
                                     </div>
@@ -821,7 +872,7 @@
 
                                 <!-- Pixels du joueur -->
                                 <div style="margin-bottom: 20px;">
-                                    <label style="display: block; margin-bottom: 10px; color: white;">Contre :</label>
+                                    <label style="display: block; margin-bottom: 10px; color: white;">Contre : <span class="trade-hint">⭐ les pixels qu'il te manque sont affichés en premier</span></label>
                                     <div id="theirPixelsForTrade" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
                                         <p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Sélectionne un joueur d'abord</p>
                                     </div>
