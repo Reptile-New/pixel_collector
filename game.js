@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=22'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=23'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -1403,6 +1403,16 @@ async function loadPlayers() {
             });
         });
 
+        // Classement : le plus de légendaires en tête, puis pixels uniques,
+        // puis total (départage). Calculé depuis la collection réelle.
+        allPlayers.sort((a, b) => {
+            const sa = statsFromCollection(a.collection);
+            const sb = statsFromCollection(b.collection);
+            return (sb.legendary - sa.legendary)
+                || (sb.unique - sa.unique)
+                || (sb.total - sa.total);
+        });
+
         displayPlayers(allPlayers);
     } catch (error) {
         console.error('Erreur de chargement des joueurs:', error);
@@ -1417,7 +1427,9 @@ function statsFromCollection(coll) {
     const entries = Object.values(coll || {});
     return {
         unique: entries.length,
-        total: entries.reduce((sum, p) => sum + (p.count || 1), 0)
+        total: entries.reduce((sum, p) => sum + (p.count || 1), 0),
+        // Légendaires = pixel arts 8×8 distincts possédés
+        legendary: entries.filter(p => p.type === 'art').length
     };
 }
 
@@ -1442,8 +1454,8 @@ function displayPlayers(players) {
             <div>
                 <div class="player-card__name">${index + 1}. ${player.displayName} ${isCurrentUser ? '(Vous)' : ''}</div>
                 <div class="player-card__stats">
+                    <span>💎 ${s.legendary} légendaires</span>
                     <span>🎨 ${s.unique} / 294 uniques</span>
-                    <span>🔢 ${s.total} au total</span>
                     <span>📦 ${player.stats.chestsOpened || 0} coffres</span>
                 </div>
             </div>
