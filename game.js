@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=23'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=24'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -266,7 +266,6 @@ function setupEventListeners() {
     });
 
     // Atelier
-    document.getElementById('recycleAllButton').addEventListener('click', recycleAllDuplicates);
     document.querySelectorAll('.color-craft-btn').forEach(btn => {
         btn.addEventListener('click', () => craft1x1(btn.dataset.craftColor));
     });
@@ -1768,53 +1767,11 @@ function updateMineUI() {
     }
 }
 
-// === ATELIER : RECYCLAGE ET CRAFT ===
-
-function getRecyclableShards() {
-    let total = 0;
-    let duplicates = 0;
-
-    for (const pixel of Object.values(userCollection)) {
-        if (pixel.count > 1) {
-            const extras = pixel.count - 1;
-            duplicates += extras;
-            total += extras * (SHARD_VALUES[pixel.type] || 0);
-        }
-    }
-
-    return { total, duplicates };
-}
-
-async function recycleAllDuplicates() {
-    const { total, duplicates } = getRecyclableShards();
-
-    if (duplicates === 0) {
-        showToast('Aucun doublon à recycler ! Ouvre des coffres pour en obtenir.');
-        return;
-    }
-
-    if (!await uiConfirm(`Recycler ${duplicates} doublon(s) contre ${total} éclats ✨ ?\n\nTu gardes toujours 1 exemplaire de chaque pixel : ta collection n'est pas affectée.`)) {
-        return;
-    }
-
-    for (const pixel of Object.values(userCollection)) {
-        if (pixel.count > 1) {
-            userStats.totalPixels -= (pixel.count - 1);
-            pixel.count = 1;
-        }
-    }
-
-    userStats.shards = (userStats.shards || 0) + total;
-    await saveUserData();
-
-    updateAtelierUI();
-    updateUI();
-    showToast(`♻️ ${duplicates} doublon(s) recyclé(s) : +${total} éclats ✨`);
-}
+// === ATELIER : ACHAT ET CRAFT ===
 
 function spendShards(cost) {
     if ((userStats.shards || 0) < cost) {
-        showToast(`Pas assez d'éclats ! Il en faut ${cost} ✨ (tu en as ${userStats.shards || 0}).\n\nRecycle tes doublons pour en obtenir.`);
+        showToast(`Pas assez d'éclats ! Il en faut ${cost} ✨ (tu en as ${userStats.shards || 0}).`);
         return false;
     }
     userStats.shards -= cost;
@@ -1949,22 +1906,19 @@ async function craftCustom2x2() {
 }
 
 function updateAtelierUI() {
-    const { total, duplicates } = getRecyclableShards();
-
     document.getElementById('shardBalance').textContent = userStats.shards || 0;
-
-    const preview = document.getElementById('recyclePreview');
-    if (duplicates === 0) {
-        preview.textContent = 'Aucun doublon à recycler pour le moment.';
-    } else {
-        preview.innerHTML = `<strong>${duplicates}</strong> doublon(s) recyclable(s) → <strong>+${total} ✨</strong>`;
-    }
-    document.getElementById('recycleAllButton').disabled = duplicates === 0;
 
     // Activer/désactiver les boutons de craft selon le solde
     const shards = userStats.shards || 0;
     document.querySelectorAll('.color-craft-btn').forEach(btn => {
         btn.disabled = shards < CRAFT_COSTS.craft1x1;
+    });
+
+    // Compteur de 1×1 déjà en stock, sous chaque couleur (évite d'aller
+    // vérifier dans la Collection)
+    document.querySelectorAll('[data-color-count]').forEach(el => {
+        const owned = userCollection[`1x1_${el.dataset.colorCount}`]?.count || 0;
+        el.textContent = `×${owned}`;
     });
 
     // Assemblage sur mesure (payé en pixels 1x1)
