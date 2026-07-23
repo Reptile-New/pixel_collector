@@ -123,7 +123,8 @@ let userStats = {
     lastChestTime: 0,
     shards: 0,
     streak: 0,
-    chestsSinceLegendary: 0
+    chestsSinceLegendary: 0,
+    mineLastCollect: 0
 };
 
 // === ÉCONOMIE DE L'ATELIER ===
@@ -139,6 +140,13 @@ const CRAFT_COSTS = { craft1x1: 1, craft2x2: 4, bonusChest: 16, craftArt: 64 };
 const PITY_THRESHOLD = 25;
 // Bonus de série : +1 pixel à partir de 3 jours consécutifs, +2 à partir de 7
 const STREAK_BONUSES = [{ days: 3, extra: 1 }, { days: 7, extra: 2 }];
+
+// === MINE À ÉCLATS (récolte passive) ===
+// La mine produit 1 éclat toutes les MINE_RATE_MS, jusqu'à un plafond de MINE_CAP.
+// Le joueur revient de temps en temps cliquer sur « Récolter » pour encaisser
+// les éclats accumulés. Le plafond incite à revenir plusieurs fois par jour.
+const MINE_RATE_MS = 15 * 60 * 1000; // 1 éclat toutes les 15 minutes
+const MINE_CAP = 32;                 // réserve maximale (~8 h d'accumulation)
 // Configuration des albums
 const ALBUMS = [
     { id: 'all', label: 'Tous' },
@@ -164,8 +172,11 @@ document.addEventListener('DOMContentLoaded', () => {
     drawChest();
     generateCollectionAlbumTabs();
 
-    // Rafraîchir le compte à rebours du coffre (reset à minuit)
+    // Rafraîchir le compte à rebours du coffre (reset à midi et minuit)
     setInterval(updateChestStatus, 30 * 1000);
+
+    // Rafraîchir la mine à éclats (compte à rebours du prochain éclat)
+    setInterval(() => { if (currentUser) updateMineUI(); }, 1000);
 
     // Bannière d'installation de l'app (PWA)
     setupInstallBanner();
@@ -216,6 +227,7 @@ function setupEventListeners() {
     // Clic sur le coffre pour l'ouvrir
     document.getElementById('chestCanvas').addEventListener('click', openChest);
     document.getElementById('continueButton').addEventListener('click', closeResult);
+    document.getElementById('collectMineButton').addEventListener('click', collectMine);
 
     // Onglets
     document.querySelectorAll('.tab').forEach(tab => {
@@ -768,7 +780,8 @@ async function initializeUserData(uid, displayName) {
             uniquePixels: 0,
             shards: 0,
             streak: 0,
-            chestsSinceLegendary: 0
+            chestsSinceLegendary: 0,
+            mineLastCollect: 0
         },
         lastChestTime: 0,
         createdAt: serverTimestamp()
@@ -814,6 +827,7 @@ async function loadUserData() {
             userStats.shards = userStats.shards || 0;
             userStats.streak = userStats.streak || 0;
             userStats.chestsSinceLegendary = userStats.chestsSinceLegendary || 0;
+            userStats.mineLastCollect = userStats.mineLastCollect || 0;
             // Charger le lastChestTime pour la limite quotidienne
             userStats.lastChestTime = data.lastChestTime || 0;
         } else {
@@ -868,8 +882,9 @@ async function saveUserData() {
 
 // === SYSTÈME DE COFFRES ===
 
-// Le coffre se réinitialise à heure fixe pour tout le monde : minuit (heure de Paris).
-// Un joueur peut donc l'ouvrir une fois par jour calendaire, quel que soit l'horaire.
+// Le coffre se réinitialise deux fois par jour pour tout le monde : à midi et à
+// minuit (heure de Paris). Chaque journée compte donc deux créneaux d'ouverture
+// (00 h→12 h et 12 h→00 h), soit deux coffres par jour, quel que soit l'horaire.
 const CHEST_TIMEZONE = 'Europe/Paris';
 
 // Clé de jour "YYYY-MM-DD" dans le fuseau du reset
@@ -877,22 +892,36 @@ function getDayKey(timestamp) {
     return new Intl.DateTimeFormat('fr-CA', { timeZone: CHEST_TIMEZONE }).format(new Date(timestamp));
 }
 
-// Millisecondes restantes avant le prochain minuit (heure de Paris)
+// Heure (0-23) dans le fuseau du reset
+function getParisHour(timestamp) {
+    const parts = new Intl.DateTimeFormat('fr-FR', {
+        timeZone: CHEST_TIMEZONE, hour: '2-digit', hourCycle: 'h23'
+    }).formatToParts(new Date(timestamp));
+    return parseInt(parts.find(p => p.type === 'hour').value, 10);
+}
+
+// Clé de créneau : jour + demi-journée (matin/après-midi). Change à midi et à minuit.
+function getPeriodKey(timestamp) {
+    return getDayKey(timestamp) + (getParisHour(timestamp) < 12 ? '#0' : '#1');
+}
+
+// Millisecondes restantes avant le prochain reset (prochain midi ou minuit, Paris)
 function msUntilNextReset() {
     const parts = new Intl.DateTimeFormat('fr-FR', {
         timeZone: CHEST_TIMEZONE,
         hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: false
+        hourCycle: 'h23'
     }).formatToParts(new Date());
     const get = type => parseInt(parts.find(p => p.type === type).value, 10);
     const elapsedMs = (get('hour') * 3600 + get('minute') * 60 + get('second')) * 1000;
-    return 24 * 3600 * 1000 - elapsedMs;
+    const halfDayMs = 12 * 3600 * 1000;
+    return halfDayMs - (elapsedMs % halfDayMs);
 }
 
 function canOpenChest() {
     const lastTime = userStats.lastChestTime || 0;
     if (!lastTime) return true;
-    return getDayKey(lastTime) !== getDayKey(Date.now());
+    return getPeriodKey(lastTime) !== getPeriodKey(Date.now());
 }
 
 // Joue la séquence d'ouverture (tremblement + halo + rayons + flash).
@@ -927,18 +956,23 @@ function playChestOpening(hasLegendary) {
 async function openChest() {
     if (chestOpening) return;
     if (!canOpenChest()) {
-        showToast('Tu as déjà ouvert ton coffre aujourd\'hui. Reviens après minuit !');
+        const nextLabel = getParisHour(Date.now()) < 12 ? 'midi' : 'minuit';
+        showToast(`Tu as déjà ouvert ce coffre. Reviens à ${nextLabel} pour le prochain !`);
         return;
     }
     chestOpening = true;
 
-    // Mettre à jour la série quotidienne : elle continue si le dernier coffre
-    // a été ouvert hier (jour calendaire), sinon elle repart à 1
+    // Mettre à jour la série quotidienne : elle ne progresse qu'à la PREMIÈRE
+    // ouverture d'une journée calendaire (le 2e coffre du jour ne la modifie pas).
+    // Elle continue si un coffre a été ouvert hier, sinon elle repart à 1.
+    const now = Date.now();
     const lastTime = userStats.lastChestTime || 0;
-    const yesterdayKey = getDayKey(Date.now() - 24 * 3600 * 1000);
-    userStats.streak = (lastTime > 0 && getDayKey(lastTime) === yesterdayKey)
-        ? (userStats.streak || 0) + 1
-        : 1;
+    if (!lastTime || getDayKey(lastTime) !== getDayKey(now)) {
+        const yesterdayKey = getDayKey(now - 24 * 3600 * 1000);
+        userStats.streak = (lastTime > 0 && getDayKey(lastTime) === yesterdayKey)
+            ? (userStats.streak || 0) + 1
+            : 1;
+    }
 
     // Nombre de pixels : 3 de base + bonus de série
     let pixelCount = 3;
@@ -1625,6 +1659,9 @@ function updateUI() {
     // État du coffre
     updateChestStatus();
 
+    // État de la mine à éclats
+    updateMineUI();
+
     // Afficher les derniers pixels
     updateRecentPixels();
 }
@@ -1638,8 +1675,9 @@ function updateChestStatus() {
         const ms = msUntilNextReset();
         const h = Math.floor(ms / 3600000);
         const m = Math.floor((ms % 3600000) / 60000);
+        const nextLabel = getParisHour(Date.now()) < 12 ? 'midi' : 'minuit';
         document.getElementById('chestTimer').textContent =
-            `Coffre déjà ouvert — prochain à minuit (dans ${h}h${String(m).padStart(2, '0')})`;
+            `Coffre déjà ouvert — prochain à ${nextLabel} (dans ${h}h${String(m).padStart(2, '0')})`;
     }
 
     // Infos série + pity sous le coffre
@@ -1647,7 +1685,65 @@ function updateChestStatus() {
     document.getElementById('chestExtraInfo').innerHTML =
         `🔥 Série : <strong>${userStats.streak || 0} jour${(userStats.streak || 0) > 1 ? 's' : ''}</strong>` +
         ` &nbsp;·&nbsp; 💎 Légendaire garanti dans <strong>${pityLeft} coffre${pityLeft > 1 ? 's' : ''}</strong>` +
-        `<div class="chest-hint">Le coffre se recharge à minuit pour tout le monde. Ouvre-le chaque jour : +1 pixel dès 3 jours de série, +2 dès 7 jours !</div>`;
+        `<div class="chest-hint">Deux coffres par jour : un à midi, un à minuit (heure de Paris). Ouvre-en un chaque jour : +1 pixel dès 3 jours de série, +2 dès 7 jours !</div>`;
+}
+
+// === MINE À ÉCLATS ===
+
+// Calcule l'état courant de la mine : éclats prêts, plafond atteint, délai restant.
+function getMineState() {
+    const now = Date.now();
+    // Première visite : on démarre le compteur maintenant (réserve vide)
+    if (!userStats.mineLastCollect) userStats.mineLastCollect = now;
+    const last = userStats.mineLastCollect;
+    const produced = Math.floor((now - last) / MINE_RATE_MS);
+    const ready = Math.max(0, Math.min(produced, MINE_CAP));
+    const isFull = ready >= MINE_CAP;
+    const msToNext = isFull ? 0 : MINE_RATE_MS - ((now - last) % MINE_RATE_MS);
+    return { ready, isFull, msToNext };
+}
+
+async function collectMine() {
+    const now = Date.now();
+    const state = getMineState();
+    if (state.ready <= 0) {
+        showToast('La mine n\'a encore rien produit. Reviens dans quelques minutes !');
+        return;
+    }
+
+    // Avancer le compteur du temps réellement récolté pour conserver le reliquat.
+    // Si la réserve était pleine, on repart de maintenant (le surplus au-delà du
+    // plafond n'est pas conservé — c'est le rôle du plafond).
+    userStats.mineLastCollect = state.isFull ? now : userStats.mineLastCollect + state.ready * MINE_RATE_MS;
+    userStats.shards = (userStats.shards || 0) + state.ready;
+
+    await saveUserData();
+    updateMineUI();
+    updateUI();
+    if (typeof updateAtelierUI === 'function') updateAtelierUI();
+    showToast(`⛏️ Mine récoltée : +${state.ready} éclats ✨`);
+}
+
+function updateMineUI() {
+    if (!currentUser) return;
+    const readyEl = document.getElementById('mineReady');
+    const fillEl = document.getElementById('mineBarFill');
+    const statusEl = document.getElementById('mineStatus');
+    const button = document.getElementById('collectMineButton');
+    if (!readyEl || !fillEl || !statusEl || !button) return;
+
+    const { ready, isFull, msToNext } = getMineState();
+    readyEl.textContent = ready;
+    fillEl.style.width = `${Math.round((ready / MINE_CAP) * 100)}%`;
+    button.disabled = ready <= 0;
+
+    if (isFull) {
+        statusEl.textContent = '⚠️ Réserve pleine — récolte pour ne rien perdre !';
+    } else {
+        const m = Math.floor(msToNext / 60000);
+        const s = Math.floor((msToNext % 60000) / 1000);
+        statusEl.textContent = `Prochain éclat dans ${m}m ${String(s).padStart(2, '0')}s · plafond ${MINE_CAP} ✨`;
+    }
 }
 
 function updateRecentPixels() {
