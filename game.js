@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=24'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=25'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -1455,7 +1455,6 @@ function displayPlayers(players) {
                 <div class="player-card__stats">
                     <span>💎 ${s.legendary} légendaires</span>
                     <span>🎨 ${s.unique} / 294 uniques</span>
-                    <span>📦 ${player.stats.chestsOpened || 0} coffres</span>
                 </div>
             </div>
             <div class="player-card__arrow">→</div>
