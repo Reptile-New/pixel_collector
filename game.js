@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=18'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=19'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -270,9 +270,6 @@ function setupEventListeners() {
     document.querySelectorAll('.color-craft-btn').forEach(btn => {
         btn.addEventListener('click', () => craft1x1(btn.dataset.craftColor));
     });
-    document.getElementById('craft2x2Button').addEventListener('click', craft2x2);
-    document.getElementById('craftChestButton').addEventListener('click', craftBonusChest);
-    document.getElementById('craftArtButton').addEventListener('click', craftLegendary);
     initCustomCraft();
 
     // Trade system event listeners
@@ -760,7 +757,7 @@ async function cleanCorruptedPixels() {
 
 function showGameScreen() {
     document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('gameScreen').style.display = 'block';
+    document.getElementById('gameScreen').style.display = 'flex';
     updateUI();
 }
 
@@ -1151,9 +1148,6 @@ function showResult(pixels, title = 'Vous avez obtenu :', subtitle = '') {
         }
 
         container.appendChild(wrapper);
-
-        // Ajouter aux dernières trouvailles
-        addToRecentPixels(pixel);
     });
 
     document.getElementById('resultLabel').textContent = title;
@@ -1166,33 +1160,6 @@ function closeResult() {
 
     resultView.classList.remove('active');
     chestView.style.display = 'flex';
-}
-
-function addToRecentPixels(pixel) {
-    const container = document.getElementById('recentPixels');
-
-    // Créer l'élément
-    const item = document.createElement('div');
-    item.className = 'pixel-item';
-
-    const canvas = document.createElement('canvas');
-    canvas.className = 'pixel-canvas';
-    PixelRenderer.drawPixel(canvas, pixel, 50);
-
-    const count = document.createElement('div');
-    count.className = 'pixel-count';
-    count.textContent = `×${userCollection[pixel.id].count}`;
-
-    item.appendChild(canvas);
-    item.appendChild(count);
-
-    // Ajouter au début
-    container.insertBefore(item, container.firstChild);
-
-    // Garder seulement les 9 derniers
-    while (container.children.length > 9) {
-        container.removeChild(container.lastChild);
-    }
 }
 
 // === AFFICHAGE DE LA COLLECTION ===
@@ -1456,7 +1423,7 @@ function displayPlayers(players) {
                 <div class="player-card__stats">
                     <span>🎨 ${player.stats.uniquePixels} / 294 uniques</span>
                     <span>📦 ${player.stats.totalPixels} totaux</span>
-                    <span>🎁 ${player.stats.chestsOpened} coffres</span>
+                    <span>📦 ${player.stats.chestsOpened} coffres</span>
                 </div>
             </div>
             <div class="player-card__arrow">→</div>
@@ -1681,9 +1648,6 @@ function updateUI() {
 
     // État de la mine à éclats
     updateMineUI();
-
-    // Afficher les derniers pixels
-    updateRecentPixels();
 }
 
 function updateChestStatus() {
@@ -1701,16 +1665,9 @@ function updateChestStatus() {
             `Prochain coffre dans ${h}h${String(m).padStart(2, '0')}`;
     }
 
-    // Infos série + pity sous le coffre — en badges visuels, pas en paragraphe
-    const pityLeft = Math.max(1, PITY_THRESHOLD - (userStats.chestsSinceLegendary || 0));
-    const streak = userStats.streak || 0;
-    document.getElementById('chestExtraInfo').innerHTML =
-        `<div class="chest-chips">` +
-            `<span class="chest-chip">🔥 <strong>${streak}</strong> j</span>` +
-            `<span class="chest-chip">💎 <strong>${pityLeft}</strong> 📦</span>` +
-            `<span class="chest-chip goal${streak >= 3 ? ' reached' : ''}">🔥 3 → +1</span>` +
-            `<span class="chest-chip goal${streak >= 7 ? ' reached' : ''}">🔥 7 → +2</span>` +
-        `</div>`;
+    // Volontairement minimal : pas de paliers ni de compteur de pity affichés.
+    // Le joueur découvre les bonus (série, légendaire garanti) en jouant.
+    document.getElementById('chestExtraInfo').innerHTML = '';
 }
 
 // === MINE À ÉCLATS ===
@@ -1773,35 +1730,6 @@ function updateMineUI() {
         const m = Math.floor(msToNext / 60000);
         const s = Math.floor((msToNext % 60000) / 1000);
         statusEl.textContent = `Prochain éclat dans ${m}m${String(s).padStart(2, '0')}s`;
-    }
-}
-
-function updateRecentPixels() {
-    const container = document.getElementById('recentPixels');
-    container.innerHTML = '';
-
-    const pixels = Object.values(userCollection).slice(-9).reverse();
-
-    pixels.forEach(pixel => {
-        const item = document.createElement('div');
-        item.className = 'pixel-item';
-
-        const canvas = document.createElement('canvas');
-        canvas.className = 'pixel-canvas';
-        PixelRenderer.drawPixel(canvas, pixel, 50);
-
-        const count = document.createElement('div');
-        count.className = 'pixel-count';
-        count.textContent = `×${pixel.count}`;
-
-        item.appendChild(canvas);
-        item.appendChild(count);
-
-        container.appendChild(item);
-    });
-
-    if (pixels.length === 0) {
-        container.innerHTML = '<p style="text-align: center; padding: 20px; opacity: 0.7; font-size: 0.9em;">Aucun pixel encore</p>';
     }
 }
 
@@ -1895,55 +1823,6 @@ async function craft1x1(pattern) {
     };
 
     await finalizeCraft(pixel, `🔨 Pixel 1×1 ${choice.name} acheté !`);
-}
-
-async function craft2x2() {
-    if (!spendShards(CRAFT_COSTS.craft2x2)) return;
-
-    // Tirage 100% aléatoire parmi les 256 combinaisons (contrepartie du prix bas)
-    const all = PixelRenderer.generateAll2x2();
-    const pattern = all[Math.floor(Math.random() * all.length)];
-
-    const pixel = {
-        type: '2x2',
-        pattern: pattern,
-        id: `2x2_${pattern}`,
-        name: `Pixel 2x2 #${pattern}`
-    };
-
-    await finalizeCraft(pixel, '🔨 Craft réussi !');
-}
-
-async function craftLegendary() {
-    if (!spendShards(CRAFT_COSTS.craftArt)) return;
-
-    // Tirage 100% aléatoire parmi les 30 pixel arts, comme les autres crafts
-    const art = PixelArts[Math.floor(Math.random() * PixelArts.length)];
-
-    const pixel = {
-        type: 'art',
-        id: art.id,
-        name: art.name,
-        data: art.data,
-        colors: art.colors
-    };
-
-    await finalizeCraft(pixel, '💎 Légendaire crafté !');
-}
-
-async function craftBonusChest() {
-    if (!spendShards(CRAFT_COSTS.bonusChest)) return;
-
-    // Coffre bonus : 3 pixels aux taux normaux, sans toucher au timer quotidien.
-    // Il compte dans les coffres ouverts et fait avancer le compteur de pity.
-    const pixels = drawPixelsFromChest(3, true);
-    userStats.chestsOpened++;
-    updateUniquePixelsCount();
-    await saveUserData();
-
-    switchTab('chest');
-    showResult(pixels, '🎁 Coffre bonus ouvert !', '3 pixels obtenus grâce à tes éclats');
-    updateUI();
 }
 
 // === ASSEMBLAGE SUR MESURE ===
@@ -2052,9 +1931,6 @@ function updateAtelierUI() {
     document.querySelectorAll('.color-craft-btn').forEach(btn => {
         btn.disabled = shards < CRAFT_COSTS.craft1x1;
     });
-    document.getElementById('craft2x2Button').disabled = shards < CRAFT_COSTS.craft2x2;
-    document.getElementById('craftChestButton').disabled = shards < CRAFT_COSTS.bonusChest;
-    document.getElementById('craftArtButton').disabled = shards < CRAFT_COSTS.craftArt;
 
     // Assemblage sur mesure (payé en pixels 1x1)
     updateCustomCraftUI();
@@ -2602,7 +2478,7 @@ function createTradeCard(trade, type) {
         const alreadyClaimed = amISender ? trade.fromClaimed : trade.toClaimed;
 
         if (!alreadyClaimed && (trade.status === 'accepted' || trade.status === 'cancelled' || (trade.status === 'refused' && amISender))) {
-            actions = `<div class="exchange__footer">${statusPill}<button onclick="claimTrade('${trade.id}')" class="btn btn--claim btn--full">🎁 Récupérer ma part</button></div>`;
+            actions = `<div class="exchange__footer">${statusPill}<button onclick="claimTrade('${trade.id}')" class="btn btn--claim btn--full">📥 Récupérer ma part</button></div>`;
         } else if (alreadyClaimed) {
             actions = `<div class="exchange__footer">${statusPill}<span class="status-pill claimed">✅ Part récupérée</span></div>`;
         } else {
