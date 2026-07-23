@@ -542,16 +542,18 @@
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
 
         .tab {
-            flex: 1;
+            flex: 1 1 110px;
             background: rgba(0, 0, 0, 0.2);
-            padding: 12px;
+            padding: 12px 6px;
             border-radius: 10px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
+            white-space: nowrap;
         }
 
         .tab:hover {
@@ -695,6 +697,20 @@
 
             .panel-title {
                 font-size: 1.2em;
+            }
+
+            .tabs {
+                gap: 6px;
+            }
+
+            .tab {
+                flex: 1 1 30%;
+                font-size: 0.85em;
+                padding: 10px 4px;
+            }
+
+            .panel {
+                padding: 15px;
             }
 
             .chest canvas {
@@ -1028,9 +1044,11 @@
         </div>
     </div>
 
-    <script type="module" src="firebase-config.js"></script>
-    <script src="pixel_data.js"></script>
-    <script src="pixel_renderer.js"></script>
-    <script type="module" src="game.js"></script>
+    <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
+         pour forcer les navigateurs à recharger les scripts -->
+    <script type="module" src="firebase-config.js?v=6"></script>
+    <script src="pixel_data.js?v=6"></script>
+    <script src="pixel_renderer.js?v=6"></script>
+    <script type="module" src="game.js?v=6"></script>
 </body>
 </html>
