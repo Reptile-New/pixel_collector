@@ -23,6 +23,17 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
   directement avec vos pixels 1×1 des bonnes couleurs (ex. jaune-bleu-bleu-vert
   = 1 jaune + 2 bleus + 1 vert consommés)
 
+### ✅ Mine à éclats (récolte passive)
+- Une **mine** produit **1 éclat ✨ toutes les 15 min**, automatiquement, même hors ligne
+- La réserve s'accumule jusqu'à un **plafond de 32 éclats** (~8 h) — reviens cliquer sur **« Récolter »** pour l'encaisser
+- Barre de progression + compte à rebours du prochain éclat en direct
+- Les éclats récoltés alimentent directement l'Atelier (craft, coffre bonus, assemblage…)
+
+### ✅ Coffres midi & minuit (2 par jour)
+- Le coffre se recharge **deux fois par jour** : à **midi** et à **minuit** (heure de Paris), pour tout le monde
+- Chaque demi-journée (00 h→12 h, 12 h→00 h) donne droit à une ouverture
+- La **série 🔥 n'avance qu'une fois par jour** (à la 1ʳᵉ ouverture) : ouvrir les deux coffres ne gonfle pas la série
+
 ### ✅ Série quotidienne (streak)
 - Ouvrez votre coffre chaque jour pour faire monter votre série 🔥
 - **3 jours consécutifs** : +1 pixel par coffre (4 au lieu de 3)
@@ -39,7 +50,7 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - Sauvegarde locale (localStorage pour l'instant)
 
 ### ✅ Système de coffres
-- 1 coffre gratuit par jour — il se recharge à minuit (heure de Paris) pour tout le monde
+- 2 coffres gratuits par jour — ils se rechargent à midi et à minuit (heure de Paris) pour tout le monde
 - Ouverture de coffre avec animation
 - Système de rareté :
   - **Commun (70%)** : Pixels 1x1 (4 variantes)

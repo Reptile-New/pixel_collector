@@ -472,6 +472,58 @@
             margin-bottom: 10px;
         }
 
+        /* Mine à éclats (récolte passive) */
+        .mine-card {
+            background: linear-gradient(135deg, rgba(123, 97, 255, 0.18), rgba(0, 0, 0, 0.25));
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 24px auto 0;
+            max-width: 420px;
+            text-align: center;
+        }
+
+        .mine-header {
+            font-size: 1.15em;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .mine-amount {
+            font-size: 1.9em;
+            font-weight: bold;
+            color: #FFD700;
+            line-height: 1.1;
+            margin-bottom: 12px;
+        }
+
+        .mine-bar {
+            height: 10px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .mine-bar-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #7b61ff, #FFD700);
+            transition: width 0.4s ease;
+        }
+
+        .mine-status {
+            opacity: 0.85;
+            font-size: 0.9em;
+            margin-bottom: 14px;
+            min-height: 1.2em;
+        }
+
+        .mine-card .open-button:disabled {
+            opacity: 0.5;
+        }
+
         .craft-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -1794,7 +1846,7 @@
                 <!-- Contenu : Coffres -->
                 <div class="tab-content active" id="chestTab">
                     <div class="chest-container" id="chestView">
-                        <div class="chest-label">Coffre quotidien</div>
+                        <div class="chest-label">Coffre — midi &amp; minuit</div>
                         <div class="chest-stage">
                             <div class="chest-rays" aria-hidden="true"></div>
                             <div class="chest-glow" aria-hidden="true"></div>
@@ -1815,6 +1867,15 @@
                             <!-- Pixels obtenus, générés dynamiquement -->
                         </div>
                         <button class="continue-button" id="continueButton">Continuer</button>
+                    </div>
+
+                    <!-- Mine à éclats : récolte passive -->
+                    <div class="mine-card" id="mineCard">
+                        <div class="mine-header">⛏️ La Mine à éclats</div>
+                        <div class="mine-amount"><span id="mineReady">0</span> ✨ prêts à récolter</div>
+                        <div class="mine-bar"><div class="mine-bar-fill" id="mineBarFill"></div></div>
+                        <div class="mine-status" id="mineStatus">Reviens régulièrement pour récolter tes éclats !</div>
+                        <button class="open-button" id="collectMineButton" style="width: 100%;" disabled>⛏️ Récolter</button>
                     </div>
 
                     <!-- Dernières trouvailles -->
