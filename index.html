@@ -522,6 +522,44 @@
             box-shadow: none;
         }
 
+        .craft-card .craft-meta {
+            font-size: 0.78em;
+            opacity: 0.7;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Bande de conversion visuelle (recyclage) */
+        .convert-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .convert-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--hairline);
+            border-radius: 999px;
+            padding: 8px 14px;
+        }
+
+        .convert-item .convert-emoji { font-size: 1.3em; line-height: 1; }
+        .convert-item .convert-arrow { opacity: 0.5; }
+        .convert-item .convert-val { color: var(--accent); font-weight: bold; }
+
+        /* Note discrète (remplace les longs paragraphes) */
+        .micro-note {
+            font-size: 0.82em !important;
+            opacity: 0.6 !important;
+            margin-bottom: 12px !important;
+        }
+
         /* Assemblage sur mesure */
         .custom-grid {
             display: grid;
@@ -1859,40 +1897,43 @@
 
                         <div class="atelier-card">
                             <h3>♻️ Recyclage</h3>
-                            <p>Transforme tes doublons en éclats. Tu gardes toujours 1 exemplaire de chaque pixel, ta collection reste intacte.</p>
-                            <p style="font-size: 0.85em;"><strong>1 pixel = 1 éclat</strong> : 1×1 = <strong>1 ✨</strong> &nbsp;·&nbsp; 2×2 (4 pixels) = <strong>4 ✨</strong> &nbsp;·&nbsp; Pixel Art 8×8 (64 pixels) = <strong>64 ✨</strong></p>
+                            <div class="convert-strip">
+                                <div class="convert-item"><span class="convert-emoji">🟥</span><span class="convert-arrow">→</span><span class="convert-val">1 ✨</span></div>
+                                <div class="convert-item"><span class="convert-emoji">🟦</span><span class="convert-arrow">→</span><span class="convert-val">4 ✨</span></div>
+                                <div class="convert-item"><span class="convert-emoji">🖼️</span><span class="convert-arrow">→</span><span class="convert-val">64 ✨</span></div>
+                            </div>
+                            <p class="micro-note">Tes doublons deviennent des éclats — tu gardes toujours 1 exemplaire.</p>
                             <p id="recyclePreview">Aucun doublon à recycler pour le moment.</p>
-                            <button id="recycleAllButton" class="open-button" style="width: 100%;" disabled>♻️ Recycler tous les doublons</button>
+                            <button id="recycleAllButton" class="open-button" style="width: 100%;" disabled>♻️ Tout recycler</button>
                         </div>
 
                         <h3 style="margin-bottom: 15px;">🔨 Assemblage</h3>
-                        <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Assemble tes éclats pixel par pixel : un 2×2 coûte ses 4 pixels, un pixel art ses 64 pixels.</p>
                         <div class="craft-grid">
                             <div class="craft-card">
                                 <div class="craft-icon">🟥</div>
                                 <div class="craft-title">Pixel 1×1</div>
-                                <div class="craft-desc">Un pixel 1×1 aléatoire parmi les 4 couleurs.</div>
+                                <div class="craft-meta">🎲 4 couleurs</div>
                                 <div class="craft-cost">1 ✨</div>
                                 <button id="craft1x1Button" class="open-button" disabled>Crafter</button>
                             </div>
                             <div class="craft-card">
                                 <div class="craft-icon">🟦</div>
                                 <div class="craft-title">Pixel 2×2</div>
-                                <div class="craft-desc">Un pixel 2×2 aléatoire parmi les 256 combinaisons.</div>
+                                <div class="craft-meta">🎲 256 combis</div>
                                 <div class="craft-cost">4 ✨</div>
                                 <button id="craft2x2Button" class="open-button" disabled>Crafter</button>
                             </div>
                             <div class="craft-card">
                                 <div class="craft-icon">🎁</div>
                                 <div class="craft-title">Coffre bonus</div>
-                                <div class="craft-desc">Ouvre immédiatement un coffre supplémentaire (3 pixels, taux normaux).</div>
+                                <div class="craft-meta">📦 +3 pixels</div>
                                 <div class="craft-cost">16 ✨</div>
                                 <button id="craftChestButton" class="open-button" disabled>Ouvrir</button>
                             </div>
                             <div class="craft-card">
                                 <div class="craft-icon">💎</div>
-                                <div class="craft-title">Pixel Art légendaire</div>
-                                <div class="craft-desc">Un pixel art 8×8 légendaire aléatoire parmi les 30 designs.</div>
+                                <div class="craft-title">Pixel Art</div>
+                                <div class="craft-meta">🎲 30 designs</div>
                                 <div class="craft-cost">64 ✨</div>
                                 <button id="craftArtButton" class="open-button" disabled>Crafter</button>
                             </div>
@@ -1900,7 +1941,7 @@
 
                         <div class="atelier-card" style="margin-top: 20px;">
                             <h3>🎯 Assemblage sur mesure</h3>
-                            <p>Compose <strong>exactement</strong> le 2×2 que tu veux — payé non pas en éclats mais avec tes pixels 1×1 des bonnes couleurs. Clique sur chaque case pour changer sa couleur.</p>
+                            <p class="micro-note">Clique chaque case pour composer ton 2×2 — payé avec tes pixels 1×1.</p>
                             <div style="display: flex; align-items: center; gap: 25px; flex-wrap: wrap; margin: 15px 0;">
                                 <div class="custom-grid">
                                     <div class="custom-cell"></div>
@@ -1933,8 +1974,8 @@
                 <div class="tab-content" id="marketTab">
                     <div class="trade-view">
                         <div class="trade-header">
-                            <h2>Échanges</h2>
-                            <p>Troque tes doublons contre les pixels qu'il te manque. Les meilleurs candidats sont mis en avant automatiquement.</p>
+                            <h2>🔄 Échanges</h2>
+                            <p>Troque tes doublons contre ce qui te manque.</p>
                         </div>
 
                         <!-- Sous-onglets -->
@@ -1948,7 +1989,6 @@
                         <div id="proposeTrade" class="trade-section">
                             <div class="trade-card">
                                 <h3>Créer une proposition</h3>
-                                <div class="trade-card__sub">Choisis un joueur, ce que tu offres, et ce que tu veux en retour.</div>
 
                                 <!-- Sélection du joueur -->
                                 <div class="field">
@@ -1960,7 +2000,7 @@
 
                                 <!-- Mes pixels -->
                                 <div class="field">
-                                    <div class="field__label"><span class="field__step">2</span> Je propose <span class="trade-hint">🟢 tes doublons d'abord — échange-les en priorité</span></div>
+                                    <div class="field__label"><span class="field__step">2</span> Je propose <span class="trade-hint">🟢 doublons en priorité</span></div>
                                     <div id="myPixelsForTrade" class="pixel-pool">
                                         <p class="pool-empty">Sélectionne un joueur d'abord</p>
                                     </div>
@@ -1968,7 +2008,7 @@
 
                                 <!-- Pixels du joueur -->
                                 <div class="field">
-                                    <div class="field__label"><span class="field__step">3</span> Contre <span class="trade-hint">⭐ les pixels qu'il te manque d'abord</span></div>
+                                    <div class="field__label"><span class="field__step">3</span> Contre <span class="trade-hint">⭐ ce qui te manque</span></div>
                                     <div id="theirPixelsForTrade" class="pixel-pool">
                                         <p class="pool-empty">Sélectionne un joueur d'abord</p>
                                     </div>
