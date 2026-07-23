@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=15'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=16'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -372,16 +372,22 @@ function setupInstallBanner() {
         const ua = navigator.userAgent;
         const isIOS = /iPhone|iPad|iPod/.test(ua)
             || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const iOSNonSafari = /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua); // Chrome, Firefox... sur iOS
 
-        if (isIOS && iOSNonSafari) {
-            // Sur iPhone, l'ajout à l'écran d'accueil n'est fiable que dans Safari
-            help.innerHTML = 'Sur iPhone, l\'installation se fait depuis <strong>Safari</strong> : ouvre ce lien dans Safari, puis bouton <strong>Partager</strong> ⬆️ → « Sur l\'écran d\'accueil ».';
-            help.style.display = 'block';
-            banner.style.display = 'flex';
-        } else if (isIOS) {
-            // iOS Safari
-            help.innerHTML = 'Appuie sur le bouton <strong>Partager</strong> ⬆️ (en bas), puis « <strong>Sur l\'écran d\'accueil</strong> ».';
+        if (isIOS) {
+            // Depuis iOS 16.4, TOUS les navigateurs (Safari, Chrome, Edge,
+            // Firefox...) ajoutent à l'écran d'accueil via leur propre menu
+            // Partager. Apple n'autorise aucune installation en un clic : on
+            // explique simplement la manip, sans jamais renvoyer vers Safari.
+            // Tous les navigateurs iOS ont « Safari » dans leur UA ; on repère
+            // Safari « pur » par l'absence des marqueurs des autres navigateurs.
+            const isSafari = !/CriOS|FxiOS|EdgiOS|OPiOS|GSA/.test(ua);
+            if (isSafari) {
+                // Sur Safari, le bouton Partager est en bas de l'écran
+                help.innerHTML = 'Appuie sur <strong>Partager</strong> ⬆️ (en bas de l\'écran), puis « <strong>Sur l\'écran d\'accueil</strong> ».';
+            } else {
+                // Chrome, Edge, Firefox... : bouton Partager dans la barre du navigateur
+                help.innerHTML = 'Appuie sur le bouton <strong>Partager</strong> ⬆️ de ton navigateur, puis « <strong>Sur l\'écran d\'accueil</strong> ».';
+            }
             help.style.display = 'block';
             banner.style.display = 'flex';
         }
