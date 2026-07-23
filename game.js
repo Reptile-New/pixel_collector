@@ -26,8 +26,93 @@ import {
     where
 } from './firebase-config.js?v=13'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
+// ============================================================
+// UI : notifications (toasts) + dialogue de confirmation stylé
+// Remplacent les alert()/confirm() natifs du navigateur.
+// ============================================================
+function showToast(message, type) {
+    const host = document.getElementById('appToast');
+    if (!host) { console.log(message); return; }
+
+    // Détection automatique du ton si non précisé
+    if (!type) {
+        const m = message.toLowerCase();
+        if (/erreur|incorrect|invalide|impossible|pas assez|déjà|introuvable|trop faible|ne peut pas|plus ce pixel/.test(m)) type = 'error';
+        else if (/réussi|succès|✅|✨|🎉|envoyé|modifié|récupéré|recyclé|supprimé avec succès/.test(m)) type = 'success';
+        else type = 'info';
+    }
+
+    const icons = { success: '✅', error: '⚠️', warn: '⚠️', info: 'ℹ️' };
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    const icon = document.createElement('span');
+    icon.className = 'toast__icon';
+    icon.textContent = icons[type] || icons.info;
+    const msg = document.createElement('span');
+    msg.className = 'toast__msg';
+    msg.textContent = message;
+    toast.append(icon, msg);
+    host.appendChild(toast);
+
+    const remove = () => {
+        toast.classList.add('leaving');
+        setTimeout(() => toast.remove(), 250);
+    };
+    setTimeout(remove, type === 'error' ? 5200 : 3800);
+    toast.addEventListener('click', remove);
+}
+
+// Dialogue de confirmation — renvoie une Promise<boolean>
+function uiConfirm(message, options = {}) {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('appDialog');
+        const box = document.getElementById('appDialogBox');
+        const titleEl = document.getElementById('appDialogTitle');
+        const msgEl = document.getElementById('appDialogMsg');
+        const iconEl = document.getElementById('appDialogIcon');
+        const okBtn = document.getElementById('appDialogConfirm');
+        const cancelBtn = document.getElementById('appDialogCancel');
+
+        // Repli si le markup n'est pas présent
+        if (!overlay) { resolve(window.confirm(message)); return; }
+
+        const danger = !!options.danger;
+        box.classList.toggle('danger', danger);
+        iconEl.textContent = options.icon || (danger ? '🗑️' : '❓');
+        titleEl.textContent = options.title || 'Confirmer';
+        msgEl.textContent = message;
+        okBtn.textContent = options.confirmLabel || 'Confirmer';
+        cancelBtn.textContent = options.cancelLabel || 'Annuler';
+
+        const cleanup = (result) => {
+            overlay.classList.remove('open');
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            overlay.removeEventListener('click', onBackdrop);
+            document.removeEventListener('keydown', onKey);
+            resolve(result);
+        };
+        const onOk = () => cleanup(true);
+        const onCancel = () => cleanup(false);
+        const onBackdrop = (e) => { if (e.target === overlay) cleanup(false); };
+        const onKey = (e) => {
+            if (e.key === 'Escape') cleanup(false);
+            if (e.key === 'Enter') cleanup(true);
+        };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+
+        overlay.classList.add('open');
+        okBtn.focus();
+    });
+}
+
 // Variables globales
 let currentUser = null;
+let chestOpening = false; // verrou pendant l'animation d'ouverture du coffre
 let userCollection = {};
 let userStats = {
     chestsOpened: 0,
@@ -168,7 +253,7 @@ function setupEventListeners() {
 
     // Trade system event listeners
     document.querySelectorAll('.trade-tab').forEach(tab => {
-        tab.addEventListener('click', (e) => switchTradeTab(e.target.dataset.tradeTab));
+        tab.addEventListener('click', (e) => switchTradeTab(e.currentTarget.dataset.tradeTab));
     });
     document.getElementById('selectPlayer').addEventListener('change', handlePlayerSelect);
     document.getElementById('sendTradeOffer').addEventListener('click', handleSendTrade);
@@ -315,7 +400,7 @@ async function handleLogin() {
     const password = document.getElementById('loginPassword').value;
 
     if (!email || !password) {
-        alert('Veuillez remplir tous les champs');
+        showToast('Veuillez remplir tous les champs');
         return;
     }
 
@@ -332,12 +417,12 @@ async function handleLogin() {
                 console.warn('Impossible de créer le document utilisateur:', e);
             }
 
-            if (confirm('Ton email n\'est pas encore vérifié : clique sur le lien reçu par mail pour activer ton compte.\n\nRenvoyer l\'email de vérification ?')) {
+            if (await uiConfirm('Ton email n\'est pas encore vérifié : clique sur le lien reçu par mail pour activer ton compte.\n\nRenvoyer l\'email de vérification ?')) {
                 try {
                     await sendEmailVerification(userCredential.user);
-                    alert('Email renvoyé ! Vérifie ta boîte mail (et le dossier spam).');
+                    showToast('Email renvoyé ! Vérifie ta boîte mail (et le dossier spam).');
                 } catch (e) {
-                    alert('Impossible de renvoyer l\'email : ' + e.message);
+                    showToast('Impossible de renvoyer l\'email : ' + e.message);
                 }
             }
 
@@ -349,11 +434,11 @@ async function handleLogin() {
     } catch (error) {
         console.error('Erreur de connexion:', error);
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-            alert('Email ou mot de passe incorrect');
+            showToast('Email ou mot de passe incorrect');
         } else if (error.code === 'auth/invalid-email') {
-            alert('Email invalide');
+            showToast('Email invalide');
         } else {
-            alert('Erreur de connexion: ' + error.message);
+            showToast('Erreur de connexion: ' + error.message);
         }
     }
 }
@@ -364,17 +449,17 @@ async function handleRegister() {
     const password = document.getElementById('registerPassword').value;
 
     if (!pseudo || !email || !password) {
-        alert('Veuillez remplir tous les champs');
+        showToast('Veuillez remplir tous les champs');
         return;
     }
 
     if (pseudo.length < 3) {
-        alert('Le pseudo doit contenir au moins 3 caractères');
+        showToast('Le pseudo doit contenir au moins 3 caractères');
         return;
     }
 
     if (password.length < 6) {
-        alert('Le mot de passe doit contenir au moins 6 caractères');
+        showToast('Le mot de passe doit contenir au moins 6 caractères');
         return;
     }
 
@@ -403,20 +488,20 @@ async function handleRegister() {
 
         // Déconnecter l'utilisateur et afficher un message
         await signOut(auth);
-        alert('Inscription réussie ! Un email de confirmation a été envoyé à ' + email + '. Veuillez vérifier votre boîte mail pour activer votre compte.');
+        showToast('Inscription réussie ! Un email de confirmation a été envoyé à ' + email + '. Veuillez vérifier votre boîte mail pour activer votre compte.');
 
         // Revenir à l'onglet connexion
         window.switchAuthTab('login');
     } catch (error) {
         console.error('Erreur d\'inscription:', error);
         if (error.code === 'auth/email-already-in-use') {
-            alert('Cet email est déjà utilisé');
+            showToast('Cet email est déjà utilisé');
         } else if (error.code === 'auth/invalid-email') {
-            alert('Email invalide');
+            showToast('Email invalide');
         } else if (error.code === 'auth/weak-password') {
-            alert('Le mot de passe est trop faible');
+            showToast('Le mot de passe est trop faible');
         } else {
-            alert('Erreur d\'inscription: ' + error.message);
+            showToast('Erreur d\'inscription: ' + error.message);
         }
     }
 }
@@ -448,7 +533,7 @@ async function handleGoogleSignIn() {
         } else if (error.code === 'auth/cancelled-popup-request') {
             // Une autre popup était déjà ouverte
         } else {
-            alert('Erreur de connexion avec Google: ' + error.message);
+            showToast('Erreur de connexion avec Google: ' + error.message);
         }
     }
 }
@@ -465,7 +550,7 @@ async function handleLogout() {
         // onAuthStateChanged gérera la suite
     } catch (error) {
         console.error('Erreur de déconnexion:', error);
-        alert('Erreur de déconnexion: ' + error.message);
+        showToast('Erreur de déconnexion: ' + error.message);
     }
 }
 
@@ -473,12 +558,12 @@ async function handleSaveName() {
     const newName = document.getElementById('userNameInput').value.trim();
 
     if (!newName) {
-        alert('Le pseudo ne peut pas être vide');
+        showToast('Le pseudo ne peut pas être vide');
         return;
     }
 
     if (newName.length < 3) {
-        alert('Le pseudo doit contenir au moins 3 caractères');
+        showToast('Le pseudo doit contenir au moins 3 caractères');
         return;
     }
 
@@ -494,23 +579,23 @@ async function handleSaveName() {
             updatedAt: serverTimestamp()
         });
 
-        alert('Pseudo modifié avec succès !');
+        showToast('Pseudo modifié avec succès !');
         updateUI();
     } catch (error) {
         console.error('Erreur de modification du pseudo:', error);
-        alert('Erreur lors de la modification du pseudo: ' + error.message);
+        showToast('Erreur lors de la modification du pseudo: ' + error.message);
     }
 }
 
 async function handleDeleteAccount() {
-    const confirmation = confirm('Êtes-vous sûr de vouloir supprimer votre compte ?\n\nCette action est irréversible et supprimera :\n- Votre compte\n- Toutes vos données\n- Votre collection de pixels\n- Vos statistiques\n\nVoulez-vous vraiment continuer ?');
+    const confirmation = await uiConfirm('Cette action est irréversible et supprimera :\n- Votre compte\n- Toutes vos données\n- Votre collection de pixels\n- Vos statistiques', { danger: true, title: 'Supprimer le compte ?', confirmLabel: 'Supprimer', icon: '🗑️' });
 
     if (!confirmation) {
         return;
     }
 
     // Demander une double confirmation
-    const doubleConfirmation = confirm('DERNIÈRE CONFIRMATION\n\nVotre compte sera définitivement supprimé.\nTapez sur OK pour confirmer la suppression.');
+    const doubleConfirmation = await uiConfirm('Votre compte sera définitivement supprimé. Cette action ne peut pas être annulée.', { danger: true, title: 'Dernière confirmation', confirmLabel: 'Supprimer définitivement', icon: '⚠️' });
 
     if (!doubleConfirmation) {
         return;
@@ -529,21 +614,21 @@ async function handleDeleteAccount() {
         // 2. Supprimer l'utilisateur Firebase Auth
         await deleteUser(currentUser);
 
-        alert('Votre compte a été supprimé avec succès.');
+        showToast('Votre compte a été supprimé avec succès.');
         // onAuthStateChanged redirigera automatiquement vers l'écran de connexion
     } catch (error) {
         console.error('Erreur de suppression du compte:', error);
 
         if (error.code === 'auth/requires-recent-login') {
-            alert('Pour des raisons de sécurité, vous devez vous reconnecter avant de supprimer votre compte.\n\nVeuillez vous déconnecter puis vous reconnecter, et réessayez.');
+            showToast('Pour des raisons de sécurité, vous devez vous reconnecter avant de supprimer votre compte.\n\nVeuillez vous déconnecter puis vous reconnecter, et réessayez.');
         } else {
-            alert('Erreur lors de la suppression du compte: ' + error.message);
+            showToast('Erreur lors de la suppression du compte: ' + error.message);
         }
     }
 }
 
 async function cleanCorruptedPixels() {
-    if (!confirm('Nettoyer les pixels corrompus ?\n\nCette action va supprimer tous les pixels qui ont des données manquantes ou invalides (pixels noirs ou rouges).\n\nVoulez-vous continuer ?')) {
+    if (!await uiConfirm('Nettoyer les pixels corrompus ?\n\nCette action va supprimer tous les pixels qui ont des données manquantes ou invalides (pixels noirs ou rouges).\n\nVoulez-vous continuer ?')) {
         return;
     }
 
@@ -580,12 +665,12 @@ async function cleanCorruptedPixels() {
         }
 
         if (cleanedCount === 0) {
-            alert('Aucun pixel corrompu trouvé ! 🎉');
+            showToast('Aucun pixel corrompu trouvé ! 🎉');
             return;
         }
 
         // Confirmation avec le nombre de pixels à supprimer
-        if (!confirm(`${cleanedCount} pixel(s) corrompu(s) trouvé(s).\n\nConfirmer la suppression ?`)) {
+        if (!await uiConfirm(`${cleanedCount} pixel(s) corrompu(s) trouvé(s).\n\nConfirmer la suppression ?`)) {
             return;
         }
 
@@ -597,14 +682,14 @@ async function cleanCorruptedPixels() {
         // Sauvegarder
         await saveUserData();
 
-        alert(`${cleanedCount} pixel(s) corrompu(s) supprimé(s) avec succès ! ✨`);
+        showToast(`${cleanedCount} pixel(s) corrompu(s) supprimé(s) avec succès ! ✨`);
 
         // Recharger l'affichage
         await loadUserData();
         displayCollection();
     } catch (error) {
         console.error('Erreur lors du nettoyage:', error);
-        alert('Erreur: ' + error.message);
+        showToast('Erreur: ' + error.message);
     }
 }
 
@@ -699,7 +784,7 @@ async function loadUserData() {
         }
     } catch (error) {
         console.error('Erreur de chargement des données:', error);
-        alert('Erreur de chargement des données. Veuillez réessayer.');
+        showToast('Erreur de chargement des données. Veuillez réessayer.');
     }
 }
 
@@ -738,7 +823,7 @@ async function saveUserData() {
         await updateDoc(doc(db, 'users', currentUser.uid), data);
     } catch (error) {
         console.error('Erreur de sauvegarde des données:', error);
-        alert('Erreur de sauvegarde. Vos progrès pourraient ne pas être sauvegardés.');
+        showToast('Erreur de sauvegarde. Vos progrès pourraient ne pas être sauvegardés.');
     }
 }
 
@@ -771,11 +856,42 @@ function canOpenChest() {
     return getDayKey(lastTime) !== getDayKey(Date.now());
 }
 
+// Joue la séquence d'ouverture (tremblement + halo + rayons + flash).
+// Résout la promesse quand l'animation est terminée.
+function playChestOpening(hasLegendary) {
+    return new Promise(resolve => {
+        const stage = document.querySelector('.chest-stage');
+        const chest = document.querySelector('.chest');
+        const flash = document.getElementById('chestFlash');
+
+        // Repli : pas d'animation si le markup n'est pas là
+        if (!stage || !chest) { resolve(); return; }
+
+        const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduce) { resolve(); return; }
+
+        stage.classList.add('is-opening');
+        if (hasLegendary) stage.classList.add('is-legendary');
+        chest.classList.add('opening');
+
+        // Éclair de lumière juste avant la révélation
+        setTimeout(() => flash && flash.classList.add('burst'), 830);
+        setTimeout(() => {
+            chest.classList.remove('opening');
+            stage.classList.remove('is-opening', 'is-legendary');
+            flash && flash.classList.remove('burst');
+            resolve();
+        }, 1120);
+    });
+}
+
 async function openChest() {
+    if (chestOpening) return;
     if (!canOpenChest()) {
-        alert('Tu as déjà ouvert ton coffre aujourd\'hui. Reviens après minuit !');
+        showToast('Tu as déjà ouvert ton coffre aujourd\'hui. Reviens après minuit !');
         return;
     }
+    chestOpening = true;
 
     // Mettre à jour la série quotidienne : elle continue si le dernier coffre
     // a été ouvert hier (jour calendaire), sinon elle repart à 1
@@ -799,18 +915,25 @@ async function openChest() {
     updateUniquePixelsCount();
     userStats.lastChestTime = Date.now();
 
-    // Sauvegarder dans Firestore
-    await saveUserData();
+    // Lancer l'animation d'ouverture et sauvegarder en parallèle
+    const hasLegendary = pixels.some(p => p.type === 'art');
+    const savePromise = saveUserData();
+    try {
+        await playChestOpening(hasLegendary);
+        await savePromise;
 
-    // Afficher le résultat
-    let subtitle = `🔥 Série de ${userStats.streak} jour${userStats.streak > 1 ? 's' : ''}`;
-    if (pixelCount > 3) {
-        subtitle += ` — +${pixelCount - 3} pixel${pixelCount - 3 > 1 ? 's' : ''} bonus !`;
+        // Afficher le résultat
+        let subtitle = `🔥 Série de ${userStats.streak} jour${userStats.streak > 1 ? 's' : ''}`;
+        if (pixelCount > 3) {
+            subtitle += ` — +${pixelCount - 3} pixel${pixelCount - 3 > 1 ? 's' : ''} bonus !`;
+        }
+        showResult(pixels, `${pixelCount} pixels obtenus !`, subtitle);
+
+        // Mettre à jour l'UI
+        updateUI();
+    } finally {
+        chestOpening = false;
     }
-    showResult(pixels, `${pixelCount} pixels obtenus !`, subtitle);
-
-    // Mettre à jour l'UI
-    updateUI();
 }
 
 // Tire `count` pixels, les ajoute à la collection et gère le compteur de pity.
@@ -901,6 +1024,10 @@ function showResult(pixels, title = 'Vous avez obtenu :', subtitle = '') {
 
     chestView.style.display = 'none';
     resultView.classList.add('active');
+
+    // Bandeau spécial si un légendaire a été obtenu
+    const banner = document.getElementById('legendaryBanner');
+    if (banner) banner.classList.toggle('show', pixels.some(p => p.type === 'art'));
 
     // Générer dynamiquement les pixels obtenus
     const container = document.getElementById('resultPixels');
@@ -1224,28 +1351,22 @@ function displayPlayers(players) {
     }
 
     players.forEach((player, index) => {
-        const playerCard = document.createElement('div');
-        playerCard.style.cssText = 'background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; cursor: pointer; transition: all 0.3s;';
-        playerCard.onmouseover = () => playerCard.style.background = 'rgba(255,255,255,0.2)';
-        playerCard.onmouseout = () => playerCard.style.background = 'rgba(255,255,255,0.1)';
-        playerCard.onclick = () => openPlayerProfile(player);
-
         const isCurrentUser = player.uid === currentUser.uid;
 
+        const playerCard = document.createElement('div');
+        playerCard.className = 'player-card' + (isCurrentUser ? ' is-me' : '');
+        playerCard.onclick = () => openPlayerProfile(player);
+
         playerCard.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="flex: 1;">
-                    <div style="font-size: 1.2em; font-weight: bold; margin-bottom: 5px;">
-                        ${index + 1}. ${player.displayName} ${isCurrentUser ? '(Vous)' : ''}
-                    </div>
-                    <div style="display: flex; gap: 20px; opacity: 0.8; font-size: 0.9em;">
-                        <span>🎨 ${player.stats.uniquePixels} / 294 uniques</span>
-                        <span>📦 ${player.stats.totalPixels} totaux</span>
-                        <span>🎁 ${player.stats.chestsOpened} coffres</span>
-                    </div>
+            <div>
+                <div class="player-card__name">${index + 1}. ${player.displayName} ${isCurrentUser ? '(Vous)' : ''}</div>
+                <div class="player-card__stats">
+                    <span>🎨 ${player.stats.uniquePixels} / 294 uniques</span>
+                    <span>📦 ${player.stats.totalPixels} totaux</span>
+                    <span>🎁 ${player.stats.chestsOpened} coffres</span>
                 </div>
-                <div style="font-size: 1.5em; opacity: 0.5;">→</div>
             </div>
+            <div class="player-card__arrow">→</div>
         `;
 
         container.appendChild(playerCard);
@@ -1540,11 +1661,11 @@ async function recycleAllDuplicates() {
     const { total, duplicates } = getRecyclableShards();
 
     if (duplicates === 0) {
-        alert('Aucun doublon à recycler ! Ouvre des coffres pour en obtenir.');
+        showToast('Aucun doublon à recycler ! Ouvre des coffres pour en obtenir.');
         return;
     }
 
-    if (!confirm(`Recycler ${duplicates} doublon(s) contre ${total} éclats ✨ ?\n\nTu gardes toujours 1 exemplaire de chaque pixel : ta collection n'est pas affectée.`)) {
+    if (!await uiConfirm(`Recycler ${duplicates} doublon(s) contre ${total} éclats ✨ ?\n\nTu gardes toujours 1 exemplaire de chaque pixel : ta collection n'est pas affectée.`)) {
         return;
     }
 
@@ -1560,12 +1681,12 @@ async function recycleAllDuplicates() {
 
     updateAtelierUI();
     updateUI();
-    alert(`♻️ ${duplicates} doublon(s) recyclé(s) : +${total} éclats ✨`);
+    showToast(`♻️ ${duplicates} doublon(s) recyclé(s) : +${total} éclats ✨`);
 }
 
 function spendShards(cost) {
     if ((userStats.shards || 0) < cost) {
-        alert(`Pas assez d'éclats ! Il en faut ${cost} ✨ (tu en as ${userStats.shards || 0}).\n\nRecycle tes doublons pour en obtenir.`);
+        showToast(`Pas assez d'éclats ! Il en faut ${cost} ✨ (tu en as ${userStats.shards || 0}).\n\nRecycle tes doublons pour en obtenir.`);
         return false;
     }
     userStats.shards -= cost;
@@ -1708,7 +1829,7 @@ async function craftCustom2x2() {
     // Revérifier le stock au moment du clic
     for (const [digit, needed] of Object.entries(needs)) {
         if ((userCollection[`1x1_${digit}`]?.count || 0) < needed) {
-            alert('Il te manque des pixels 1×1 pour cet assemblage !');
+            showToast('Il te manque des pixels 1×1 pour cet assemblage !');
             return;
         }
     }
@@ -1722,7 +1843,7 @@ async function craftCustom2x2() {
     if (lastOnes.length > 0) {
         msg += `\n\n⚠️ Tu vas consommer ton DERNIER exemplaire de : ${lastOnes.join(', ')}`;
     }
-    if (!confirm(msg)) return;
+    if (!await uiConfirm(msg)) return;
 
     // Consommer les pixels 1x1
     for (const [digit, needed] of Object.entries(needs)) {
@@ -1814,8 +1935,8 @@ async function handlePlayerSelect(e) {
 
     if (!selectedOption.value) {
         selectedTradePlayer = null;
-        document.getElementById('myPixelsForTrade').innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Sélectionne un joueur d\'abord</p>';
-        document.getElementById('theirPixelsForTrade').innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Sélectionne un joueur d\'abord</p>';
+        document.getElementById('myPixelsForTrade').innerHTML = '<p class="pool-empty">Sélectionne un joueur d\'abord</p>';
+        document.getElementById('theirPixelsForTrade').innerHTML = '<p class="pool-empty">Sélectionne un joueur d\'abord</p>';
         document.getElementById('sendTradeOffer').disabled = true;
         return;
     }
@@ -1835,7 +1956,7 @@ function displayMyPixelsForTrade() {
     const myPixels = Object.values(userCollection);
 
     if (myPixels.length === 0) {
-        container.innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Tu n\'as aucun pixel</p>';
+        container.innerHTML = '<p class="pool-empty">Tu n\'as aucun pixel</p>';
         return;
     }
 
@@ -1875,7 +1996,7 @@ function displayTheirPixelsForTrade() {
     container.innerHTML = '';
 
     if (!selectedTradePlayer || !selectedTradePlayer.collection) {
-        container.innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Ce joueur n\'a aucun pixel</p>';
+        container.innerHTML = '<p class="pool-empty">Ce joueur n\'a aucun pixel</p>';
         return;
     }
 
@@ -1890,7 +2011,7 @@ function displayTheirPixelsForTrade() {
     }
 
     if (theirPixels.length === 0) {
-        container.innerHTML = '<p style="text-align: center; opacity: 0.7; grid-column: 1 / -1;">Ce joueur n\'a aucun pixel</p>';
+        container.innerHTML = '<p class="pool-empty">Ce joueur n\'a aucun pixel</p>';
         return;
     }
 
@@ -1920,7 +2041,7 @@ function displayTheirPixelsForTrade() {
 
         const badge = document.createElement('div');
         badge.className = 'trade-badge ' + (isMissing ? 'missing' : 'unique');
-        badge.textContent = isMissing ? '⭐ Il te manque !' : `Possédé ×${userCollection[pixel.id].count}`;
+        badge.textContent = isMissing ? '⭐ Manquant' : `Possédé ×${userCollection[pixel.id].count}`;
 
         item.appendChild(canvas);
         item.appendChild(name);
@@ -1932,12 +2053,10 @@ function displayTheirPixelsForTrade() {
 function selectMyPixel(pixel, element) {
     selectedMyPixel = pixel;
     // Highlight visuel
-    document.querySelectorAll('#myPixelsForTrade > div').forEach(div => {
-        div.style.background = 'rgba(255,255,255,0.1)';
-        div.style.transform = 'scale(1)';
+    document.querySelectorAll('#myPixelsForTrade .trade-pixel').forEach(div => {
+        div.classList.remove('selected');
     });
-    element.style.background = 'rgba(100,200,100,0.3)';
-    element.style.transform = 'scale(1.1)';
+    element.classList.add('selected');
 
     checkTradeReady();
 }
@@ -1945,12 +2064,10 @@ function selectMyPixel(pixel, element) {
 function selectTheirPixel(pixel, element) {
     selectedTheirPixel = pixel;
     // Highlight visuel
-    document.querySelectorAll('#theirPixelsForTrade > div').forEach(div => {
-        div.style.background = 'rgba(255,255,255,0.1)';
-        div.style.transform = 'scale(1)';
+    document.querySelectorAll('#theirPixelsForTrade .trade-pixel').forEach(div => {
+        div.classList.remove('selected');
     });
-    element.style.background = 'rgba(100,200,100,0.3)';
-    element.style.transform = 'scale(1.1)';
+    element.classList.add('selected');
 
     checkTradeReady();
 }
@@ -2032,7 +2149,7 @@ function cleanPixelForFirestore(pixel) {
 
 async function handleSendTrade() {
     if (!selectedMyPixel || !selectedTheirPixel || !selectedTradePlayer) {
-        alert('Sélectionne les deux pixels à échanger');
+        showToast('Sélectionne les deux pixels à échanger');
         return;
     }
 
@@ -2041,7 +2158,7 @@ async function handleSendTrade() {
         ? `✅ Tu en possèdes ${ownedCount} : tu échanges un doublon, ta collection reste complète.`
         : `⚠️ ATTENTION : c'est ton SEUL exemplaire de ce pixel !`;
 
-    if (!confirm(`Proposer d'échanger ton ${selectedMyPixel.name} contre le ${selectedTheirPixel.name} de ${selectedTradePlayer.displayName} ?\n\n${stockWarning}\n\nUn exemplaire sera retiré de ta collection jusqu'à ce que l'échange soit accepté ou annulé.`)) {
+    if (!await uiConfirm(`Proposer d'échanger ton ${selectedMyPixel.name} contre le ${selectedTheirPixel.name} de ${selectedTradePlayer.displayName} ?\n\n${stockWarning}\n\nUn exemplaire sera retiré de ta collection jusqu'à ce que l'échange soit accepté ou annulé.`)) {
         return;
     }
 
@@ -2068,7 +2185,7 @@ async function handleSendTrade() {
             createdAt: serverTimestamp()
         });
 
-        alert('Proposition d\'échange envoyée ! Ton pixel a été retiré de ta collection.');
+        showToast('Proposition d\'échange envoyée ! Ton pixel a été retiré de ta collection.');
 
         // Reset et recharger
         selectedMyPixel = null;
@@ -2079,20 +2196,14 @@ async function handleSendTrade() {
         handlePlayerSelect({ target: document.getElementById('selectPlayer') });
     } catch (error) {
         console.error('Erreur d\'envoi de la proposition:', error);
-        alert('Erreur: ' + error.message);
+        showToast('Erreur: ' + error.message);
     }
 }
 
 function switchTradeTab(tabName) {
     // Changer les onglets actifs
     document.querySelectorAll('.trade-tab').forEach(tab => {
-        if (tab.dataset.tradeTab === tabName) {
-            tab.style.background = 'rgba(255,255,255,0.3)';
-            tab.style.fontWeight = 'bold';
-        } else {
-            tab.style.background = 'rgba(0,0,0,0.2)';
-            tab.style.fontWeight = 'normal';
-        }
+        tab.classList.toggle('active', tab.dataset.tradeTab === tabName);
     });
 
     // Afficher la bonne section
@@ -2113,7 +2224,7 @@ function switchTradeTab(tabName) {
 
 async function loadPendingTrades() {
     const container = document.getElementById('pendingTradesList');
-    container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Chargement...</p>';
+    container.innerHTML = '<p class="trade-empty">Chargement…</p>';
 
     try {
         // Échanges reçus (en attente)
@@ -2141,9 +2252,9 @@ async function loadPendingTrades() {
 
         // Afficher les échanges reçus
         if (!receivedSnap.empty) {
-            const receivedTitle = document.createElement('h3');
+            const receivedTitle = document.createElement('div');
+            receivedTitle.className = 'trade-list-heading';
             receivedTitle.textContent = '📥 Propositions reçues';
-            receivedTitle.style.color = 'white';
             container.appendChild(receivedTitle);
 
             receivedSnap.forEach(docSnap => {
@@ -2154,10 +2265,9 @@ async function loadPendingTrades() {
 
         // Afficher les échanges envoyés
         if (!sentSnap.empty) {
-            const sentTitle = document.createElement('h3');
+            const sentTitle = document.createElement('div');
+            sentTitle.className = 'trade-list-heading';
             sentTitle.textContent = '📤 Propositions envoyées';
-            sentTitle.style.color = 'white';
-            sentTitle.style.marginTop = '20px';
             container.appendChild(sentTitle);
 
             sentSnap.forEach(docSnap => {
@@ -2167,7 +2277,7 @@ async function loadPendingTrades() {
         }
 
         if (receivedSnap.empty && sentSnap.empty) {
-            container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Aucun échange en attente</p>';
+            container.innerHTML = '<p class="trade-empty">Aucun échange en attente pour l'instant</p>';
         }
 
         // Mettre à jour le compteur (total des échanges reçus + envoyés)
@@ -2175,13 +2285,13 @@ async function loadPendingTrades() {
         document.getElementById('pendingTradesCount').textContent = totalPending;
     } catch (error) {
         console.error('Erreur de chargement des échanges:', error);
-        container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Erreur de chargement</p>';
+        container.innerHTML = '<p class="trade-empty">Erreur de chargement</p>';
     }
 }
 
 async function loadTradeHistory() {
     const container = document.getElementById('historyTradesList');
-    container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Chargement...</p>';
+    container.innerHTML = '<p class="trade-empty">Chargement…</p>';
 
     try {
         // Récupérer les échanges où je suis l'émetteur (fromUserId)
@@ -2224,7 +2334,7 @@ async function loadTradeHistory() {
         });
 
         if (allTrades.length === 0) {
-            container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Aucun historique</p>';
+            container.innerHTML = '<p class="trade-empty">Aucun échange dans l'historique</p>';
             return;
         }
 
@@ -2234,79 +2344,91 @@ async function loadTradeHistory() {
         });
     } catch (error) {
         console.error('Erreur de chargement de l\'historique:', error);
-        container.innerHTML = '<p style="text-align: center; opacity: 0.7;">Erreur de chargement</p>';
+        container.innerHTML = '<p class="trade-empty">Erreur de chargement</p>';
     }
 }
 
 function createTradeCard(trade, type) {
     const card = document.createElement('div');
-    card.style.cssText = 'background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin-bottom: 15px;';
+    card.className = 'exchange';
 
-    const date = trade.createdAt?.toDate ? trade.createdAt.toDate().toLocaleString('fr-FR') : 'Date inconnue';
+    const date = trade.createdAt?.toDate
+        ? trade.createdAt.toDate().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        : 'Date inconnue';
 
-    let statusBadge = '';
+    let statusPill = '';
     if (trade.status === 'accepted') {
-        statusBadge = '<span style="background: #4caf50; padding: 5px 10px; border-radius: 12px; font-size: 0.85em;">✅ Accepté</span>';
+        statusPill = '<span class="status-pill accepted">✅ Accepté</span>';
     } else if (trade.status === 'refused') {
-        statusBadge = '<span style="background: #f44336; padding: 5px 10px; border-radius: 12px; font-size: 0.85em;">❌ Refusé</span>';
+        statusPill = '<span class="status-pill refused">❌ Refusé</span>';
     } else if (trade.status === 'cancelled') {
-        statusBadge = '<span style="background: #9e9e9e; padding: 5px 10px; border-radius: 12px; font-size: 0.85em;">🗑️ Annulé</span>';
+        statusPill = '<span class="status-pill cancelled">🗑️ Annulé</span>';
     }
 
     let actions = '';
     if (type === 'received' && trade.status === 'pending') {
         actions = `
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button onclick="acceptTrade('${trade.id}')" class="open-button" style="flex: 1; background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);">✅ Accepter</button>
-                <button onclick="refuseTrade('${trade.id}')" class="open-button" style="flex: 1; background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);">❌ Refuser</button>
+            <div class="exchange__footer">
+                <button onclick="acceptTrade('${trade.id}')" class="btn btn--accept">✅ Accepter</button>
+                <button onclick="refuseTrade('${trade.id}')" class="btn btn--refuse">❌ Refuser</button>
             </div>
         `;
     } else if (type === 'sent' && trade.status === 'pending') {
-        actions = `<button onclick="cancelTrade('${trade.id}')" class="open-button" style="width: 100%; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); margin-top: 10px;">🗑️ Annuler</button>`;
+        actions = `<div class="exchange__footer"><button onclick="cancelTrade('${trade.id}')" class="btn btn--cancel btn--full">🗑️ Annuler la proposition</button></div>`;
     } else if (type === 'history') {
         // Dans l'historique, afficher le bouton Récupérer si applicable
         const amISender = trade.fromUserId === currentUser.uid;
         const alreadyClaimed = amISender ? trade.fromClaimed : trade.toClaimed;
 
         if (!alreadyClaimed && (trade.status === 'accepted' || trade.status === 'cancelled' || (trade.status === 'refused' && amISender))) {
-            actions = `<button onclick="claimTrade('${trade.id}')" class="open-button" style="width: 100%; background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%); margin-top: 10px;">🎁 Récupérer le pixel</button>`;
+            actions = `<div class="exchange__footer">${statusPill}<button onclick="claimTrade('${trade.id}')" class="btn btn--claim btn--full">🎁 Récupérer le pixel</button></div>`;
         } else if (alreadyClaimed) {
-            actions = `<div style="text-align: center; padding: 10px; margin-top: 10px; opacity: 0.7; font-size: 0.9em;">✅ Pixel récupéré</div>`;
+            actions = `<div class="exchange__footer">${statusPill}<span class="status-pill claimed">✅ Pixel récupéré</span></div>`;
+        } else {
+            actions = `<div class="exchange__footer">${statusPill}</div>`;
         }
     }
 
+    // En attente : afficher le statut si présent (ne s'applique pas ici car pending)
+    const footerFallback = (type !== 'history' && statusPill) ? `<div class="exchange__footer">${statusPill}</div>` : '';
+
     card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <div>
-                <strong>${trade.fromUserName}</strong> ↔️ <strong>${trade.toUserName}</strong>
-            </div>
-            <div style="font-size: 0.85em; opacity: 0.8;">${date}</div>
+        <div class="exchange__top">
+            <div class="exchange__players"><b>${trade.fromUserName}</b> ↔ <b>${trade.toUserName}</b></div>
+            <div class="exchange__date">${date}</div>
         </div>
-        <div style="display: flex; gap: 15px; align-items: center; margin: 15px 0;">
-            <div style="flex: 1; text-align: center;">
-                <div style="font-size: 0.9em; opacity: 0.8; margin-bottom: 5px;">Propose</div>
-                <div style="font-weight: bold;">${trade.fromPixelName}</div>
+        <div class="exchange__body">
+            <div class="swap-side">
+                <span class="swap-side__role">Proposé</span>
+                <canvas class="js-from-canvas" width="64" height="64"></canvas>
+                <span class="swap-side__name">${trade.fromPixelName}</span>
             </div>
-            <div style="font-size: 1.5em;">↔️</div>
-            <div style="flex: 1; text-align: center;">
-                <div style="font-size: 0.9em; opacity: 0.8; margin-bottom: 5px;">Contre</div>
-                <div style="font-weight: bold;">${trade.toPixelName}</div>
+            <div class="swap-arrow">⇄</div>
+            <div class="swap-side">
+                <span class="swap-side__role">Demandé</span>
+                <canvas class="js-to-canvas" width="64" height="64"></canvas>
+                <span class="swap-side__name">${trade.toPixelName}</span>
             </div>
         </div>
-        ${statusBadge}
-        ${actions}
+        ${actions || footerFallback}
     `;
+
+    // Rendu des aperçus de pixels
+    const fromCanvas = card.querySelector('.js-from-canvas');
+    const toCanvas = card.querySelector('.js-to-canvas');
+    if (fromCanvas && trade.fromPixelData) PixelRenderer.drawPixel(fromCanvas, trade.fromPixelData, 64);
+    if (toCanvas && trade.toPixelData) PixelRenderer.drawPixel(toCanvas, trade.toPixelData, 64);
 
     return card;
 }
 
 window.acceptTrade = async function(tradeId) {
-    if (!confirm('Accepter cet échange ?\n\nTon pixel sera retiré de ta collection et tu pourras récupérer le pixel proposé.')) return;
+    if (!await uiConfirm('Ton pixel sera retiré de ta collection et tu pourras récupérer le pixel proposé.', { title: 'Accepter cet échange ?', confirmLabel: 'Accepter', icon: '🤝' })) return;
 
     try {
         const tradeDoc = await getDoc(doc(db, 'trades', tradeId));
         if (!tradeDoc.exists()) {
-            alert('Échange introuvable');
+            showToast('Échange introuvable');
             return;
         }
 
@@ -2314,7 +2436,7 @@ window.acceptTrade = async function(tradeId) {
 
         // Vérifier que JE possède toujours le pixel demandé
         if (!userCollection[trade.toPixelId]) {
-            alert('Tu n\'as plus ce pixel !');
+            showToast('Tu n\'as plus ce pixel !');
             return;
         }
 
@@ -2328,7 +2450,7 @@ window.acceptTrade = async function(tradeId) {
             acceptedAt: serverTimestamp()
         });
 
-        alert('Échange accepté ! Ton pixel a été retiré. Va dans l\'historique pour récupérer ton nouveau pixel.');
+        showToast('Échange accepté ! Ton pixel a été retiré. Va dans l\'historique pour récupérer ton nouveau pixel.');
 
         // Recharger les données
         await loadUserData();
@@ -2337,12 +2459,12 @@ window.acceptTrade = async function(tradeId) {
         await loadTradeHistory();
     } catch (error) {
         console.error('Erreur lors de l\'acceptation:', error);
-        alert('Erreur: ' + error.message);
+        showToast('Erreur: ' + error.message);
     }
 }
 
 window.refuseTrade = async function(tradeId) {
-    if (!confirm('Refuser cet échange ?\n\nLe pixel de l\'autre joueur lui sera rendu.')) return;
+    if (!await uiConfirm('Le pixel de l\'autre joueur lui sera rendu.', { danger: true, title: 'Refuser cet échange ?', confirmLabel: 'Refuser', icon: '❌' })) return;
 
     try {
         // Marquer comme refusé (le pixel de fromUser sera rendu via claimTrade)
@@ -2351,17 +2473,17 @@ window.refuseTrade = async function(tradeId) {
             refusedAt: serverTimestamp()
         });
 
-        alert('Échange refusé. Le pixel sera rendu à son propriétaire.');
+        showToast('Échange refusé. Le pixel sera rendu à son propriétaire.');
         await loadPendingTrades();
         await loadTradeHistory();
     } catch (error) {
         console.error('Erreur lors du refus:', error);
-        alert('Erreur: ' + error.message);
+        showToast('Erreur: ' + error.message);
     }
 }
 
 window.cancelTrade = async function(tradeId) {
-    if (!confirm('Annuler cette proposition ?\n\nTon pixel te sera rendu.')) return;
+    if (!await uiConfirm('Ton pixel te sera rendu.', { title: 'Annuler la proposition ?', confirmLabel: 'Oui, annuler', cancelLabel: 'Non', icon: '🗑️' })) return;
 
     try {
         // Marquer comme annulé (le pixel sera rendu via claimTrade)
@@ -2369,12 +2491,12 @@ window.cancelTrade = async function(tradeId) {
             status: 'cancelled',
             cancelledAt: serverTimestamp()
         });
-        alert('Proposition annulée. Récupère ton pixel dans l\'historique.');
+        showToast('Proposition annulée. Récupère ton pixel dans l\'historique.');
         await loadPendingTrades();
         await loadTradeHistory();
     } catch (error) {
         console.error('Erreur lors de l\'annulation:', error);
-        alert('Erreur: ' + error.message);
+        showToast('Erreur: ' + error.message);
     }
 }
 
@@ -2382,7 +2504,7 @@ window.claimTrade = async function(tradeId) {
     try {
         const tradeDoc = await getDoc(doc(db, 'trades', tradeId));
         if (!tradeDoc.exists()) {
-            alert('Échange introuvable');
+            showToast('Échange introuvable');
             return;
         }
 
@@ -2391,7 +2513,7 @@ window.claimTrade = async function(tradeId) {
         const amIReceiver = trade.toUserId === currentUser.uid;
 
         if (!amISender && !amIReceiver) {
-            alert('Cet échange ne te concerne pas');
+            showToast('Cet échange ne te concerne pas');
             return;
         }
 
@@ -2415,17 +2537,17 @@ window.claimTrade = async function(tradeId) {
                 claimField = 'fromClaimed';
             } else if (trade.status === 'refused') {
                 // Le destinataire ne peut rien récupérer si refusé (il n'avait rien donné)
-                alert('Tu n\'as rien à récupérer de cet échange refusé.');
+                showToast('Tu n\'as rien à récupérer de cet échange refusé.');
                 return;
             }
         } else {
-            alert('Cet échange n\'est pas terminé');
+            showToast('Cet échange n\'est pas terminé');
             return;
         }
 
         // Vérifier si déjà récupéré
         if (trade[claimField]) {
-            alert('Tu as déjà récupéré ton pixel !');
+            showToast('Tu as déjà récupéré ton pixel !');
             return;
         }
 
@@ -2446,7 +2568,7 @@ window.claimTrade = async function(tradeId) {
             [`${claimField}At`]: serverTimestamp()
         });
 
-        alert(`Pixel "${pixel.name}" récupéré avec succès !`);
+        showToast(`Pixel "${pixel.name}" récupéré avec succès !`);
 
         // Recharger
         await loadUserData();
@@ -2454,7 +2576,7 @@ window.claimTrade = async function(tradeId) {
         await loadTradeHistory();
     } catch (error) {
         console.error('Erreur lors de la récupération:', error);
-        alert('Erreur: ' + error.message);
+        showToast('Erreur: ' + error.message);
     }
 }
 
