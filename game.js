@@ -227,16 +227,36 @@ const CHEST_TILES_MAX = 4;
 // Calibrage : 1 coffre toutes les 2 h → 12 coffres/jour → ~360 coffres/mois.
 // À 0,3 %, l'espérance est de 1 légendaire tous les ~333 coffres, soit environ
 // un par mois pour un joueur qui ouvre tous ses coffres.
-const LEGENDARY_CHEST_RATE = 0.003; // 0,3 %
-// Bonus de série : +1 tuile à partir de 3 jours consécutifs, +2 à partir de 7
-const STREAK_BONUSES = [{ days: 3, extra: 1 }, { days: 7, extra: 2 }];
+// Recalibrage : personne n'ouvre 12 coffres/jour (il faudrait se connecter
+// toutes les 2 h, nuit comprise). Un joueur régulier en ouvre 4 à 6, soit
+// ~150/mois : à 0,5 %, ça fait un légendaire « surprise » tous les ~40 jours.
+// Le reste des légendaires s'obtient à la Forge, qui est le vrai chemin.
+const LEGENDARY_CHEST_RATE = 0.005; // 0,5 %
+// Part des tuiles 2×2 d'un coffre tirées parmi celles dont les schémas de la
+// Forge ont besoin. Sans ça, une tuile de coffre a 1 chance sur 256 de servir :
+// le butin est joli mais mort, et seuls les éclats comptaient.
+const CHEST_USEFUL_TILE_RATE = 0.6;
+// Bonus de série (jours consécutifs) : des tuiles ET des éclats. Les paliers
+// vont jusqu'à 30 jours pour que la série reste un objectif sur la durée.
+const STREAK_BONUSES = [
+    { days: 3,  extra: 1, shards: 5 },
+    { days: 7,  extra: 2, shards: 15 },
+    { days: 14, extra: 3, shards: 30 },
+    { days: 30, extra: 4, shards: 50 }
+];
+// Recyclage : une tuile 2×2 en trop est fondue en éclats. 2 ✨ < 3 ✨ (prix
+// d'achat d'une tuile au hasard) : acheter pour recycler reste perdant, donc
+// pas de boucle infinie. Les tuiles utiles aux schémas non forgés sont protégées.
+const RECYCLE_2X2_SHARDS = 2;
 
 // === MINE À ÉCLATS (récolte passive) ===
 // La mine produit 1 éclat toutes les MINE_RATE_MS, jusqu'à un plafond de MINE_CAP.
 // Le joueur revient de temps en temps cliquer sur « Récolter » pour encaisser
 // les éclats accumulés. Le plafond incite à revenir plusieurs fois par jour.
 const MINE_RATE_MS = 15 * 60 * 1000; // 1 éclat toutes les 15 minutes
-const MINE_CAP = 32;                 // réserve maximale = 8 h d'accumulation
+// Plafond à 12 h : une nuit de sommeil ne doit pas faire perdre de production.
+// (Il restait punitif à 8 h : impossible de dormir sans gaspiller la mine.)
+const MINE_CAP = 48;                 // réserve maximale = 12 h d'accumulation
 
 // === LE FILON (récolte active, à la pioche) ===
 // Pour ceux qui n'ont pas envie d'attendre : on tape le filon au clic et tous
@@ -342,7 +362,13 @@ function setupEventListeners() {
     // Le Filon : chaque clic sur la pioche fait avancer vers le prochain éclat
     const pick = document.getElementById('minePick');
     if (pick) {
-        pick.addEventListener('click', hitPick);
+        // pointerdown (et pas click) : sur mobile, deux taps rapprochés étaient
+        // interprétés comme un double-tap → zoom du navigateur. On intercepte
+        // le geste dès l'appui et on le neutralise. Couvre souris, doigt et stylet.
+        pick.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            hitPick();
+        });
         pick.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); hitPick(); }
         });
@@ -400,6 +426,10 @@ function setupEventListeners() {
     if (rndBtn) rndBtn.addEventListener('click', craftRandom2x2);
     const newBtn = document.getElementById('craftNew2x2Btn');
     if (newBtn) newBtn.addEventListener('click', craftNew2x2);
+
+    // Recyclage des doublons (Atelier)
+    const recycleBtn = document.getElementById('recycleButton');
+    if (recycleBtn) recycleBtn.addEventListener('click', recycleDuplicates);
 
     // Forge légendaire
     const closeForge = document.getElementById('closeForgeModal');
@@ -1183,7 +1213,8 @@ async function openChest() {
     // Elle continue si un coffre a été ouvert hier, sinon elle repart à 1.
     const now = Date.now();
     const lastTime = userStats.lastChestTime || 0;
-    if (!lastTime || getDayKey(lastTime) !== getDayKey(now)) {
+    const isFirstChestOfDay = !lastTime || getDayKey(lastTime) !== getDayKey(now);
+    if (isFirstChestOfDay) {
         const yesterdayKey = getDayKey(now - 24 * 3600 * 1000);
         userStats.streak = (lastTime > 0 && getDayKey(lastTime) === yesterdayKey)
             ? (userStats.streak || 0) + 1
@@ -1193,8 +1224,9 @@ async function openChest() {
     // Nombre de tuiles 2×2 : base aléatoire + bonus de série
     const baseTiles = CHEST_TILES_MIN + Math.floor(Math.random() * (CHEST_TILES_MAX - CHEST_TILES_MIN + 1));
     let streakExtra = 0;
+    let streakShards = 0;
     STREAK_BONUSES.forEach(bonus => {
-        if (userStats.streak >= bonus.days) streakExtra = bonus.extra;
+        if (userStats.streak >= bonus.days) { streakExtra = bonus.extra; streakShards = bonus.shards; }
     });
     const tileCount = baseTiles + streakExtra;
     const oneCount = CHEST_ONES_MIN + Math.floor(Math.random() * (CHEST_ONES_MAX - CHEST_ONES_MIN + 1));
@@ -1203,7 +1235,10 @@ async function openChest() {
     const pixels = drawChestPixels(tileCount, oneCount);
 
     // Éclats : entre CHEST_SHARDS_MIN et CHEST_SHARDS_MAX
-    const shardReward = CHEST_SHARDS_MIN + Math.floor(Math.random() * (CHEST_SHARDS_MAX - CHEST_SHARDS_MIN + 1));
+    // Éclats : tirage de base + bonus de série (le bonus n'est versé qu'une
+    // fois par jour, à la première ouverture — comme la série elle-même).
+    const shardReward = CHEST_SHARDS_MIN + Math.floor(Math.random() * (CHEST_SHARDS_MAX - CHEST_SHARDS_MIN + 1))
+        + (isFirstChestOfDay ? streakShards : 0);
     userStats.shards = (userStats.shards || 0) + shardReward;
 
     // Mettre à jour les stats
@@ -1222,6 +1257,9 @@ async function openChest() {
         let subtitle = `🔥 Série de ${userStats.streak} jour${userStats.streak > 1 ? 's' : ''} &nbsp;·&nbsp; +${shardReward} ✨`;
         if (streakExtra > 0) {
             subtitle += ` &nbsp;·&nbsp; +${streakExtra} tuile${streakExtra > 1 ? 's' : ''} bonus !`;
+        }
+        if (isFirstChestOfDay && streakShards > 0) {
+            subtitle += ` &nbsp;·&nbsp; +${streakShards} ✨ de série !`;
         }
         if (hasLegendary) {
             subtitle += ' &nbsp;·&nbsp; ✨ LÉGENDAIRE !';
@@ -1245,7 +1283,14 @@ async function openChest() {
 function drawChestPixels(count, oneCount = 0) {
     const pixels = [];
     for (let i = 0; i < oneCount; i++) pixels.push(makeRandom1x1());
-    for (let i = 0; i < count; i++) pixels.push(makeRandom2x2());
+    // Une majorité des tuiles est tirée parmi celles qui manquent aux schémas
+    // de la Forge : sans ça, une tuile de coffre servait 1 fois sur 256.
+    const wanted = missingForgeTilePool();
+    for (let i = 0; i < count; i++) {
+        pixels.push(wanted.length && Math.random() < CHEST_USEFUL_TILE_RATE
+            ? make2x2(wanted[Math.floor(Math.random() * wanted.length)])
+            : makeRandom2x2());
+    }
     if (Math.random() < LEGENDARY_CHEST_RATE) pixels.push(makeRandomLegendary());
 
     pixels.forEach(pixel => {
@@ -1268,8 +1313,27 @@ function makeRandom1x1() {
 // Un pixel 2×2 aléatoire parmi les 256 combinaisons
 function makeRandom2x2() {
     const all = PixelRenderer.generateAll2x2();
-    const pattern = all[Math.floor(Math.random() * all.length)];
+    return make2x2(all[Math.floor(Math.random() * all.length)]);
+}
+
+function make2x2(pattern) {
     return { type: '2x2', pattern, id: `2x2_${pattern}`, name: `Pixel 2x2 #${pattern}` };
+}
+
+// Tuiles 2×2 qui manquent encore aux schémas des légendaires NON possédés.
+// Chaque motif apparaît autant de fois qu'il manque d'exemplaires : les tuiles
+// dont un schéma a besoin en plusieurs exemplaires sortent donc plus souvent.
+function missingForgeTilePool() {
+    const pool = [];
+    PixelArts.forEach(art => {
+        if (userCollection[art.id]) return; // déjà possédé : plus besoin de le forger
+        const { needs } = getLegendaryBlueprint(art);
+        for (const [pattern, need] of Object.entries(needs)) {
+            const have = userCollection[`2x2_${pattern}`]?.count || 0;
+            for (let i = have; i < need; i++) pool.push(pattern);
+        }
+    });
+    return pool;
 }
 
 // Un légendaire, tiré au sort PONDÉRÉ par la rareté (les plus rares sortent
@@ -2342,6 +2406,71 @@ async function craftNew2x2() {
     await finalizeCraft(pixel, '⭐ Nouvelle tuile 2×2 obtenue !');
 }
 
+// === RECYCLAGE DES DOUBLONS ===
+// Le coffre crache des tuiles 2×2 en pagaille (256 motifs possibles) : sans
+// débouché, les doublons s'entassent sans servir à rien. Le recyclage les
+// refond en éclats — mais jamais celles dont un schéma non forgé a besoin.
+
+// Pour chaque motif : le nombre d'exemplaires à NE PAS toucher, c'est-à-dire
+// le plus gros besoin parmi les légendaires qu'il reste à forger.
+function protectedTileCounts() {
+    const keep = {};
+    PixelArts.forEach(art => {
+        if (userCollection[art.id]) return; // déjà possédé : son schéma ne sert plus
+        const { needs } = getLegendaryBlueprint(art);
+        for (const [pattern, need] of Object.entries(needs)) {
+            keep[pattern] = Math.max(keep[pattern] || 0, need);
+        }
+    });
+    return keep;
+}
+
+// Ce qui est recyclable : le surplus au-delà des tuiles protégées, en gardant
+// toujours 1 exemplaire de chaque motif (la collection reste intacte).
+function recyclableTiles() {
+    const keep = protectedTileCounts();
+    const list = [];
+    let count = 0;
+    Object.values(userCollection).forEach(p => {
+        if (p.type !== '2x2') return;
+        const floor = Math.max(1, keep[p.pattern] || 0);
+        const surplus = (p.count || 0) - floor;
+        if (surplus > 0) { list.push({ pattern: p.pattern, surplus }); count += surplus; }
+    });
+    return { list, count, shards: count * RECYCLE_2X2_SHARDS };
+}
+
+async function recycleDuplicates() {
+    const { list, count, shards } = recyclableTiles();
+    if (count === 0) {
+        showToast('Rien à recycler : tes tuiles servent toutes à un schéma (ou tu n\'as pas de doublon).');
+        return;
+    }
+
+    const ok = await uiConfirm(
+        `${count} tuile${count > 1 ? 's' : ''} 2×2 en trop seront fondues en ${shards} ✨.\n\n`
+        + 'Les tuiles réclamées par un légendaire pas encore forgé sont conservées, '
+        + 'ainsi qu\'un exemplaire de chaque motif.',
+        { icon: '♻️', title: 'Recycler les doublons', confirmLabel: '♻️ Recycler' }
+    );
+    if (!ok) return;
+
+    // Revérifier au moment du clic (la collection a pu bouger entre-temps)
+    const fresh = recyclableTiles();
+    if (fresh.count === 0) { updateAtelierUI(); return; }
+
+    fresh.list.forEach(({ pattern, surplus }) => {
+        for (let i = 0; i < surplus; i++) removeOnePixelFromCollection(`2x2_${pattern}`);
+    });
+    userStats.shards = (userStats.shards || 0) + fresh.shards;
+
+    await saveUserData();
+    updateUI();
+    updateAtelierUI();
+    displayCollection();
+    showToast(`♻️ ${fresh.count} tuiles recyclées : +${fresh.shards} ✨`);
+}
+
 function updateAtelierUI() {
     document.getElementById('shardBalance').textContent = userStats.shards || 0;
 
@@ -2371,6 +2500,16 @@ function updateAtelierUI() {
                 ? '🎉 Tu as déjà les 256 tuiles 2×2 !'
                 : `Encore ${missingCount} pixel${missingCount > 1 ? 's' : ''} 2×2 à découvrir`;
         }
+    }
+
+    // Recyclage des doublons
+    const recycleBtn = document.getElementById('recycleButton');
+    if (recycleBtn) {
+        const { count, shards: gain } = recyclableTiles();
+        recycleBtn.disabled = count === 0;
+        recycleBtn.textContent = count === 0
+            ? '♻️ Aucun doublon à recycler'
+            : `♻️ Recycler ${count} tuile${count > 1 ? 's' : ''} → ${gain} ✨`;
     }
 
     // Assemblage sur mesure (payé en pixels 1x1)
