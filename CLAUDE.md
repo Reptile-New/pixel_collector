@@ -12,7 +12,8 @@ Jeu web (PWA) de collection de pixels. Site en ligne : https://reptile-new.githu
 - `sw.js` — service worker (cache hors ligne)
 
 Après **toute** modif de `game.js`, `pixel_renderer.js`, `pixel_data.js` ou `firebase-config.js` :
-incrémenter le `?v=N` de leurs `<script>` dans `index.html` (et garder le même N partout)
+incrémenter le `?v=N` de leurs `<script>` dans `index.html` **et celui de l'`import` de
+`firebase-config.js` en haut de `game.js`** (même N partout, sinon Firebase est initialisé deux fois)
 pour forcer le rechargement chez les joueurs. Bumper aussi `CACHE_NAME` dans `sw.js` quand
 un fichier mis en cache change.
 
