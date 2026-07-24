@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=26'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=45'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -297,6 +297,7 @@ function setupEventListeners() {
     // Modal profil / paramètres du compte
     document.getElementById('profileButton').addEventListener('click', () => {
         document.getElementById('profileModal').style.display = 'block';
+        updateUI(); // chiffres de collection + état du verrou de pseudo à jour
     });
     document.getElementById('closeProfileSettings').addEventListener('click', () => {
         document.getElementById('profileModal').style.display = 'none';
@@ -721,20 +722,94 @@ async function handleLogout() {
     }
 }
 
-async function handleSaveName() {
-    const newName = document.getElementById('userNameInput').value.trim();
+// Le pseudo identifie le joueur auprès des autres (échanges, classement) :
+// on ne le change pas à la volée. Une fois posé, il est verrouillé 30 jours.
+const NAME_CHANGE_COOLDOWN_MS = 30 * 24 * 3600 * 1000;
+const NAME_MIN = 3;
+const NAME_MAX = 16;
+const NAME_ALLOWED = /^[\p{L}\p{N}][\p{L}\p{N} ._-]*$/u;
+let nameChangedAt = 0; // timestamp du dernier changement (0 = jamais)
 
-    if (!newName) {
-        showToast('Le pseudo ne peut pas être vide');
+function msUntilNameChange() {
+    if (!nameChangedAt) return 0;
+    return Math.max(0, nameChangedAt + NAME_CHANGE_COOLDOWN_MS - Date.now());
+}
+
+// Verrouille le champ + explique quand le prochain changement sera possible
+function updateNameChangeUI() {
+    const input = document.getElementById('userNameInput');
+    const btn = document.getElementById('saveNameButton');
+    const hint = document.getElementById('nameChangeHint');
+    if (!input || !btn || !hint) return;
+
+    const ms = msUntilNameChange();
+    const locked = ms > 0;
+    input.disabled = locked;
+    btn.disabled = locked;
+    input.style.opacity = locked ? '0.55' : '';
+    btn.style.opacity = locked ? '0.55' : '';
+
+    if (locked) {
+        const days = Math.ceil(ms / (24 * 3600 * 1000));
+        hint.textContent = `🔒 Pseudo verrouillé — changement possible dans ${days} jour${days > 1 ? 's' : ''}.`;
+    } else {
+        hint.textContent = `Modifiable une fois tous les 30 jours (${NAME_MIN} à ${NAME_MAX} caractères).`;
+    }
+}
+
+async function handleSaveName() {
+    const input = document.getElementById('userNameInput');
+    const newName = input.value.trim().replace(/\s+/g, ' ');
+    const currentName = currentUser.displayName || '';
+
+    if (msUntilNameChange() > 0) {
+        updateNameChangeUI();
+        const days = Math.ceil(msUntilNameChange() / (24 * 3600 * 1000));
+        showToast(`Pseudo verrouillé : tu pourras le changer dans ${days} jour${days > 1 ? 's' : ''}.`);
         return;
     }
 
-    if (newName.length < 3) {
-        showToast('Le pseudo doit contenir au moins 3 caractères');
+    if (newName === currentName) {
+        showToast('C\'est déjà ton pseudo.');
+        return;
+    }
+    if (newName.length < NAME_MIN || newName.length > NAME_MAX) {
+        showToast(`Le pseudo doit contenir entre ${NAME_MIN} et ${NAME_MAX} caractères.`);
+        return;
+    }
+    if (!NAME_ALLOWED.test(newName)) {
+        showToast('Pseudo invalide : lettres, chiffres, espace, point, tiret et souligné uniquement.');
+        return;
+    }
+
+    // Unicité : deux joueurs ne peuvent pas porter le même pseudo
+    try {
+        const taken = await getDocs(query(
+            collection(db, 'users'),
+            where('displayName', '==', newName),
+            limit(1)
+        ));
+        if (!taken.empty && taken.docs[0].id !== currentUser.uid) {
+            showToast('Ce pseudo est déjà pris par un autre joueur.');
+            return;
+        }
+    } catch (error) {
+        console.error('Vérification du pseudo impossible:', error);
+        showToast('Impossible de vérifier la disponibilité du pseudo. Réessaie.');
+        return;
+    }
+
+    const ok = await uiConfirm(
+        `Ton pseudo deviendra « ${newName} ».\n\n🔒 Tu ne pourras plus en changer avant 30 jours.`,
+        { icon: '👤', title: 'Changer de pseudo ?', confirmLabel: 'Changer' }
+    );
+    if (!ok) {
+        input.value = currentName;
         return;
     }
 
     try {
+        const now = Date.now();
         // Mettre à jour dans Firebase Auth
         await updateProfile(currentUser, {
             displayName: newName
@@ -743,9 +818,11 @@ async function handleSaveName() {
         // Mettre à jour dans Firestore
         await updateDoc(doc(db, 'users', currentUser.uid), {
             displayName: newName,
+            nameChangedAt: now,
             updatedAt: serverTimestamp()
         });
 
+        nameChangedAt = now;
         showToast('Pseudo modifié avec succès !');
         updateUI();
     } catch (error) {
@@ -942,14 +1019,19 @@ async function loadUserData() {
             userStats.shards = userStats.shards || 0;
             userStats.streak = userStats.streak || 0;
             userStats.mineLastCollect = userStats.mineLastCollect || 0;
-            // Charger le lastChestTime pour la limite quotidienne
+            // Charger le lastChestTime pour le délai entre deux coffres
             userStats.lastChestTime = data.lastChestTime || 0;
+            // Date du dernier changement de pseudo (verrou de 30 jours)
+            nameChangedAt = data.nameChangedAt || 0;
             // Resynchroniser les compteurs sur la collection réelle : corrige
             // d'éventuelles stats désynchronisées héritées (elles seront
             // re-persistées correctes à la prochaine sauvegarde).
             updateUniquePixelsCount();
         } else {
-            // Premier accès (ou compte réparé) : initialiser les données
+            // Premier accès (ou compte réparé) : initialiser les données.
+            // nameChangedAt reste à 0 : le joueur peut choisir son pseudo une
+            // première fois, le verrou de 30 jours ne démarre qu'après.
+            nameChangedAt = 0;
             const name = currentUser.displayName || currentUser.email?.split('@')[0] || 'Joueur';
             await initializeUserData(currentUser.uid, name);
         }
@@ -1533,8 +1615,10 @@ function statsFromCollection(coll) {
     return {
         unique: entries.length,
         total: entries.reduce((sum, p) => sum + (p.count || 1), 0),
-        // Légendaires = pixel arts 8×8 distincts possédés
-        legendary: entries.filter(p => p.type === 'art').length
+        // Légendaires = dessins 8×8 distincts possédés
+        legendary: entries.filter(p => p.type === 'art').length,
+        // Tuiles 2×2 distinctes possédées (sur les 256 existantes)
+        tiles: entries.filter(p => p.type === '2x2').length
     };
 }
 
@@ -1589,8 +1673,8 @@ async function openPlayerProfile(player) {
     // pour être justes même si les compteurs stockés sont désynchronisés
     const s = statsFromCollection(player.collection);
     document.getElementById('modalPlayerName').textContent = player.displayName;
-    document.getElementById('modalTotalPixels').textContent = s.total;
     document.getElementById('modalUniquePixels').textContent = `${s.legendary} / 30`;
+    document.getElementById('modalTotalPixels').textContent = `${s.tiles} / 256`;
 
     // Générer dynamiquement les boutons d'albums
     generateModalAlbumTabs();
@@ -1773,11 +1857,12 @@ function updateUI() {
     // Stats utilisateur
     const displayName = currentUser.displayName || currentUser.email?.split('@')[0] || 'Joueur';
     document.getElementById('profileName').textContent = displayName;
-    document.getElementById('userNameInput').value = displayName;
-    document.getElementById('totalPixels').textContent = userStats.totalPixels;
+    if (document.activeElement !== document.getElementById('userNameInput')) {
+        document.getElementById('userNameInput').value = displayName;
+    }
     const legendaryCount = Object.values(userCollection).filter(p => p.type === 'art').length;
     document.getElementById('uniquePixels').textContent = `${legendaryCount} / 30`;
-    document.getElementById('chestsOpened').textContent = userStats.chestsOpened;
+    updateProfileStats(legendaryCount);
     document.getElementById('shardCount').textContent = userStats.shards || 0;
     document.getElementById('streakCount').textContent = userStats.streak || 0;
 
@@ -1786,6 +1871,22 @@ function updateUI() {
 
     // État de la mine à éclats
     updateMineUI();
+}
+
+// Le profil affiche l'avancement de la collection (le seul chiffre qui compte),
+// pas des compteurs d'activité : légendaires, tuiles 2×2, progression totale.
+const TOTAL_UNIQUE_PIXELS = 4 + 256 + 30; // 1×1 + 2×2 + légendaires
+function updateProfileStats(legendaryCount) {
+    const tiles = Object.values(userCollection).filter(p => p.type === '2x2').length;
+    const unique = Object.keys(userCollection).length;
+    const set = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    };
+    set('profLegendaries', `${legendaryCount} / 30`);
+    set('profTiles', `${tiles} / 256`);
+    set('profProgress', `${unique} / ${TOTAL_UNIQUE_PIXELS} · ${Math.round(unique / TOTAL_UNIQUE_PIXELS * 100)} %`);
+    updateNameChangeUI();
 }
 
 // Délai restant sous forme lisible : « 1h42 » ou « 7 min » quand on est proche.
