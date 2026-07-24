@@ -271,6 +271,16 @@ function setupEventListeners() {
     });
     initCustomCraft();
 
+    // Forge légendaire
+    const closeForge = document.getElementById('closeForgeModal');
+    if (closeForge) closeForge.addEventListener('click', closeForgeModal);
+    const forgeModal = document.getElementById('forgeModal');
+    if (forgeModal) forgeModal.addEventListener('click', (e) => {
+        if (e.target.id === 'forgeModal') closeForgeModal();
+    });
+    const forgeBtn = document.getElementById('forgeButton');
+    if (forgeBtn) forgeBtn.addEventListener('click', attemptForge);
+
     // Trade system event listeners
     document.querySelectorAll('.trade-tab').forEach(tab => {
         tab.addEventListener('click', (e) => switchTradeTab(e.currentTarget.dataset.tradeTab));
@@ -1921,6 +1931,332 @@ function updateAtelierUI() {
 
     // Assemblage sur mesure (payé en pixels 1x1)
     updateCustomCraftUI();
+
+    // Forge légendaire (grille des schémas)
+    renderForgeGrid();
+}
+
+// === FORGE LÉGENDAIRE ===
+// Nouvelle mécanique : reproduire le « schéma » grisé d'un légendaire avec des
+// pixels 2×2 aux bonnes couleurs, puis tenter la forge. Chaque légendaire a un
+// plan (blueprint) : sa version quantifiée sur les 4 couleurs de base, découpée
+// en 16 tuiles 2×2 (grille 4×4). Quand les 16 bonnes tuiles sont réunies, on
+// peut forger — mais la réussite n'est pas garantie, et les 2×2 utilisés sont
+// consommés à chaque tentative (réussie ou non). C'est ce qui rend un
+// légendaire difficile à obtenir de façon ciblée.
+const LEGENDARY_FORGE_RATE = 0.12; // 12 % de réussite par tentative
+
+// Couleurs de base en RGB (indices 1..4 alignés sur PixelRenderer.colors)
+const BASE_RGB = [
+    [255, 0, 0],   // 1 Rouge
+    [0, 0, 255],   // 2 Bleu
+    [0, 255, 0],   // 3 Vert
+    [255, 255, 0]  // 4 Jaune
+];
+
+function hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    return [
+        parseInt(h.slice(0, 2), 16),
+        parseInt(h.slice(2, 4), 16),
+        parseInt(h.slice(4, 6), 16)
+    ];
+}
+
+// Couleur de base (1..4) la plus proche d'un RGB donné
+function nearestBaseIndex(rgb) {
+    let best = 1, bestD = Infinity;
+    for (let i = 0; i < 4; i++) {
+        const dr = rgb[0] - BASE_RGB[i][0];
+        const dg = rgb[1] - BASE_RGB[i][1];
+        const db = rgb[2] - BASE_RGB[i][2];
+        const d = dr * dr + dg * dg + db * db;
+        if (d < bestD) { bestD = d; best = i + 1; }
+    }
+    return best;
+}
+
+// Version « grisée » d'une couleur de base (pour dessiner le schéma non rempli)
+function greyOf(hex) {
+    const [r, g, b] = hexToRgb(hex);
+    const lum = 0.25 * r + 0.6 * g + 0.15 * b;      // luminance approximative
+    const v = Math.round(38 + (lum / 255) * 70);    // gris sombre 38..108
+    return `rgb(${v}, ${v}, ${v})`;
+}
+
+// Cache des plans par id de légendaire
+const _blueprintCache = {};
+
+// Construit le plan d'un légendaire : grille 8×8 quantifiée sur 4 couleurs +
+// les 16 tuiles 2×2 requises (avec leurs quantités).
+function getLegendaryBlueprint(art) {
+    if (_blueprintCache[art.id]) return _blueprintCache[art.id];
+
+    // 1) Quantifier chaque couleur de la palette (transparent → null pour l'instant)
+    const paletteBase = art.colors.map(c =>
+        c === 'transparent' ? null : nearestBaseIndex(hexToRgb(c))
+    );
+
+    // 2) Choisir une couleur de fond pour les cases transparentes : la couleur
+    //    de base la MOINS utilisée par le sujet, pour bien détacher la forme
+    //    (égalité → plus petit indice). Déterministe.
+    const usage = [0, 0, 0, 0];
+    for (let y = 0; y < 8; y++) {
+        for (let x = 0; x < 8; x++) {
+            const b = paletteBase[art.data[y][x]];
+            if (b) usage[b - 1]++;
+        }
+    }
+    let bgIndex = 1, bgUse = Infinity;
+    for (let i = 0; i < 4; i++) {
+        if (usage[i] < bgUse) { bgUse = usage[i]; bgIndex = i + 1; }
+    }
+
+    // 3) Grille 8×8 entièrement colorée (1..4)
+    const quant = [];
+    for (let y = 0; y < 8; y++) {
+        const row = [];
+        for (let x = 0; x < 8; x++) {
+            row.push(paletteBase[art.data[y][x]] || bgIndex);
+        }
+        quant.push(row);
+    }
+
+    // 4) 16 tuiles 2×2 (grille 4×4 de blocs). pattern = HG HD BG BD
+    const tiles = [];
+    const needs = {};
+    for (let by = 0; by < 4; by++) {
+        for (let bx = 0; bx < 4; bx++) {
+            const r = by * 2, c = bx * 2;
+            const pattern = `${quant[r][c]}${quant[r][c + 1]}${quant[r + 1][c]}${quant[r + 1][c + 1]}`;
+            tiles.push({ pattern, row: by, col: bx });
+            needs[pattern] = (needs[pattern] || 0) + 1;
+        }
+    }
+
+    const bp = { quant, tiles, needs };
+    _blueprintCache[art.id] = bp;
+    return bp;
+}
+
+// Progression : combien de tuiles requises le joueur possède déjà (doublons compris)
+function forgeOwnedProgress(needs) {
+    let owned = 0, total = 0;
+    for (const [pattern, count] of Object.entries(needs)) {
+        total += count;
+        const have = userCollection[`2x2_${pattern}`]?.count || 0;
+        owned += Math.min(have, count);
+    }
+    return { owned, total, ready: owned === total };
+}
+
+// Dessine le plan 8×8 sur un canvas. `mask` (4×4 de booléens) indique quels
+// blocs 2×2 sont « placés » (couleur pleine) ; les autres restent grisés.
+// mask null => tout grisé (schéma vierge).
+function drawBlueprint(canvas, quant, size, mask) {
+    const px = size / 8;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    for (let y = 0; y < 8; y++) {
+        for (let x = 0; x < 8; x++) {
+            const baseHex = PixelRenderer.colors[quant[y][x] - 1];
+            const placed = mask ? mask[y >> 1][x >> 1] : false;
+            ctx.fillStyle = placed ? baseHex : greyOf(baseHex);
+            ctx.fillRect(x * px, y * px, px, px);
+        }
+    }
+
+    // Quadrillage 4×4 pour séparer visuellement les 16 tuiles
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 4; i++) {
+        ctx.beginPath(); ctx.moveTo(i * 2 * px, 0); ctx.lineTo(i * 2 * px, size); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i * 2 * px); ctx.lineTo(size, i * 2 * px); ctx.stroke();
+    }
+}
+
+// Calcule le masque des blocs déjà réalisables avec les tuiles en stock
+function forgeMask(bp) {
+    const remaining = {};
+    for (const pattern of Object.keys(bp.needs)) {
+        remaining[pattern] = userCollection[`2x2_${pattern}`]?.count || 0;
+    }
+    const mask = [[false, false, false, false], [false, false, false, false],
+                  [false, false, false, false], [false, false, false, false]];
+    bp.tiles.forEach(t => {
+        if (remaining[t.pattern] > 0) { remaining[t.pattern]--; mask[t.row][t.col] = true; }
+    });
+    return mask;
+}
+
+// Grille des 30 légendaires dans l'Atelier
+function renderForgeGrid() {
+    const grid = document.getElementById('forgeGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    PixelArts.forEach(art => {
+        const owned = !!userCollection[art.id];
+        const bp = getLegendaryBlueprint(art);
+        const prog = forgeOwnedProgress(bp.needs);
+
+        const item = document.createElement('button');
+        item.className = 'forge-item'
+            + (owned ? ' forge-item--owned' : '')
+            + (!owned && prog.ready ? ' forge-item--ready' : '');
+        item.type = 'button';
+        item.addEventListener('click', () => openForgeModal(art.id));
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'pixel-canvas';
+        if (owned) {
+            PixelRenderer.drawPixel(canvas, { type: 'art', data: art.data, colors: art.colors }, 64);
+        } else {
+            drawBlueprint(canvas, bp.quant, 64, forgeMask(bp));
+        }
+        item.appendChild(canvas);
+
+        const label = document.createElement('div');
+        label.className = 'forge-item__label';
+        label.textContent = owned ? art.name : `${prog.owned}/16`;
+        item.appendChild(label);
+
+        if (owned || prog.ready) {
+            const badge = document.createElement('div');
+            badge.className = 'forge-item__badge' + (owned ? '' : ' forge-item__badge--ready');
+            badge.textContent = owned ? '✓' : '🔥';
+            item.appendChild(badge);
+        }
+
+        grid.appendChild(item);
+    });
+}
+
+// --- Modal de forge ---
+let currentForgeArtId = null;
+
+function openForgeModal(artId) {
+    currentForgeArtId = artId;
+    const modal = document.getElementById('forgeModal');
+    if (modal) modal.style.display = 'block';
+    renderForgeModal();
+}
+
+function closeForgeModal() {
+    const modal = document.getElementById('forgeModal');
+    if (modal) modal.style.display = 'none';
+    currentForgeArtId = null;
+}
+
+function renderForgeModal() {
+    const art = PixelArts.find(a => a.id === currentForgeArtId);
+    if (!art) return;
+    const bp = getLegendaryBlueprint(art);
+    const owned = !!userCollection[art.id];
+    const prog = forgeOwnedProgress(bp.needs);
+
+    document.getElementById('forgeTitle').textContent = `🏆 ${art.name}`;
+    drawBlueprint(document.getElementById('forgeCanvas'), bp.quant, 256, forgeMask(bp));
+    document.getElementById('forgeProgressText').textContent = `${prog.owned} / ${prog.total}`;
+
+    const status = document.getElementById('forgeStatus');
+    if (owned) {
+        status.textContent = `✅ Déjà dans ta collection (×${userCollection[art.id].count}). Tu peux en forger un autre.`;
+    } else if (prog.ready) {
+        status.textContent = '🔥 Schéma complet ! Tente la forge.';
+    } else {
+        status.textContent = `Il te manque ${prog.total - prog.owned} tuile(s) 2×2. Assemble-les dans l'Atelier ci-dessus.`;
+    }
+
+    // Liste des tuiles 2×2 requises (triées par motif)
+    const needsEl = document.getElementById('forgeNeeds');
+    needsEl.innerHTML = '';
+    Object.entries(bp.needs)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([pattern, count]) => {
+            const have = userCollection[`2x2_${pattern}`]?.count || 0;
+            const ok = have >= count;
+
+            const row = document.createElement('div');
+            row.className = 'forge-need' + (ok ? ' forge-need--ok' : '');
+
+            const c = document.createElement('canvas');
+            c.className = 'forge-need__tile';
+            PixelRenderer.draw2x2(c, pattern, 13);
+            row.appendChild(c);
+
+            const txt = document.createElement('span');
+            txt.innerHTML = `×${count} &nbsp;<small>tu en as ${have}</small> ${ok ? '✅' : '❌'}`;
+            row.appendChild(txt);
+
+            needsEl.appendChild(row);
+        });
+
+    const btn = document.getElementById('forgeButton');
+    btn.disabled = !prog.ready;
+    btn.textContent = prog.ready
+        ? `🔥 Forger (${Math.round(LEGENDARY_FORGE_RATE * 100)} % de réussite)`
+        : '🔒 Schéma incomplet';
+}
+
+async function attemptForge() {
+    const art = PixelArts.find(a => a.id === currentForgeArtId);
+    if (!art) return;
+    const bp = getLegendaryBlueprint(art);
+
+    if (!forgeOwnedProgress(bp.needs).ready) {
+        showToast('Schéma incomplet : il te manque des tuiles 2×2.');
+        return;
+    }
+
+    const pct = Math.round(LEGENDARY_FORGE_RATE * 100);
+    const msg = `Forger « ${art.name} » ?\n\n`
+        + `• 16 pixels 2×2 seront consommés (que la forge réussisse ou non)\n`
+        + `• Chance de réussite : ${pct} %\n\n`
+        + 'Tente ta chance ?';
+    if (!await uiConfirm(msg, { icon: '🏆', title: 'Forge légendaire', confirmLabel: '🔥 Forger' })) return;
+
+    // Revérifier le stock au moment du clic (anti double-clic / échange entre-temps)
+    if (!forgeOwnedProgress(bp.needs).ready) {
+        showToast('Schéma incomplet : il te manque des tuiles 2×2.');
+        renderForgeModal();
+        return;
+    }
+
+    // Consommer les 16 tuiles requises
+    for (const [pattern, count] of Object.entries(bp.needs)) {
+        for (let i = 0; i < count; i++) removeOnePixelFromCollection(`2x2_${pattern}`);
+    }
+
+    const success = Math.random() < LEGENDARY_FORGE_RATE;
+
+    if (success) {
+        const isNew = !userCollection[art.id];
+        const pixel = { type: 'art', id: art.id, name: art.name, data: art.data, colors: art.colors };
+        addPixelToCollection(pixel);
+        pixel.isNew = isNew;
+        updateUniquePixelsCount();
+        await saveUserData();
+
+        closeForgeModal();
+        switchTab('chest');
+        showResult(
+            [pixel],
+            '🏆 FORGE RÉUSSIE !',
+            isNew ? '✨ Un légendaire flambant neuf rejoint ta collection !' : 'Un légendaire de plus (doublon).'
+        );
+        updateUI();
+    } else {
+        updateUniquePixelsCount();
+        await saveUserData();
+        showToast('💔 La forge a échoué… tes 2×2 se sont dissipés. Retente ta chance !', 'error');
+        renderForgeModal();
+        renderForgeGrid();
+        updateUI();
+    }
 }
 
 // === SYSTÈME D'ÉCHANGE ===

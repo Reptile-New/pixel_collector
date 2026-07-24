@@ -1,11 +1,12 @@
 // Service worker de Pixel Collector
 // Stratégie : réseau d'abord (pour toujours servir la dernière version),
 // avec repli sur le cache quand on est hors ligne.
-const CACHE_NAME = 'pixel-collector-v16';
+const CACHE_NAME = 'pixel-collector-v17';
 
 const PRECACHE = [
     './',
     './index.html',
+    './wiki.html',
     './manifest.json',
     './icons/icon-192.png',
     './icons/icon-512.png',
