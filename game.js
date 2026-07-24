@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=25'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=26'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -1486,7 +1486,6 @@ async function openPlayerProfile(player) {
     document.getElementById('modalPlayerName').textContent = player.displayName;
     document.getElementById('modalTotalPixels').textContent = s.total;
     document.getElementById('modalUniquePixels').textContent = `${s.unique} / 294`;
-    document.getElementById('modalChestsOpened').textContent = player.stats.chestsOpened || 0;
 
     // Générer dynamiquement les boutons d'albums
     generateModalAlbumTabs();

@@ -2296,23 +2296,19 @@
 
     <!-- Modal profil joueur -->
     <div id="playerProfileModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto;">
-        <div style="max-width: 900px; margin: 50px auto; background: linear-gradient(160deg, #302b63 0%, #24243e 100%); border-radius: 15px; padding: 30px; position: relative;">
-            <button id="closeProfileModal" style="position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;">×</button>
+        <div style="max-width: 900px; margin: 24px auto; background: linear-gradient(160deg, #302b63 0%, #24243e 100%); border-radius: 15px; padding: 18px 20px; position: relative;">
+            <button id="closeProfileModal" style="position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 22px; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;">×</button>
 
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h2 style="color: white; margin: 0 0 10px 0; font-size: 2em;" id="modalPlayerName">Joueur</h2>
-                <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; margin-top: 20px;">
+            <div style="text-align: center; margin-bottom: 14px;">
+                <h2 style="color: white; margin: 0 0 8px 0; font-size: 1.3em;" id="modalPlayerName">Joueur</h2>
+                <div style="display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;">
                     <div style="text-align: center;">
-                        <div style="color: rgba(255,255,255,0.8); font-size: 0.9em;">Pixels totaux</div>
-                        <div style="color: white; font-size: 1.8em; font-weight: bold;" id="modalTotalPixels">0</div>
+                        <div style="color: rgba(255,255,255,0.7); font-size: 0.78em;">Total</div>
+                        <div style="color: white; font-size: 1.2em; font-weight: bold;" id="modalTotalPixels">0</div>
                     </div>
                     <div style="text-align: center;">
-                        <div style="color: rgba(255,255,255,0.8); font-size: 0.9em;">Pixels uniques</div>
-                        <div style="color: white; font-size: 1.8em; font-weight: bold;" id="modalUniquePixels">0 / 294</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="color: rgba(255,255,255,0.8); font-size: 0.9em;">Coffres ouverts</div>
-                        <div style="color: white; font-size: 1.8em; font-weight: bold;" id="modalChestsOpened">0</div>
+                        <div style="color: rgba(255,255,255,0.7); font-size: 0.78em;">Uniques</div>
+                        <div style="color: white; font-size: 1.2em; font-weight: bold;" id="modalUniquePixels">0 / 294</div>
                     </div>
                 </div>
             </div>
@@ -2363,10 +2359,10 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=25"></script>
-    <script src="pixel_data.js?v=25"></script>
-    <script src="pixel_renderer.js?v=25"></script>
-    <script type="module" src="game.js?v=25"></script>
+    <script type="module" src="firebase-config.js?v=26"></script>
+    <script src="pixel_data.js?v=26"></script>
+    <script src="pixel_renderer.js?v=26"></script>
+    <script type="module" src="game.js?v=26"></script>
     <script>
         // Dessine les vignettes de démonstration (vraies grilles de pixels)
         // dans l'Atelier : 1×1 = 1 case, 2×2 = 4 cases, 8×8 = 64 cases.
