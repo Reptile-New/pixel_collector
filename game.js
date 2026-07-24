@@ -1804,19 +1804,37 @@ function spendShards(cost) {
     return true;
 }
 
-// Ajoute un pixel crafté à la collection et l'affiche dans l'écran de résultat
+// Ajoute un pixel crafté à la collection. Reste dans l'Atelier (pas de retour
+// au coffre) : on peut ainsi crafter à la chaîne sans re-cliquer. Un aperçu du
+// dernier pixel obtenu s'affiche sur place + un toast.
 async function finalizeCraft(pixel, title) {
     const isNew = !userCollection[pixel.id];
     addPixelToCollection(pixel);
     userStats.totalPixels++;
-    pixel.isNew = isNew;
 
     updateUniquePixelsCount();
     await saveUserData();
 
-    switchTab('chest');
-    showResult([pixel], title, isNew ? '✨ Un pixel que tu n\'avais pas encore !' : 'Tu possédais déjà ce pixel (doublon).');
+    showToast(`${title} ${isNew ? '✨ nouveau !' : '(doublon)'}`, isNew ? 'success' : 'info');
+    showCraftPreview(pixel, isNew);
     updateUI();
+    updateAtelierUI();
+}
+
+// Aperçu « dernier obtenu » dans l'Atelier
+function showCraftPreview(pixel, isNew) {
+    const box = document.getElementById('craftPreview');
+    if (!box) return;
+    const canvas = document.getElementById('craftPreviewCanvas');
+    PixelRenderer.drawPixel(canvas, pixel, 44);
+    document.getElementById('craftPreviewName').textContent = pixel.name;
+    const tag = document.getElementById('craftPreviewTag');
+    tag.textContent = isNew ? '✨ Nouveau' : 'Doublon';
+    tag.className = 'craft-preview__tag ' + (isNew ? 'is-new' : 'is-dup');
+    box.hidden = false;
+    box.classList.remove('pop');
+    void box.offsetWidth; // relance l'animation
+    box.classList.add('pop');
 }
 
 // Correspondance chiffre de pattern → couleur (aligné sur PixelRenderer.colors)
