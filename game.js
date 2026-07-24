@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=45'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=46'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -295,6 +295,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function setupEventListeners() {
     // Modal profil / paramètres du compte
+    // Fiche d'un pixel (clic dans la collection)
+    document.getElementById('closePixelDetail').addEventListener('click', closePixelDetail);
+    document.getElementById('pixelDetailModal').addEventListener('click', (e) => {
+        if (e.target.id === 'pixelDetailModal') closePixelDetail();
+    });
+
     document.getElementById('profileButton').addEventListener('click', () => {
         document.getElementById('profileModal').style.display = 'block';
         updateUI(); // chiffres de collection + état du verrou de pseudo à jour
@@ -551,7 +557,7 @@ async function handleLogin() {
     const password = document.getElementById('loginPassword').value;
 
     if (!email || !password) {
-        showToast('Veuillez remplir tous les champs');
+        showToast('Remplis tous les champs');
         return;
     }
 
@@ -600,7 +606,7 @@ async function handleRegister() {
     const password = document.getElementById('registerPassword').value;
 
     if (!pseudo || !email || !password) {
-        showToast('Veuillez remplir tous les champs');
+        showToast('Remplis tous les champs');
         return;
     }
 
@@ -639,7 +645,7 @@ async function handleRegister() {
 
         // Déconnecter l'utilisateur et afficher un message
         await signOut(auth);
-        showToast('Inscription réussie ! Un email de confirmation a été envoyé à ' + email + '. Veuillez vérifier votre boîte mail pour activer votre compte.');
+        showToast('Inscription réussie ! Un email de confirmation a été envoyé à ' + email + '. Vérifie ta boîte mail pour activer ton compte.');
 
         // Revenir à l'onglet connexion
         window.switchAuthTab('login');
@@ -832,14 +838,14 @@ async function handleSaveName() {
 }
 
 async function handleDeleteAccount() {
-    const confirmation = await uiConfirm('Cette action est irréversible et supprimera :\n- Votre compte\n- Toutes vos données\n- Votre collection de pixels\n- Vos statistiques', { danger: true, title: 'Supprimer le compte ?', confirmLabel: 'Supprimer', icon: '🗑️' });
+    const confirmation = await uiConfirm('Cette action est irréversible et supprimera :\n- Ton compte\n- Toutes tes données\n- Ta collection de pixels\n- Tes statistiques', { danger: true, title: 'Supprimer le compte ?', confirmLabel: 'Supprimer', icon: '🗑️' });
 
     if (!confirmation) {
         return;
     }
 
     // Demander une double confirmation
-    const doubleConfirmation = await uiConfirm('Votre compte sera définitivement supprimé. Cette action ne peut pas être annulée.', { danger: true, title: 'Dernière confirmation', confirmLabel: 'Supprimer définitivement', icon: '⚠️' });
+    const doubleConfirmation = await uiConfirm('Ton compte sera définitivement supprimé. Cette action ne peut pas être annulée.', { danger: true, title: 'Dernière confirmation', confirmLabel: 'Supprimer définitivement', icon: '⚠️' });
 
     if (!doubleConfirmation) {
         return;
@@ -858,13 +864,13 @@ async function handleDeleteAccount() {
         // 2. Supprimer l'utilisateur Firebase Auth
         await deleteUser(currentUser);
 
-        showToast('Votre compte a été supprimé avec succès.');
+        showToast('Ton compte a été supprimé avec succès.');
         // onAuthStateChanged redirigera automatiquement vers l'écran de connexion
     } catch (error) {
         console.error('Erreur de suppression du compte:', error);
 
         if (error.code === 'auth/requires-recent-login') {
-            showToast('Pour des raisons de sécurité, vous devez vous reconnecter avant de supprimer votre compte.\n\nVeuillez vous déconnecter puis vous reconnecter, et réessayez.');
+            showToast('Pour des raisons de sécurité, tu dois te reconnecter avant de supprimer ton compte.\n\nDéconnecte-toi, reconnecte-toi, puis réessaie.');
         } else {
             showToast('Erreur lors de la suppression du compte: ' + error.message);
         }
@@ -872,7 +878,7 @@ async function handleDeleteAccount() {
 }
 
 async function cleanCorruptedPixels() {
-    if (!await uiConfirm('Nettoyer les pixels corrompus ?\n\nCette action va supprimer tous les pixels qui ont des données manquantes ou invalides (pixels noirs ou rouges).\n\nVoulez-vous continuer ?')) {
+    if (!await uiConfirm('Cette action va supprimer tous les pixels dont les données sont manquantes ou invalides (pixels noirs ou rouges).', { icon: '🧹', title: 'Nettoyer les pixels corrompus ?', confirmLabel: 'Nettoyer' })) {
         return;
     }
 
@@ -1037,7 +1043,7 @@ async function loadUserData() {
         }
     } catch (error) {
         console.error('Erreur de chargement des données:', error);
-        showToast('Erreur de chargement des données. Veuillez réessayer.');
+        showToast('Erreur de chargement des données. Réessaie.');
     }
 }
 
@@ -1273,7 +1279,7 @@ function updateUniquePixelsCount() {
 
 // === AFFICHAGE DU RÉSULTAT ===
 
-function showResult(pixels, title = 'Vous avez obtenu :', subtitle = '') {
+function showResult(pixels, title = 'Tu as obtenu :', subtitle = '') {
     const chestView = document.getElementById('chestView');
     const resultView = document.getElementById('resultView');
 
@@ -1503,9 +1509,55 @@ function filterCollection(search) {
     });
 }
 
+// Nom d'affichage d'un pixel. Calculé à l'affichage (et non lu dans la
+// collection) pour que les anciens objets stockés suivent le vocabulaire
+// actuel : 1×1 = pixel de couleur, 2×2 = tuile, 8×8 = légendaire.
+function displayPixelName(pixel) {
+    if (!pixel) return '';
+    if (pixel.type === '1x1') {
+        const color = { '1': 'Rouge', '2': 'Bleu', '3': 'Vert', '4': 'Jaune' }[pixel.pattern];
+        return color ? `Pixel 1×1 ${color}` : (pixel.name || 'Pixel 1×1');
+    }
+    if (pixel.type === '2x2') return `Tuile 2×2 #${pixel.pattern}`;
+    return pixel.name || 'Légendaire';
+}
+
+// Fiche d'un pixel : visuel en grand, rang et nombre d'exemplaires.
 function showPixelDetail(pixel) {
-    // TODO: Afficher une modale avec les détails du pixel
-    console.log('Détail du pixel:', pixel);
+    const modal = document.getElementById('pixelDetailModal');
+    if (!modal) return;
+
+    PixelRenderer.drawPixel(document.getElementById('pixelDetailCanvas'), pixel, 192);
+    document.getElementById('pixelDetailName').textContent = displayPixelName(pixel);
+
+    const tierEl = document.getElementById('pixelDetailTier');
+    const noteEl = document.getElementById('pixelDetailNote');
+    if (pixel.type === 'art') {
+        const tier = artTier(pixel.id);
+        tierEl.textContent = `Légendaire · rang ${tier.label}`;
+        tierEl.style.color = tier.color;
+        noteEl.textContent = `Se forge avec 16 tuiles 2×2, ${Math.round(tier.forgeRate * 100)} % de réussite par tentative.`;
+    } else if (pixel.type === '2x2') {
+        tierEl.textContent = 'Tuile 2×2 · Rare';
+        tierEl.style.color = '#6cf';
+        noteEl.textContent = 'Matière première de la Forge : 16 tuiles forment un légendaire.';
+    } else {
+        tierEl.textContent = 'Pixel 1×1 · Commun';
+        tierEl.style.color = '#9ad';
+        noteEl.textContent = 'Matière première de l\'Atelier : 4 pixels 1×1 assemblent une tuile 2×2.';
+    }
+
+    const count = pixel.count || (userCollection[pixel.id]?.count || 0);
+    document.getElementById('pixelDetailCount').textContent = count > 0
+        ? `Tu en possèdes ${count}`
+        : 'Pas encore dans ta collection';
+
+    modal.style.display = 'block';
+}
+
+function closePixelDetail() {
+    const modal = document.getElementById('pixelDetailModal');
+    if (modal) modal.style.display = 'none';
 }
 
 // === NAVIGATION PAR ONGLETS ===
@@ -1615,10 +1667,8 @@ function statsFromCollection(coll) {
     return {
         unique: entries.length,
         total: entries.reduce((sum, p) => sum + (p.count || 1), 0),
-        // Légendaires = dessins 8×8 distincts possédés
-        legendary: entries.filter(p => p.type === 'art').length,
-        // Tuiles 2×2 distinctes possédées (sur les 256 existantes)
-        tiles: entries.filter(p => p.type === '2x2').length
+        // Légendaires = dessins 8×8 distincts possédés (le seul score qui compte)
+        legendary: entries.filter(p => p.type === 'art').length
     };
 }
 
@@ -1641,7 +1691,7 @@ function displayPlayers(players) {
         const s = statsFromCollection(player.collection);
         playerCard.innerHTML = `
             <div>
-                <div class="player-card__name">${index + 1}. ${player.displayName} ${isCurrentUser ? '(Vous)' : ''}</div>
+                <div class="player-card__name">${index + 1}. ${player.displayName} ${isCurrentUser ? '(toi)' : ''}</div>
                 <div class="player-card__stats">
                     <span>💎 ${s.legendary} / 30 légendaires</span>
                 </div>
@@ -1674,7 +1724,6 @@ async function openPlayerProfile(player) {
     const s = statsFromCollection(player.collection);
     document.getElementById('modalPlayerName').textContent = player.displayName;
     document.getElementById('modalUniquePixels').textContent = `${s.legendary} / 30`;
-    document.getElementById('modalTotalPixels').textContent = `${s.tiles} / 256`;
 
     // Générer dynamiquement les boutons d'albums
     generateModalAlbumTabs();
@@ -1749,7 +1798,7 @@ function displayModalCollection() {
 
         const name = document.createElement('div');
         name.className = 'pixel-name';
-        name.textContent = pixel.name;
+        name.textContent = displayPixelName(pixel);
 
         const rarity = document.createElement('div');
         rarity.className = 'pixel-rarity';
@@ -1819,7 +1868,7 @@ function filterModalCollection(searchTerm) {
 
         const name = document.createElement('div');
         name.className = 'pixel-name';
-        name.textContent = pixel.name;
+        name.textContent = displayPixelName(pixel);
 
         const rarity = document.createElement('div');
         rarity.className = 'pixel-rarity';
@@ -1873,19 +1922,12 @@ function updateUI() {
     updateMineUI();
 }
 
-// Le profil affiche l'avancement de la collection (le seul chiffre qui compte),
-// pas des compteurs d'activité : légendaires, tuiles 2×2, progression totale.
-const TOTAL_UNIQUE_PIXELS = 4 + 256 + 30; // 1×1 + 2×2 + légendaires
+// Le profil ne montre qu'un chiffre : les légendaires. Les 1×1 et 2×2 sont du
+// consommable (on les dépense à l'Atelier et à la Forge), les compter n'a pas
+// de sens comme trophée.
 function updateProfileStats(legendaryCount) {
-    const tiles = Object.values(userCollection).filter(p => p.type === '2x2').length;
-    const unique = Object.keys(userCollection).length;
-    const set = (id, value) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = value;
-    };
-    set('profLegendaries', `${legendaryCount} / 30`);
-    set('profTiles', `${tiles} / 256`);
-    set('profProgress', `${unique} / ${TOTAL_UNIQUE_PIXELS} · ${Math.round(unique / TOTAL_UNIQUE_PIXELS * 100)} %`);
+    const el = document.getElementById('profLegendaries');
+    if (el) el.textContent = `${legendaryCount} / 30`;
     updateNameChangeUI();
 }
 
@@ -2013,7 +2055,7 @@ function showCraftPreview(pixel) {
     if (!box) return;
     const canvas = document.getElementById('craftPreviewCanvas');
     PixelRenderer.drawPixel(canvas, pixel, 44);
-    document.getElementById('craftPreviewName').textContent = pixel.name;
+    document.getElementById('craftPreviewName').textContent = displayPixelName(pixel);
     box.hidden = false;
     box.classList.remove('pop');
     void box.offsetWidth; // relance l'animation
@@ -2670,7 +2712,7 @@ function displayMyPixelsForTrade() {
 
         const name = document.createElement('div');
         name.style.cssText = 'font-size: 0.7em; text-align: center; margin-top: 3px;';
-        name.textContent = pixel.name;
+        name.textContent = displayPixelName(pixel);
 
         const badge = document.createElement('div');
         badge.className = 'trade-badge ' + (isDup ? 'dup' : 'unique');
@@ -2729,7 +2771,7 @@ function displayTheirPixelsForTrade() {
 
         const name = document.createElement('div');
         name.style.cssText = 'font-size: 0.7em; text-align: center; margin-top: 3px;';
-        name.textContent = pixel.name;
+        name.textContent = displayPixelName(pixel);
 
         const badge = document.createElement('div');
         badge.className = 'trade-badge ' + (isMissing ? 'missing' : 'unique');
@@ -3305,7 +3347,7 @@ window.claimTrade = async function(tradeId) {
                 colors: pixelToReceive.colors && typeof pixelToReceive.colors === 'string' ? JSON.parse(pixelToReceive.colors) : pixelToReceive.colors
             };
             addPixelToCollection(pixel);
-            received.push(`"${pixel.name}"`);
+            received.push(`"${displayPixelName(pixel)}"`);
         }
         // Créditer les éclats (si présents)
         if (shardsToReceive > 0) {
