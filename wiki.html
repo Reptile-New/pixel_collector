@@ -123,7 +123,7 @@
 
     <h2>🎯 Le but du jeu</h2>
     <div class="card">
-        <p>Collectionne les <strong>290 pixels uniques</strong> du jeu : 4 pixels 1×1, 256 pixels 2×2 et
+        <p>Collectionne les <strong>290 pixels uniques</strong> du jeu : 4 pixels 1×1, 256 tuiles 2×2 et
         30 légendaires 8×8. Tu obtiens des pixels en ouvrant un coffre toutes les 2 h, en
         récoltant des éclats à la mine, en assemblant tes pixels à l'Atelier et — nouveauté — en
         <strong>forgeant</strong> les légendaires toi-même.</p>
@@ -134,7 +134,7 @@
         <table>
             <tr><th>Type</th><th>Rareté</th><th>Variantes</th><th>Ce que c'est</th></tr>
             <tr><td>Pixel 1×1</td><td class="rarity-common">Commun</td><td>4</td><td>Une seule case, 4 couleurs : Rouge, Bleu, Vert, Jaune.</td></tr>
-            <tr><td>Pixel 2×2</td><td class="rarity-rare">Rare</td><td>256</td><td>Grille de 4 cases (4⁴ combinaisons de couleurs).</td></tr>
+            <tr><td>Tuile 2×2</td><td class="rarity-rare">Rare</td><td>256</td><td>Grille de 4 cases (4⁴ combinaisons de couleurs).</td></tr>
             <tr><td>Légendaire 8×8</td><td class="rarity-leg">Légendaire</td><td>30</td><td>Un dessin 8×8 dessiné à la main (smiley, cœur, fusée…).</td></tr>
         </table>
     </div>
@@ -144,7 +144,7 @@
         <p>Le coffre se recharge <strong>toutes les 2 heures</strong> : dès que tu l'ouvres, le suivant est prêt 2 h plus tard — soit jusqu'à <strong>12 coffres par jour</strong>. Chaque ouverture donne :</p>
         <ul>
             <li><strong>3 à 7 pixels <span class="rarity-common">1×1</span></strong> pour l'assemblage à l'Atelier ;</li>
-            <li><strong>2 à 4 pixels <span class="rarity-rare">2×2</span></strong> (plus avec la série 🔥, voir plus bas) ;</li>
+            <li><strong>2 à 4 <span class="rarity-rare">tuiles 2×2</span></strong> (plus avec la série 🔥, voir plus bas) ;</li>
             <li><strong>15 à 25 éclats ✨</strong> pour l'Atelier ;</li>
             <li>et, avec <strong>0,3 % de chance</strong>, un <span class="rarity-leg">légendaire</span> en bonus.</li>
         </ul>
@@ -174,9 +174,9 @@
         <p>C'est là qu'on dépense ses <strong>éclats ✨</strong> et qu'on assemble ses pixels.</p>
         <ul>
             <li><strong>Acheter un pixel 1×1</strong> — <strong>1 ✨</strong> par pixel, de la couleur de ton choix.</li>
-            <li><strong>🎲 2×2 aléatoire</strong> — <strong>3 ✨</strong> pour un 2×2 au hasard (le moins cher : c'est un pari, ça peut être un doublon).</li>
-            <li><strong>⭐ 2×2 que tu n'as pas</strong> — <strong>4 ✨</strong> pour un 2×2 <em>garanti nouveau</em> parmi ceux qui te manquent.</li>
-            <li><strong>🔨 Assembler un 2×2 sur mesure</strong> — compose exactement le 2×2 que tu veux, payé
+            <li><strong>🎲 Tuile au hasard</strong> — <strong>3 ✨</strong> pour une tuile 2×2 tirée au sort (le moins cher : c'est un pari, ça peut être un doublon).</li>
+            <li><strong>⭐ Tuile que tu n'as pas</strong> — <strong>4 ✨</strong> pour une tuile 2×2 <em>garantie nouvelle</em> parmi celles qui te manquent.</li>
+            <li><strong>🔨 Assembler une tuile sur mesure</strong> — compose exactement la tuile 2×2 que tu veux, payée
             avec tes pixels 1×1 des bonnes couleurs (ex. jaune-bleu-bleu-vert = 1 jaune + 2 bleus + 1 vert).
             Attention : <strong>70 % de réussite</strong> seulement — en cas d'échec, les 1×1 sont perdus. C'est le prix du sur-mesure. L'assemblage part <strong>directement au clic</strong>, sans confirmation.</li>
         </ul>
@@ -192,8 +192,8 @@
         <ol class="steps">
             <li>Dans l'Atelier, la Forge affiche les 30 légendaires sous forme de <strong>schémas grisés</strong>.</li>
             <li>Chaque légendaire se décompose en une grille <strong>4×4 = 16 tuiles 2×2</strong>. Chaque tuile
-            correspond à un pixel 2×2 d'une <strong>couleur précise</strong>.</li>
-            <li>Tu places tes pixels 2×2 sur le schéma : quand tu possèdes la <strong>bonne tuile à la bonne couleur</strong>,
+            correspond à une tuile 2×2 d'une <strong>couleur précise</strong>.</li>
+            <li>Tu places tes tuiles 2×2 sur le schéma : quand tu possèdes la <strong>bonne tuile à la bonne couleur</strong>,
             la case s'allume et se colore. Petit à petit, le dessin du légendaire réapparaît.</li>
             <li>Quand les <strong>16 tuiles</strong> sont réunies, le bouton <strong>« Forger »</strong> s'active.</li>
             <li>Tu tentes la forge… mais elle n'est <strong>pas garantie</strong> !</li>
@@ -203,14 +203,14 @@
         <p>Tous les légendaires ne se valent pas : <strong>chacun a son propre taux de réussite</strong> à la forge.
         Plus un légendaire est convoité, plus il est dur à forger. Le <strong>Cœur ❤️</strong> (l'icône de l'app) est
         le plus rare de tous.</p>
-        <div class="tip">⚠️ <strong>Attention :</strong> les 16 pixels 2×2 utilisés sont <strong>consommés à chaque
+        <div class="tip">⚠️ <strong>Attention :</strong> les 16 tuiles 2×2 utilisées sont <strong>consommées à chaque
         tentative</strong>, qu'elle réussisse ou non. En cas d'échec, il faut réassembler les tuiles avant de retenter.</div>
 
         <h3>Combien ça coûte, en vrai ?</h3>
         <ul>
             <li>Un légendaire se découpe en 16 tuiles 2×2, soit en moyenne <strong>~9 motifs 2×2 distincts</strong> à réunir.</li>
-            <li>Tu peux réunir ces 2×2 gratuitement en ouvrant tes coffres, ou les fabriquer à l'Atelier (assemblage ≈ 4 ✨ la tuile).</li>
-            <li>Un Cœur à 5 % de réussite = ~20 tentatives en moyenne, soit énormément de 2×2. Un Classique à 20 % = ~5 tentatives.</li>
+            <li>Tu peux réunir ces tuiles gratuitement en ouvrant tes coffres, ou les fabriquer à l'Atelier (assemblage ≈ 4 ✨ la tuile).</li>
+            <li>Un Cœur à 5 % de réussite = ~20 tentatives en moyenne, soit énormément de tuiles. Un Classique à 20 % = ~5 tentatives.</li>
         </ul>
         <p>👉 La Forge reste le seul moyen de choisir <strong>exactement lequel</strong> des 30 légendaires tu veux.</p>
     </div>
@@ -234,7 +234,7 @@
     <div class="card">
         <ul>
             <li><strong>Coffre</strong> : 0,3 % à chaque ouverture, puis tirage pondéré par le rang (sans pitié).</li>
-            <li><strong>Forge</strong> : reconstruire le légendaire de ton choix en 2×2, puis réussir la forge (5 % à 20 % selon le rang).</li>
+            <li><strong>Forge</strong> : reconstruire le légendaire de ton choix en tuiles 2×2, puis réussir la forge (5 % à 20 % selon le rang).</li>
         </ul>
         <p>❌ Impossible d'acheter un légendaire directement avec des éclats : ce serait trop facile.</p>
     </div>

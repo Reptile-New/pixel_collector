@@ -68,12 +68,79 @@ function showToast(message, type, options = {}) {
     toast.appendChild(msg);
     host.appendChild(toast);
 
-    const remove = () => {
-        toast.classList.add('leaving');
-        setTimeout(() => toast.remove(), 250);
+    let removed = false;
+    const remove = (mode) => {
+        if (removed) return;
+        removed = true;
+        activeToasts.delete(remove);
+        clearTimeout(timer);
+        if (mode === 'swipe') {
+            // Poursuit le geste du doigt au lieu de repartir de zéro
+            toast.style.transition = 'transform 0.18s ease, opacity 0.18s ease';
+            toast.style.transform = 'translateY(-130%)';
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 200);
+        } else {
+            toast.classList.add('leaving');
+            setTimeout(() => toast.remove(), 250);
+        }
     };
-    setTimeout(remove, type === 'error' ? 5200 : 3800);
-    toast.addEventListener('click', remove);
+    const timer = setTimeout(remove, type === 'error' ? 5200 : 3800);
+
+    activeToasts.add(remove);
+    lastToastAt = Date.now();
+    toast.addEventListener('click', () => remove());
+    enableToastSwipe(toast, remove);
+}
+
+// Notifications visibles : on garde leur fonction de fermeture pour pouvoir
+// toutes les balayer d'un coup (clic n'importe où dans l'app).
+const activeToasts = new Set();
+let lastToastAt = 0;
+
+// Un tap/clic n'importe où fait disparaître les notifications. Grâce de 350 ms
+// pour que le clic qui vient de DÉCLENCHER le toast ne le referme pas aussitôt.
+document.addEventListener('pointerdown', (e) => {
+    if (Date.now() - lastToastAt < 350) return;
+    // Sur le toast lui-même : on laisse son propre clic / son balayage agir,
+    // sinon le geste serait coupé dès le premier contact du doigt.
+    if (e.target && e.target.closest && e.target.closest('.toast')) return;
+    activeToasts.forEach(close => close());
+}, true);
+
+// Balayage vers le haut : les toasts sont ancrés en haut de l'écran, on les
+// pousse donc hors de l'écran dans cette direction.
+function enableToastSwipe(toast, remove) {
+    let startY = null;
+    let dy = 0;
+
+    const onStart = e => {
+        startY = e.touches ? e.touches[0].clientY : e.clientY;
+        dy = 0;
+        toast.classList.add('dragging');
+    };
+    const onMove = e => {
+        if (startY === null) return;
+        const y = e.touches ? e.touches[0].clientY : e.clientY;
+        dy = Math.min(0, y - startY); // uniquement vers le haut
+        toast.style.transform = `translateY(${dy}px)`;
+        toast.style.opacity = String(Math.max(0, 1 + dy / 120));
+        if (dy < -4 && e.cancelable) e.preventDefault();
+    };
+    const onEnd = () => {
+        if (startY === null) return;
+        startY = null;
+        toast.classList.remove('dragging');
+        if (dy < -40) { remove('swipe'); return; }
+        // Pas assez loin : retour en place
+        toast.style.transform = '';
+        toast.style.opacity = '';
+    };
+
+    toast.addEventListener('touchstart', onStart, { passive: true });
+    toast.addEventListener('touchmove', onMove, { passive: false });
+    toast.addEventListener('touchend', onEnd);
+    toast.addEventListener('touchcancel', onEnd);
 }
 
 // Dialogue de confirmation — renvoie une Promise<boolean>
@@ -174,7 +241,7 @@ const CUSTOM_CRAFT_RATE = 0.70; // 70 % de réussite
 const ALBUMS = [
     { id: 'all', label: 'Tous' },
     { id: '1x1', label: 'Pixels 1×1' },
-    { id: '2x2', label: 'Pixels 2×2' },
+    { id: '2x2', label: 'Tuiles 2×2' },
     { id: 'art', label: 'Légendaires' }
 ];
 
@@ -1905,7 +1972,7 @@ function updateCustomCraftUI() {
     });
 
     const pattern = customPattern.join('');
-    document.getElementById('customCraftTarget').textContent = `Pixel 2x2 #${pattern}`;
+    document.getElementById('customCraftTarget').textContent = `Tuile 2×2 #${pattern}`;
     const owned = userCollection[`2x2_${pattern}`];
     document.getElementById('customCraftOwned').textContent = owned
         ? `Déjà possédé ×${owned.count}`
@@ -1978,20 +2045,20 @@ function missing2x2Patterns() {
 // Un 2×2 totalement aléatoire (peut être un doublon), pas cher
 async function craftRandom2x2() {
     if (!spendShards(CRAFT_COSTS.craft2x2Random)) return;
-    await finalizeCraft(makeRandom2x2(), '🎲 Pixel 2×2 aléatoire obtenu !');
+    await finalizeCraft(makeRandom2x2(), '🎲 Tuile 2×2 obtenue au hasard !');
 }
 
 // Un 2×2 GARANTI nouveau (parmi ceux qui te manquent), plus cher
 async function craftNew2x2() {
     const missing = missing2x2Patterns();
     if (missing.length === 0) {
-        showToast('🎉 Tu possèdes déjà les 256 pixels 2×2 !');
+        showToast('🎉 Tu possèdes déjà les 256 tuiles 2×2 !');
         return;
     }
     if (!spendShards(CRAFT_COSTS.craft2x2New)) return;
     const pattern = missing[Math.floor(Math.random() * missing.length)];
     const pixel = { type: '2x2', pattern, id: `2x2_${pattern}`, name: `Pixel 2x2 #${pattern}` };
-    await finalizeCraft(pixel, '⭐ Nouveau pixel 2×2 obtenu !');
+    await finalizeCraft(pixel, '⭐ Nouvelle tuile 2×2 obtenue !');
 }
 
 function updateAtelierUI() {
@@ -2020,7 +2087,7 @@ function updateAtelierUI() {
         const info = document.getElementById('craft2x2NewInfo');
         if (info) {
             info.textContent = missingCount === 0
-                ? '🎉 Tu as déjà les 256 pixels 2×2 !'
+                ? '🎉 Tu as déjà les 256 tuiles 2×2 !'
                 : `Encore ${missingCount} pixel${missingCount > 1 ? 's' : ''} 2×2 à découvrir`;
         }
     }
@@ -2351,7 +2418,7 @@ async function attemptForge() {
     const forgeRate = artForgeRate(art.id);
     const pct = Math.round(forgeRate * 100);
     const msg = `Forger « ${art.name} » (${artTier(art.id).label}) ?\n\n`
-        + `• 16 pixels 2×2 seront consommés (que la forge réussisse ou non)\n`
+        + `• 16 tuiles 2×2 seront consommées (que la forge réussisse ou non)\n`
         + `• Chance de réussite : ${pct} %\n\n`
         + 'Tente ta chance ?';
     if (!await uiConfirm(msg, { icon: '🏆', title: 'Forge légendaire', confirmLabel: '🔥 Forger' })) return;
