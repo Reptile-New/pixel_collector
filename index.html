@@ -1913,7 +1913,7 @@
             gap: 12px;
             padding: 14px 16px;
             border-radius: var(--r-md);
-            background: linear-gradient(160deg, #302b63, #24243e);
+            background: linear-gradient(160deg, #1a1e2e, #12141f);
             border: 1px solid var(--hairline-strong);
             border-left: 4px solid var(--info);
             box-shadow: var(--shadow-2);
@@ -1925,7 +1925,16 @@
             animation: toast-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
         }
         .toast.leaving { animation: toast-out 0.25s ease forwards; }
+        .toast--pixel { align-items: center; }
         .toast__icon { font-size: 1.1em; line-height: 1.3; }
+        .toast__pixel {
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+            image-rendering: pixelated;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
         .toast__msg { flex: 1; }
         .toast.success { border-left-color: var(--ok); }
         .toast.error { border-left-color: var(--danger); }
@@ -2231,7 +2240,7 @@
                 <div class="stat-chip" title="Éclats">✨ <span id="shardCount">0</span></div>
                 <div class="stat-chip" title="Série">🔥 <span id="streakCount">0</span></div>
             </div>
-            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v1.7</a>
+            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v1.8</a>
             <a class="icon-chip" href="wiki.html" target="_blank" rel="noopener" title="Wiki / aide">📖</a>
             <button id="profileButton" class="profile-chip" title="Mon profil">👤 <span id="profileName">Joueur</span></button>
         </header>
@@ -2243,7 +2252,7 @@
                     <div class="tab active" data-tab="chest">📦 Coffres</div>
                     <div class="tab" data-tab="collection">🎨 Collection</div>
                     <div class="tab" data-tab="atelier">🛠️ Atelier</div>
-                    <div class="tab" data-tab="players">👥 Joueurs</div>
+                    <div class="tab" data-tab="players">🏆 Classement</div>
                     <div class="tab" data-tab="market">🏪 Marché</div>
                 </div>
 
@@ -2590,10 +2599,10 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=36"></script>
-    <script src="pixel_data.js?v=36"></script>
-    <script src="pixel_renderer.js?v=36"></script>
-    <script type="module" src="game.js?v=36"></script>
+    <script type="module" src="firebase-config.js?v=37"></script>
+    <script src="pixel_data.js?v=37"></script>
+    <script src="pixel_renderer.js?v=37"></script>
+    <script type="module" src="game.js?v=37"></script>
     <script>
         // Dessine les vignettes de démonstration (vraies grilles de pixels)
         // dans l'Atelier : 1×1 = 1 case, 2×2 = 4 cases, 8×8 = 64 cases.
