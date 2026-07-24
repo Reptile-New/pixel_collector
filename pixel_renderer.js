@@ -161,13 +161,12 @@ const PixelRenderer = {
     },
 
     /**
-     * Retourne les chances de drop pour chaque rareté
+     * Chance d'obtenir un légendaire en ouvrant un coffre.
+     * Le reste du coffre est constitué de tuiles 2×2 (+ des éclats).
      */
     getDropRates() {
         return {
-            common: 0.70,    // 70% pour 1x1
-            rare: 0.28,      // 28% pour 2x2
-            legendary: 0.02  // 2% pour pixel art
+            legendary: 0.01  // 1% pour un pixel art légendaire (rare, sans pitié)
         };
     }
 };

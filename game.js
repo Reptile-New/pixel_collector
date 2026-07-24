@@ -123,7 +123,6 @@ let userStats = {
     lastChestTime: 0,
     shards: 0,
     streak: 0,
-    chestsSinceLegendary: 0,
     mineLastCollect: 0
 };
 
@@ -135,10 +134,18 @@ const SHARD_VALUES = { '1x1': 1, '2x2': 4, 'art': 64 };
 // un 2x2 ses 4 pixels, un pixel art ses 64 pixels. Coffre bonus : 16.
 // Tous les crafts payés en éclats sont 100% aléatoires dans leur catégorie.
 // Pour un 2x2 précis : l'assemblage sur mesure, payé en pixels 1x1.
-const CRAFT_COSTS = { craft1x1: 1, craft2x2: 4, bonusChest: 16, craftArt: 64 };
-// Un légendaire est garanti tous les PITY_THRESHOLD coffres sans légendaire
-const PITY_THRESHOLD = 25;
-// Bonus de série : +1 pixel à partir de 3 jours consécutifs, +2 à partir de 7
+// Coûts en éclats des crafts de l'Atelier. Les légendaires ne s'achètent PAS
+// avec des éclats : on ne les obtient qu'en coffre (rare) ou à la Forge.
+const CRAFT_COSTS = { craft1x1: 1, craft2x2Random: 4, craft2x2New: 12 };
+// Contenu d'un coffre : des éclats (min..max) + des tuiles 2×2 (min..max de base).
+const CHEST_SHARDS_MIN = 2;
+const CHEST_SHARDS_MAX = 10;
+const CHEST_TILES_MIN = 3;
+const CHEST_TILES_MAX = 4;
+// Chance d'obtenir un légendaire en ouvrant un coffre. Rare et SANS pitié :
+// un légendaire doit rester dur à obtenir.
+const LEGENDARY_CHEST_RATE = 0.01; // 1 %
+// Bonus de série : +1 tuile à partir de 3 jours consécutifs, +2 à partir de 7
 const STREAK_BONUSES = [{ days: 3, extra: 1 }, { days: 7, extra: 2 }];
 
 // === MINE À ÉCLATS (récolte passive) ===
@@ -156,6 +163,7 @@ const ALBUMS = [
 ];
 
 let currentAlbum = 'all'; // Album actuellement affiché
+let collectionOwnership = 'all'; // Filtre : 'all' | 'owned' | 'missing'
 let allPlayers = []; // Liste de tous les joueurs
 let currentModalAlbum = 'all'; // Album actuellement affiché dans la modal
 let currentModalPlayer = null; // Joueur actuellement affiché dans la modal
@@ -244,6 +252,11 @@ function setupEventListeners() {
         tab.addEventListener('click', (e) => switchAlbum(e.target.dataset.album));
     });
 
+    // Filtre possédés / manquants
+    document.querySelectorAll('.owner-chip').forEach(chip => {
+        chip.addEventListener('click', () => switchOwnerFilter(chip.dataset.owner));
+    });
+
     // Recherche de joueurs
     document.getElementById('searchPlayers').addEventListener('input', (e) => {
         filterPlayers(e.target.value);
@@ -270,6 +283,12 @@ function setupEventListeners() {
         btn.addEventListener('click', () => craft1x1(btn.dataset.craftColor));
     });
     initCustomCraft();
+
+    // Craft de 2×2 en éclats
+    const rndBtn = document.getElementById('craftRandom2x2Btn');
+    if (rndBtn) rndBtn.addEventListener('click', craftRandom2x2);
+    const newBtn = document.getElementById('craftNew2x2Btn');
+    if (newBtn) newBtn.addEventListener('click', craftNew2x2);
 
     // Forge légendaire
     const closeForge = document.getElementById('closeForgeModal');
@@ -794,7 +813,6 @@ async function initializeUserData(uid, displayName) {
             uniquePixels: 0,
             shards: 0,
             streak: 0,
-            chestsSinceLegendary: 0,
             mineLastCollect: 0
         },
         lastChestTime: 0,
@@ -837,10 +855,9 @@ async function loadUserData() {
                 totalPixels: 0,
                 uniquePixels: 0
             };
-            // Valeurs par défaut pour les comptes créés avant l'Atelier / le pity / la série
+            // Valeurs par défaut pour les comptes créés avant l'Atelier / la série
             userStats.shards = userStats.shards || 0;
             userStats.streak = userStats.streak || 0;
-            userStats.chestsSinceLegendary = userStats.chestsSinceLegendary || 0;
             userStats.mineLastCollect = userStats.mineLastCollect || 0;
             // Charger le lastChestTime pour la limite quotidienne
             userStats.lastChestTime = data.lastChestTime || 0;
@@ -998,17 +1015,19 @@ async function openChest() {
             : 1;
     }
 
-    // Nombre de pixels : 3 de base + bonus de série
-    let pixelCount = 3;
+    // Nombre de tuiles 2×2 : base aléatoire (3–4) + bonus de série
+    const baseTiles = CHEST_TILES_MIN + Math.floor(Math.random() * (CHEST_TILES_MAX - CHEST_TILES_MIN + 1));
+    let streakExtra = 0;
     STREAK_BONUSES.forEach(bonus => {
-        if (userStats.streak >= bonus.days) pixelCount = 3 + bonus.extra;
+        if (userStats.streak >= bonus.days) streakExtra = bonus.extra;
     });
+    const tileCount = baseTiles + streakExtra;
 
-    // Tirer les pixels (avec pity : légendaire garanti tous les PITY_THRESHOLD coffres)
-    const pixels = drawPixelsFromChest(pixelCount, true);
+    // Contenu du coffre : des 2×2 + une chance (1 %) de légendaire
+    const pixels = drawChestPixels(tileCount);
 
-    // Bonus : 1 ou 2 éclats à chaque ouverture de coffre
-    const shardReward = 1 + Math.floor(Math.random() * 2);
+    // Éclats : entre CHEST_SHARDS_MIN et CHEST_SHARDS_MAX
+    const shardReward = CHEST_SHARDS_MIN + Math.floor(Math.random() * (CHEST_SHARDS_MAX - CHEST_SHARDS_MIN + 1));
     userStats.shards = (userStats.shards || 0) + shardReward;
 
     // Mettre à jour les stats
@@ -1025,10 +1044,17 @@ async function openChest() {
 
         // Afficher le résultat
         let subtitle = `🔥 Série de ${userStats.streak} jour${userStats.streak > 1 ? 's' : ''} &nbsp;·&nbsp; +${shardReward} ✨`;
-        if (pixelCount > 3) {
-            subtitle += ` &nbsp;·&nbsp; +${pixelCount - 3} pixel${pixelCount - 3 > 1 ? 's' : ''} bonus !`;
+        if (streakExtra > 0) {
+            subtitle += ` &nbsp;·&nbsp; +${streakExtra} tuile${streakExtra > 1 ? 's' : ''} bonus !`;
         }
-        showResult(pixels, `${pixelCount} pixels obtenus !`, subtitle);
+        if (hasLegendary) {
+            subtitle += ' &nbsp;·&nbsp; ✨ LÉGENDAIRE !';
+        }
+        const tileWord = tileCount > 1 ? 'tuiles 2×2' : 'tuile 2×2';
+        const title = hasLegendary
+            ? `Un légendaire + ${tileCount} ${tileWord} !`
+            : `${tileCount} ${tileWord} obtenues !`;
+        showResult(pixels, title, subtitle);
 
         // Mettre à jour l'UI
         updateUI();
@@ -1037,70 +1063,35 @@ async function openChest() {
     }
 }
 
-// Tire `count` pixels, les ajoute à la collection et gère le compteur de pity.
-// Si pityApplies et que le seuil est atteint, le premier pixel est un légendaire garanti.
-function drawPixelsFromChest(count, pityApplies) {
-    const pityDue = pityApplies && (userStats.chestsSinceLegendary || 0) >= PITY_THRESHOLD - 1;
+// Tire le contenu d'un coffre : `count` tuiles 2×2 aléatoires, plus une chance
+// (LEGENDARY_CHEST_RATE) d'y trouver un légendaire. Ajoute tout à la collection.
+function drawChestPixels(count) {
     const pixels = [];
+    for (let i = 0; i < count; i++) pixels.push(makeRandom2x2());
+    if (Math.random() < LEGENDARY_CHEST_RATE) pixels.push(makeRandomLegendary());
 
-    for (let i = 0; i < count; i++) {
-        const pixel = generateRandomPixel(pityDue && i === 0);
+    pixels.forEach(pixel => {
         const isNew = !userCollection[pixel.id];
         addPixelToCollection(pixel);
         userStats.totalPixels++;
         // Flag posé après l'ajout pour ne pas le persister dans la collection
         pixel.isNew = isNew;
-        pixels.push(pixel);
-    }
-
-    if (pixels.some(p => p.type === 'art')) {
-        userStats.chestsSinceLegendary = 0;
-    } else {
-        userStats.chestsSinceLegendary = (userStats.chestsSinceLegendary || 0) + 1;
-    }
+    });
 
     return pixels;
 }
 
-function generateRandomPixel(forceLegendary = false) {
-    const dropRates = PixelRenderer.getDropRates();
-    const rand = forceLegendary ? 0 : Math.random();
+// Un pixel 2×2 aléatoire parmi les 256 combinaisons
+function makeRandom2x2() {
+    const all = PixelRenderer.generateAll2x2();
+    const pattern = all[Math.floor(Math.random() * all.length)];
+    return { type: '2x2', pattern, id: `2x2_${pattern}`, name: `Pixel 2x2 #${pattern}` };
+}
 
-    let pixel;
-
-    if (rand < dropRates.legendary) {
-        // Pixel art légendaire (2%)
-        const art = PixelArts[Math.floor(Math.random() * PixelArts.length)];
-        pixel = {
-            type: 'art',
-            id: art.id,
-            name: art.name,
-            data: art.data,
-            colors: art.colors
-        };
-    } else if (rand < dropRates.legendary + dropRates.rare) {
-        // Pixel 2x2 rare (28%)
-        const all2x2 = PixelRenderer.generateAll2x2();
-        const pattern = all2x2[Math.floor(Math.random() * all2x2.length)];
-        pixel = {
-            type: '2x2',
-            pattern: pattern,
-            id: `2x2_${pattern}`,
-            name: `Pixel 2x2 #${pattern}`
-        };
-    } else {
-        // Pixel 1x1 commun (70%)
-        const all1x1 = PixelRenderer.generateAll1x1();
-        const pattern = all1x1[Math.floor(Math.random() * all1x1.length)];
-        pixel = {
-            type: '1x1',
-            pattern: pattern,
-            id: `1x1_${pattern}`,
-            name: `Pixel 1x1 #${pattern}`
-        };
-    }
-
-    return pixel;
+// Un légendaire aléatoire parmi les 30
+function makeRandomLegendary() {
+    const art = PixelArts[Math.floor(Math.random() * PixelArts.length)];
+    return { type: 'art', id: art.id, name: art.name, data: art.data, colors: art.colors };
 }
 
 function addPixelToCollection(pixel) {
@@ -1260,35 +1251,36 @@ function displayCollection() {
     document.getElementById('collectionProgressFill').style.width =
         totalCount > 0 ? `${(ownedCount / totalCount) * 100}%` : '0%';
 
-    // Trier par type puis par nom
-    allPossiblePixels.sort((a, b) => {
-        const rarityOrder = { 'art': 0, '2x2': 1, '1x1': 2 };
-        const rarityA = rarityOrder[a.type];
-        const rarityB = rarityOrder[b.type];
+    // Filtre possédés / manquants
+    let renderList = allPossiblePixels;
+    if (collectionOwnership === 'owned') renderList = allPossiblePixels.filter(p => p.owned);
+    else if (collectionOwnership === 'missing') renderList = allPossiblePixels.filter(p => !p.owned);
 
-        if (rarityA !== rarityB) return rarityA - rarityB;
+    // Trier par type puis par nom
+    renderList.sort((a, b) => {
+        const rarityOrder = { 'art': 0, '2x2': 1, '1x1': 2 };
+        if (rarityOrder[a.type] !== rarityOrder[b.type]) return rarityOrder[a.type] - rarityOrder[b.type];
         return a.name.localeCompare(b.name);
     });
 
-    allPossiblePixels.forEach(pixel => {
+    renderList.forEach(pixel => {
         const item = document.createElement('div');
         item.className = 'pixel-item';
         item.style.cursor = 'pointer';
 
         // Si le pixel n'est pas possédé, griser
         if (!pixel.owned) {
-            item.style.opacity = '0.3';
+            item.style.opacity = '0.32';
             item.style.filter = 'grayscale(100%)';
         }
 
         const canvas = document.createElement('canvas');
         canvas.className = 'pixel-canvas';
-        PixelRenderer.drawPixel(canvas, pixel, 60);
+        PixelRenderer.drawPixel(canvas, pixel, 52);
 
         const name = document.createElement('div');
-        name.style.fontSize = '0.8em';
-        name.style.textAlign = 'center';
-        name.textContent = pixel.owned ? pixel.name : '???';
+        name.className = 'pixel-name';
+        name.textContent = pixel.owned ? shortPixelName(pixel) : '???';
 
         const count = document.createElement('div');
         count.className = 'pixel-count';
@@ -1306,9 +1298,32 @@ function displayCollection() {
         grid.appendChild(item);
     });
 
-    if (allPossiblePixels.length === 0) {
-        grid.innerHTML = '<p style="text-align: center; padding: 50px; opacity: 0.7;">Aucun pixel dans cet album.</p>';
+    if (renderList.length === 0) {
+        const empty = collectionOwnership === 'missing'
+            ? '🎉 Rien ne manque dans cet album !'
+            : collectionOwnership === 'owned'
+                ? 'Aucun pixel possédé dans cet album pour l\'instant.'
+                : 'Aucun pixel dans cet album.';
+        grid.innerHTML = `<p class="collection-empty">${empty}</p>`;
     }
+}
+
+// Nom compact pour la grille de collection (évite les libellés à rallonge)
+function shortPixelName(pixel) {
+    if (pixel.type === '1x1') return { '1': 'Rouge', '2': 'Bleu', '3': 'Vert', '4': 'Jaune' }[pixel.pattern] || pixel.name;
+    if (pixel.type === '2x2') return `#${pixel.pattern}`;
+    return pixel.name;
+}
+
+// Filtre Tous / Possédés / Manquants
+function switchOwnerFilter(mode) {
+    collectionOwnership = mode;
+    document.querySelectorAll('.owner-chip').forEach(chip => {
+        chip.classList.toggle('active', chip.dataset.owner === mode);
+    });
+    displayCollection();
+    const search = document.getElementById('searchCollection');
+    if (search && search.value) filterCollection(search.value);
 }
 
 function filterCollection(search) {
@@ -1913,6 +1928,32 @@ async function craftCustom2x2() {
     await finalizeCraft(pixel, '🎯 Assemblage réussi !');
 }
 
+// === CRAFT DE 2×2 EN ÉCLATS (dépense rapide) ===
+
+// Liste des motifs 2×2 que le joueur ne possède PAS encore
+function missing2x2Patterns() {
+    return PixelRenderer.generateAll2x2().filter(p => !userCollection[`2x2_${p}`]);
+}
+
+// Un 2×2 totalement aléatoire (peut être un doublon), pas cher
+async function craftRandom2x2() {
+    if (!spendShards(CRAFT_COSTS.craft2x2Random)) return;
+    await finalizeCraft(makeRandom2x2(), '🎲 Pixel 2×2 aléatoire obtenu !');
+}
+
+// Un 2×2 GARANTI nouveau (parmi ceux qui te manquent), plus cher
+async function craftNew2x2() {
+    const missing = missing2x2Patterns();
+    if (missing.length === 0) {
+        showToast('🎉 Tu possèdes déjà les 256 pixels 2×2 !');
+        return;
+    }
+    if (!spendShards(CRAFT_COSTS.craft2x2New)) return;
+    const pattern = missing[Math.floor(Math.random() * missing.length)];
+    const pixel = { type: '2x2', pattern, id: `2x2_${pattern}`, name: `Pixel 2x2 #${pattern}` };
+    await finalizeCraft(pixel, '⭐ Nouveau pixel 2×2 obtenu !');
+}
+
 function updateAtelierUI() {
     document.getElementById('shardBalance').textContent = userStats.shards || 0;
 
@@ -1928,6 +1969,21 @@ function updateAtelierUI() {
         const owned = userCollection[`1x1_${el.dataset.colorCount}`]?.count || 0;
         el.textContent = `×${owned}`;
     });
+
+    // Craft de 2×2 en éclats (aléatoire / garanti nouveau)
+    const rndBtn = document.getElementById('craftRandom2x2Btn');
+    if (rndBtn) rndBtn.disabled = shards < CRAFT_COSTS.craft2x2Random;
+    const newBtn = document.getElementById('craftNew2x2Btn');
+    if (newBtn) {
+        const missingCount = missing2x2Patterns().length;
+        newBtn.disabled = shards < CRAFT_COSTS.craft2x2New || missingCount === 0;
+        const info = document.getElementById('craft2x2NewInfo');
+        if (info) {
+            info.textContent = missingCount === 0
+                ? '🎉 Tu as déjà les 256 pixels 2×2 !'
+                : `Encore ${missingCount} pixel${missingCount > 1 ? 's' : ''} 2×2 à découvrir`;
+        }
+    }
 
     // Assemblage sur mesure (payé en pixels 1x1)
     updateCustomCraftUI();
