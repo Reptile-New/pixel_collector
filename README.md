@@ -20,18 +20,15 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - ⚠️ Les 16 pixels 2×2 sont **consommés à chaque tentative**, réussie ou non
 - C'est le seul moyen d'obtenir **précisément** le légendaire de ton choix
 
-### ✅ Atelier (recyclage & craft)
-- Recyclez vos doublons en **Éclats ✨** — règle : **1 pixel = 1 éclat**, selon la surface :
-  - 1×1 = 1 ✨ · 2×2 (4 pixels) = 4 ✨ · Pixel Art 8×8 (64 pixels) = 64 ✨
-- Vous gardez toujours 1 exemplaire de chaque pixel : la collection n'est jamais affectée
-- Dépensez vos éclats en crafts, tous 100% aléatoires dans leur catégorie (coût = surface) :
-  - **Pixel 1×1** (1 ✨) : aléatoire parmi les 4 couleurs
-  - **Pixel 2×2** (4 ✨) : aléatoire parmi les 256 combinaisons
-  - **Coffre bonus** (16 ✨) : ouvre immédiatement un coffre supplémentaire
-  - **Pixel Art légendaire** (64 ✨) : un 8×8 aléatoire parmi les 30 designs
-- **🎯 Assemblage sur mesure** : composez exactement le 2×2 que vous voulez, payé
-  directement avec vos pixels 1×1 des bonnes couleurs (ex. jaune-bleu-bleu-vert
-  = 1 jaune + 2 bleus + 1 vert consommés)
+### ✅ Atelier (dépense des éclats)
+- Les **éclats ✨** viennent des coffres (2 à 10 par ouverture) et de la mine.
+- Dépensez-les de plusieurs façons :
+  - **Pixel 1×1** (1 ✨) : de la couleur de votre choix
+  - **🎲 Pixel 2×2 aléatoire** (4 ✨) : rapide, peut être un doublon
+  - **⭐ Pixel 2×2 garanti nouveau** (12 ✨) : un 2×2 que vous n'avez pas encore
+  - **🔨 Assemblage sur mesure** : composez exactement le 2×2 voulu, payé avec vos
+    pixels 1×1 des bonnes couleurs (ex. jaune-bleu-bleu-vert = 1 jaune + 2 bleus + 1 vert)
+- **Les légendaires ne s'achètent pas avec des éclats** — coffre (1 %) ou Forge uniquement.
 
 ### ✅ Mine à éclats (récolte passive)
 - Une **mine** produit **1 éclat ✨ toutes les 15 min**, automatiquement, même hors ligne
@@ -46,13 +43,9 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 
 ### ✅ Série quotidienne (streak)
 - Ouvrez votre coffre chaque jour pour faire monter votre série 🔥
-- **3 jours consécutifs** : +1 pixel par coffre (4 au lieu de 3)
-- **7 jours consécutifs** : +2 pixels par coffre (5 au lieu de 3)
+- **3 jours consécutifs** : +1 tuile 2×2 par coffre
+- **7 jours consécutifs** : +2 tuiles 2×2 par coffre
 - La série est perdue si vous sautez un jour
-
-### ✅ Système de pitié (pity)
-- Un pixel art **légendaire est garanti tous les 25 coffres** sans légendaire
-- Le compteur est affiché sous le coffre quotidien
 
 ### ✅ Système de connexion
 - Création de compte avec email/mot de passe
@@ -62,10 +55,10 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 ### ✅ Système de coffres
 - 2 coffres gratuits par jour — ils se rechargent à midi et à minuit (heure de Paris) pour tout le monde
 - Ouverture de coffre avec animation
-- Système de rareté :
-  - **Commun (70%)** : Pixels 1x1 (4 variantes)
-  - **Rare (28%)** : Pixels 2x2 (256 variantes)
-  - **Légendaire (2%)** : Pixel arts 8x8 (30 designs uniques)
+- Contenu d'un coffre :
+  - **3 à 4 pixels 2×2** (+ bonus de série)
+  - **2 à 10 éclats ✨**
+  - **1 %** de chance d'un **pixel art légendaire** en bonus (aléatoire, sans pitié)
 
 ### ✅ Collection
 - 294 pixels uniques à collectionner au total
@@ -154,31 +147,24 @@ const firebaseConfig = {
 };
 ```
 
-## 🎯 Système de rareté
+## 🎯 Les trois types de pixels
 
-- **Pixels 1x1 (Communs)** : 70% de chance
-  - 4 couleurs : Rouge, Bleu, Vert, Jaune
-  - 4 variantes au total
-
-- **Pixels 2x2 (Rares)** : 28% de chance
-  - Grille 2x2 avec 4 couleurs possibles par case
-  - 256 combinaisons possibles (4^4)
-
-- **Pixel Arts 8x8 (Légendaires)** : 2% de chance
-  - 30 designs uniques dessinés à la main
-  - Chaque pixel art utilise une palette personnalisée
+- **Pixels 1×1** : 4 couleurs (Rouge, Bleu, Vert, Jaune). S'achètent à l'Atelier (1 ✨).
+- **Pixels 2×2** : 256 combinaisons (4⁴). Tombent des coffres, ou se craftent à l'Atelier.
+- **Pixel Arts 8×8 (Légendaires)** : 30 designs dessinés à la main, palette personnalisée.
+  Uniquement via coffre (**1 %**, sans pitié) ou via la **Forge** (12 % de réussite).
 
 ## 📊 Progression
 
 - **Objectif principal** : Compléter la collection des 294 pixels uniques
-- **Défi ultime** : Obtenir les 30 pixel arts légendaires
-- **Difficulté** : Avec 2% de chance, il faudra environ 150 coffres pour tous les avoir (probabilité statistique)
+- **Défi ultime** : Obtenir les 30 pixel arts légendaires — soit en priant le coffre (1 %),
+  soit en les **forgeant** un par un (le seul moyen de viser un légendaire précis)
 
 ## 🎮 Conseils
 
-1. Ouvrez votre coffre quotidien chaque jour !
-2. Les doublons comptent - vous pourrez les échanger plus tard
-3. Les pixel arts légendaires sont très rares, soyez patient !
+1. Ouvrez vos deux coffres chaque jour (midi + minuit) !
+2. Dépensez vos éclats à l'Atelier pour compléter vos 2×2
+3. Visez un légendaire précis via la Forge, en réunissant ses 16 tuiles 2×2
 
 ---
 
