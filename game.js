@@ -1484,8 +1484,7 @@ function displayPlayers(players) {
             <div>
                 <div class="player-card__name">${index + 1}. ${player.displayName} ${isCurrentUser ? '(Vous)' : ''}</div>
                 <div class="player-card__stats">
-                    <span>💎 ${s.legendary} légendaires</span>
-                    <span>🎨 ${s.unique} / 290 uniques</span>
+                    <span>💎 ${s.legendary} / 30 légendaires</span>
                 </div>
             </div>
             <div class="player-card__arrow">→</div>
@@ -1516,7 +1515,7 @@ async function openPlayerProfile(player) {
     const s = statsFromCollection(player.collection);
     document.getElementById('modalPlayerName').textContent = player.displayName;
     document.getElementById('modalTotalPixels').textContent = s.total;
-    document.getElementById('modalUniquePixels').textContent = `${s.unique} / 290`;
+    document.getElementById('modalUniquePixels').textContent = `${s.legendary} / 30`;
 
     // Générer dynamiquement les boutons d'albums
     generateModalAlbumTabs();
@@ -1701,7 +1700,8 @@ function updateUI() {
     document.getElementById('profileName').textContent = displayName;
     document.getElementById('userNameInput').value = displayName;
     document.getElementById('totalPixels').textContent = userStats.totalPixels;
-    document.getElementById('uniquePixels').textContent = `${userStats.uniquePixels} / 290`;
+    const legendaryCount = Object.values(userCollection).filter(p => p.type === 'art').length;
+    document.getElementById('uniquePixels').textContent = `${legendaryCount} / 30`;
     document.getElementById('chestsOpened').textContent = userStats.chestsOpened;
     document.getElementById('shardCount').textContent = userStats.shards || 0;
     document.getElementById('streakCount').textContent = userStats.streak || 0;
