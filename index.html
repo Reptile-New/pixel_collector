@@ -32,6 +32,14 @@
             box-sizing: border-box;
         }
 
+        /* Tout ce qui se clique vite (coffre, boutons, filon) ne doit jamais
+           déclencher le zoom du navigateur au double-tap. Le pincement pour
+           zoomer, lui, reste possible partout ailleurs. */
+        button, .chest, .icon-chip, .tab, .custom-cell, .color-craft-btn,
+        .profile-chip, .mine-pick, .forge-item, .pixel-item {
+            touch-action: manipulation;
+        }
+
         :root {
             /* Surfaces */
             --surface-1: rgba(255, 255, 255, 0.05);
@@ -597,6 +605,9 @@
             user-select: none;
             -webkit-user-select: none;
             -webkit-tap-highlight-color: transparent;
+            /* Coupe le double-tap zoom : on tape vite sur le filon, ce n'est
+               jamais un geste de zoom. */
+            touch-action: manipulation;
             transition: border-color 0.2s, transform 0.06s;
         }
         .mine-pick:hover { border-color: rgba(255, 215, 0, 0.5); }
@@ -2332,7 +2343,7 @@
                 <div class="stat-chip" title="Éclats">✨ <span id="shardCount">0</span></div>
                 <div class="stat-chip" title="Série">🔥 <span id="streakCount">0</span></div>
             </div>
-            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.8</a>
+            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.9</a>
             <a class="icon-chip" href="wiki.html" target="_blank" rel="noopener" title="Wiki / aide">📖</a>
             <button id="profileButton" class="profile-chip" title="Mon profil">👤 <span id="profileName">Joueur</span></button>
         </header>
@@ -2484,6 +2495,16 @@
                             </div>
                             <p id="customCraftNeeds" style="font-size: 0.9em;"></p>
                             <button id="customCraftButton" class="open-button" style="width: 100%;" disabled>🎯 Assembler (70 % de réussite)</button>
+                        </div>
+
+                        <div class="atelier-card" style="margin-top: 20px;">
+                            <h3>♻️ Recycler les doublons <span class="buy-cost">2 ✨ / tuile</span></h3>
+                            <p class="micro-note" style="margin-top: 6px;">
+                                Fond tes tuiles 2×2 en trop. Les tuiles réclamées par un légendaire
+                                pas encore forgé sont protégées, et tu gardes toujours un exemplaire
+                                de chaque motif.
+                            </p>
+                            <button id="recycleButton" class="open-button" style="width: 100%;" disabled>♻️ Aucun doublon à recycler</button>
                         </div>
 
                         <div class="atelier-card atelier-card--forge" style="margin-top: 20px;">
@@ -2703,10 +2724,10 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=47"></script>
-    <script src="pixel_data.js?v=47"></script>
-    <script src="pixel_renderer.js?v=47"></script>
-    <script type="module" src="game.js?v=47"></script>
+    <script type="module" src="firebase-config.js?v=48"></script>
+    <script src="pixel_data.js?v=48"></script>
+    <script src="pixel_renderer.js?v=48"></script>
+    <script type="module" src="game.js?v=48"></script>
     <script>
         // Dessine les vignettes de démonstration (vraies grilles de pixels)
         // dans l'Atelier : 1×1 = 1 case, 2×2 = 4 cases, 8×8 = 64 cases.
