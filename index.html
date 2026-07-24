@@ -92,57 +92,60 @@
 
         header {
             flex: 0 0 auto;
-            padding: 12px 16px;
+            padding: 6px 10px;
             background: rgba(0, 0, 0, 0.3);
-            border-radius: 14px;
+            border-radius: 12px;
             display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .header-top {
-            display: flex;
-            justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        h1 {
-            font-family: 'Press Start 2P', 'Courier New', monospace;
-            font-size: 0.95em;
-            color: #FFD700;
-            text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
-            letter-spacing: 1px;
+            gap: 6px;
         }
 
         .header-stats {
             display: flex;
-            gap: 10px;
+            gap: 6px;
             flex-wrap: wrap;
+            flex: 1 1 auto;
+            min-width: 0;
         }
 
         .stat-chip {
             background: rgba(0, 0, 0, 0.35);
-            padding: 8px 14px;
-            border-radius: 20px;
+            padding: 4px 9px;
+            border-radius: 999px;
             font-weight: bold;
-            font-size: 0.95em;
+            font-size: 0.8em;
             white-space: nowrap;
         }
 
+        .icon-chip {
+            flex: 0 0 auto;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 999px;
+            padding: 4px 9px;
+            font-size: 0.9em;
+            text-decoration: none;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .icon-chip:hover { background: rgba(255, 255, 255, 0.22); }
+
         .profile-chip {
+            flex: 0 0 auto;
+            max-width: 40vw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
             background: rgba(255, 255, 255, 0.12);
             border: 1px solid rgba(255, 255, 255, 0.25);
             color: #fff;
-            padding: 8px 18px;
-            border-radius: 20px;
+            padding: 4px 11px;
+            border-radius: 999px;
             cursor: pointer;
             font-family: inherit;
-            font-size: 0.95em;
+            font-size: 0.8em;
             font-weight: bold;
             transition: background 0.3s;
-            white-space: nowrap;
         }
 
         .profile-chip:hover {
@@ -1062,18 +1065,6 @@
 
         /* Responsive Design pour Mobile */
         @media (max-width: 768px) {
-            h1 {
-                font-size: 1em;
-            }
-
-            .header-top {
-                justify-content: center;
-            }
-
-            .header-stats {
-                justify-content: center;
-            }
-
             .login-panel {
                 padding: 30px 20px;
                 margin: 20px;
@@ -2198,16 +2189,13 @@
     <!-- Écran principal du jeu -->
     <div id="gameScreen" class="container" style="display: none;">
         <header>
-            <div class="header-top">
-                <h1>🎨 Pixel Collector</h1>
-                <button id="profileButton" class="profile-chip">👤 <span id="profileName">Joueur</span></button>
-            </div>
             <div class="header-stats">
-                <div class="stat-chip">🎨 <span id="uniquePixels">0 / 294</span></div>
-                <div class="stat-chip">✨ <span id="shardCount">0</span> éclats</div>
-                <div class="stat-chip">🔥 Série : <span id="streakCount">0</span></div>
-                <a class="stat-chip stat-chip--link" href="wiki.html" target="_blank" rel="noopener">📖 Wiki</a>
+                <div class="stat-chip" title="Pixels uniques">🎨 <span id="uniquePixels">0 / 294</span></div>
+                <div class="stat-chip" title="Éclats">✨ <span id="shardCount">0</span></div>
+                <div class="stat-chip" title="Série">🔥 <span id="streakCount">0</span></div>
             </div>
+            <a class="icon-chip" href="wiki.html" target="_blank" rel="noopener" title="Wiki / aide">📖</a>
+            <button id="profileButton" class="profile-chip" title="Mon profil">👤 <span id="profileName">Joueur</span></button>
         </header>
 
         <div class="main-content">
@@ -2321,8 +2309,8 @@
                             <h3>✨ Échanger des éclats contre un 2×2</h3>
                             <p class="micro-note">Le moyen le plus rapide de dépenser tes éclats. Les légendaires, eux, ne s'achètent pas — coffre ou Forge uniquement.</p>
                             <div class="shard-craft">
-                                <button id="craftRandom2x2Btn" class="open-button shard-craft__btn" disabled>🎲 2×2 aléatoire <span class="shard-craft__cost">4 ✨</span></button>
-                                <button id="craftNew2x2Btn" class="open-button shard-craft__btn" disabled>⭐ 2×2 que tu n'as pas <span class="shard-craft__cost">12 ✨</span></button>
+                                <button id="craftRandom2x2Btn" class="open-button shard-craft__btn" disabled>🎲 2×2 aléatoire <span class="shard-craft__cost">3 ✨</span></button>
+                                <button id="craftNew2x2Btn" class="open-button shard-craft__btn" disabled>⭐ 2×2 que tu n'as pas <span class="shard-craft__cost">4 ✨</span></button>
                             </div>
                             <p id="craft2x2NewInfo" class="micro-note" style="margin-top: 10px; margin-bottom: 0;"></p>
                         </div>
@@ -2561,10 +2549,10 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=28"></script>
-    <script src="pixel_data.js?v=28"></script>
-    <script src="pixel_renderer.js?v=28"></script>
-    <script type="module" src="game.js?v=28"></script>
+    <script type="module" src="firebase-config.js?v=29"></script>
+    <script src="pixel_data.js?v=29"></script>
+    <script src="pixel_renderer.js?v=29"></script>
+    <script type="module" src="game.js?v=29"></script>
     <script>
         // Dessine les vignettes de démonstration (vraies grilles de pixels)
         // dans l'Atelier : 1×1 = 1 case, 2×2 = 4 cases, 8×8 = 64 cases.

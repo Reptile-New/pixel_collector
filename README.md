@@ -24,8 +24,8 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - Les **éclats ✨** viennent des coffres (2 à 10 par ouverture) et de la mine.
 - Dépensez-les de plusieurs façons :
   - **Pixel 1×1** (1 ✨) : de la couleur de votre choix
-  - **🎲 Pixel 2×2 aléatoire** (4 ✨) : rapide, peut être un doublon
-  - **⭐ Pixel 2×2 garanti nouveau** (12 ✨) : un 2×2 que vous n'avez pas encore
+  - **🎲 Pixel 2×2 aléatoire** (3 ✨) : le moins cher, mais peut être un doublon
+  - **⭐ Pixel 2×2 garanti nouveau** (4 ✨) : un 2×2 que vous n'avez pas encore
   - **🔨 Assemblage sur mesure** : composez exactement le 2×2 voulu, payé avec vos
     pixels 1×1 des bonnes couleurs (ex. jaune-bleu-bleu-vert = 1 jaune + 2 bleus + 1 vert)
 - **Les légendaires ne s'achètent pas avec des éclats** — coffre (1 %) ou Forge uniquement.

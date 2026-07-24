@@ -136,7 +136,7 @@ const SHARD_VALUES = { '1x1': 1, '2x2': 4, 'art': 64 };
 // Pour un 2x2 précis : l'assemblage sur mesure, payé en pixels 1x1.
 // Coûts en éclats des crafts de l'Atelier. Les légendaires ne s'achètent PAS
 // avec des éclats : on ne les obtient qu'en coffre (rare) ou à la Forge.
-const CRAFT_COSTS = { craft1x1: 1, craft2x2Random: 4, craft2x2New: 12 };
+const CRAFT_COSTS = { craft1x1: 1, craft2x2Random: 3, craft2x2New: 4 };
 // Contenu d'un coffre : des éclats (min..max) + des tuiles 2×2 (min..max de base).
 const CHEST_SHARDS_MIN = 2;
 const CHEST_SHARDS_MAX = 10;
