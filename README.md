@@ -16,7 +16,8 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - Chaque légendaire s'affiche sous forme de **schéma grisé** dans l'Atelier
 - Il se décompose en une grille **4×4 = 16 tuiles 2×2** aux couleurs précises
 - Place tes pixels **2×2 aux bonnes couleurs** sur le schéma : les cases s'allument et le dessin réapparaît
-- Une fois les 16 tuiles réunies, tente la **forge** — mais elle n'a que **12 % de réussite**
+- Une fois les 16 tuiles réunies, tente la **forge** — réussite **variable selon la rareté**
+  (de **5 %** pour le Cœur ❤️ jusqu'à **20 %** pour les plus communs)
 - ⚠️ Les 16 pixels 2×2 sont **consommés à chaque tentative**, réussie ou non
 - C'est le seul moyen d'obtenir **précisément** le légendaire de ton choix
 
@@ -152,7 +153,8 @@ const firebaseConfig = {
 - **Pixels 1×1** : 4 couleurs (Rouge, Bleu, Vert, Jaune). S'achètent à l'Atelier (1 ✨).
 - **Pixels 2×2** : 256 combinaisons (4⁴). Tombent des coffres, ou se craftent à l'Atelier.
 - **Pixel Arts 8×8 (Légendaires)** : 30 designs dessinés à la main, palette personnalisée.
-  Uniquement via coffre (**1 %**, sans pitié) ou via la **Forge** (12 % de réussite).
+  Uniquement via coffre (**1 %**, tirage pondéré par la rareté) ou via la **Forge**
+  (5 % à 20 % selon la rareté du légendaire).
 
 ## 📊 Progression
 
