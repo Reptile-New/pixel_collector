@@ -175,7 +175,7 @@ const ALBUMS = [
     { id: 'all', label: 'Tous' },
     { id: '1x1', label: 'Pixels 1×1' },
     { id: '2x2', label: 'Pixels 2×2' },
-    { id: 'art', label: 'Pixel Arts' }
+    { id: 'art', label: 'Légendaires' }
 ];
 
 let currentAlbum = 'all'; // Album actuellement affiché
