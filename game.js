@@ -146,14 +146,18 @@ let userStats = {
 // L'assemblage sur mesure d'un 2×2, lui, se paie en pixels 1×1 (pas en éclats).
 // Les légendaires ne s'achètent PAS avec des éclats : coffre (rare) ou Forge.
 const CRAFT_COSTS = { craft1x1: 1, craft2x2Random: 3, craft2x2New: 4 };
-// Contenu d'un coffre : des éclats (min..max) + des tuiles 2×2 (min..max de base).
-const CHEST_SHARDS_MIN = 50;
-const CHEST_SHARDS_MAX = 100;
-const CHEST_TILES_MIN = 3;
+// Contenu d'un coffre : des éclats + des pixels 1×1 + des tuiles 2×2 (min..max).
+const CHEST_SHARDS_MIN = 15;
+const CHEST_SHARDS_MAX = 25;
+const CHEST_ONES_MIN = 3;   // pixels 1×1 (matière première de l'assemblage)
+const CHEST_ONES_MAX = 7;
+const CHEST_TILES_MIN = 2;  // tuiles 2×2 (matière première de la Forge)
 const CHEST_TILES_MAX = 4;
-// Chance d'obtenir un légendaire en ouvrant un coffre. Rare et SANS pitié :
-// un légendaire doit rester dur à obtenir.
-const LEGENDARY_CHEST_RATE = 0.01; // 1 %
+// Chance d'obtenir un légendaire en ouvrant un coffre. Rare et SANS pitié.
+// Calibrage : 1 coffre toutes les 2 h → 12 coffres/jour → ~360 coffres/mois.
+// À 0,3 %, l'espérance est de 1 légendaire tous les ~333 coffres, soit environ
+// un par mois pour un joueur qui ouvre tous ses coffres.
+const LEGENDARY_CHEST_RATE = 0.003; // 0,3 %
 // Bonus de série : +1 tuile à partir de 3 jours consécutifs, +2 à partir de 7
 const STREAK_BONUSES = [{ days: 3, extra: 1 }, { days: 7, extra: 2 }];
 
@@ -192,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     drawChest();
     generateCollectionAlbumTabs();
 
-    // Rafraîchir le compte à rebours du coffre (reset à midi et minuit)
+    // Rafraîchir le compte à rebours du coffre (recharge 2 h après l'ouverture)
     setInterval(updateChestStatus, 30 * 1000);
 
     // Rafraîchir la mine à éclats (compte à rebours du prochain éclat)
@@ -933,46 +937,25 @@ async function saveUserData() {
 
 // === SYSTÈME DE COFFRES ===
 
-// Le coffre se réinitialise deux fois par jour pour tout le monde : à midi et à
-// minuit (heure de Paris). Chaque journée compte donc deux créneaux d'ouverture
-// (00 h→12 h et 12 h→00 h), soit deux coffres par jour, quel que soit l'horaire.
+// Le coffre se recharge en 2 h glissantes : dès qu'on l'ouvre, le suivant est
+// disponible 2 h plus tard, à la minute près. Soit jusqu'à 12 coffres par jour.
 const CHEST_TIMEZONE = 'Europe/Paris';
+const CHEST_COOLDOWN_MS = 2 * 3600 * 1000;
 
-// Clé de jour "YYYY-MM-DD" dans le fuseau du reset
+// Clé de jour "YYYY-MM-DD" dans le fuseau du reset (sert à la série quotidienne)
 function getDayKey(timestamp) {
     return new Intl.DateTimeFormat('fr-CA', { timeZone: CHEST_TIMEZONE }).format(new Date(timestamp));
 }
 
-// Heure (0-23) dans le fuseau du reset
-function getParisHour(timestamp) {
-    const parts = new Intl.DateTimeFormat('fr-FR', {
-        timeZone: CHEST_TIMEZONE, hour: '2-digit', hourCycle: 'h23'
-    }).formatToParts(new Date(timestamp));
-    return parseInt(parts.find(p => p.type === 'hour').value, 10);
-}
-
-// Clé de créneau : jour + demi-journée (matin/après-midi). Change à midi et à minuit.
-function getPeriodKey(timestamp) {
-    return getDayKey(timestamp) + (getParisHour(timestamp) < 12 ? '#0' : '#1');
-}
-
-// Millisecondes restantes avant le prochain reset (prochain midi ou minuit, Paris)
-function msUntilNextReset() {
-    const parts = new Intl.DateTimeFormat('fr-FR', {
-        timeZone: CHEST_TIMEZONE,
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hourCycle: 'h23'
-    }).formatToParts(new Date());
-    const get = type => parseInt(parts.find(p => p.type === type).value, 10);
-    const elapsedMs = (get('hour') * 3600 + get('minute') * 60 + get('second')) * 1000;
-    const halfDayMs = 12 * 3600 * 1000;
-    return halfDayMs - (elapsedMs % halfDayMs);
+// Millisecondes restantes avant que le coffre soit de nouveau ouvrable
+function msUntilNextChest() {
+    const lastTime = userStats.lastChestTime || 0;
+    if (!lastTime) return 0;
+    return Math.max(0, lastTime + CHEST_COOLDOWN_MS - Date.now());
 }
 
 function canOpenChest() {
-    const lastTime = userStats.lastChestTime || 0;
-    if (!lastTime) return true;
-    return getPeriodKey(lastTime) !== getPeriodKey(Date.now());
+    return msUntilNextChest() === 0;
 }
 
 // Joue la séquence d'ouverture (tremblement + halo + rayons + flash).
@@ -1007,10 +990,7 @@ function playChestOpening(hasLegendary) {
 async function openChest() {
     if (chestOpening) return;
     if (!canOpenChest()) {
-        const ms = msUntilNextReset();
-        const h = Math.floor(ms / 3600000);
-        const m = Math.floor((ms % 3600000) / 60000);
-        showToast(`Coffre déjà ouvert — reviens dans ${h}h${String(m).padStart(2, '0')}.`);
+        showToast(`Coffre déjà ouvert — reviens dans ${formatChestDelay(msUntilNextChest())}.`);
         return;
     }
     chestOpening = true;
@@ -1027,16 +1007,17 @@ async function openChest() {
             : 1;
     }
 
-    // Nombre de tuiles 2×2 : base aléatoire (3–4) + bonus de série
+    // Nombre de tuiles 2×2 : base aléatoire + bonus de série
     const baseTiles = CHEST_TILES_MIN + Math.floor(Math.random() * (CHEST_TILES_MAX - CHEST_TILES_MIN + 1));
     let streakExtra = 0;
     STREAK_BONUSES.forEach(bonus => {
         if (userStats.streak >= bonus.days) streakExtra = bonus.extra;
     });
     const tileCount = baseTiles + streakExtra;
+    const oneCount = CHEST_ONES_MIN + Math.floor(Math.random() * (CHEST_ONES_MAX - CHEST_ONES_MIN + 1));
 
-    // Contenu du coffre : des 2×2 + une chance (1 %) de légendaire
-    const pixels = drawChestPixels(tileCount);
+    // Contenu du coffre : des 1×1 + des 2×2 + une petite chance de légendaire
+    const pixels = drawChestPixels(tileCount, oneCount);
 
     // Éclats : entre CHEST_SHARDS_MIN et CHEST_SHARDS_MAX
     const shardReward = CHEST_SHARDS_MIN + Math.floor(Math.random() * (CHEST_SHARDS_MAX - CHEST_SHARDS_MIN + 1));
@@ -1062,10 +1043,10 @@ async function openChest() {
         if (hasLegendary) {
             subtitle += ' &nbsp;·&nbsp; ✨ LÉGENDAIRE !';
         }
-        const tileWord = tileCount > 1 ? 'tuiles 2×2' : 'tuile 2×2';
+        const loot = `${oneCount} pixel${oneCount > 1 ? 's' : ''} 1×1 + ${tileCount} tuile${tileCount > 1 ? 's' : ''} 2×2`;
         const title = hasLegendary
-            ? `Un légendaire + ${tileCount} ${tileWord} !`
-            : `${tileCount} ${tileWord} obtenues !`;
+            ? `Un légendaire + ${loot} !`
+            : `${loot} !`;
         showResult(pixels, title, subtitle);
 
         // Mettre à jour l'UI
@@ -1075,10 +1056,12 @@ async function openChest() {
     }
 }
 
-// Tire le contenu d'un coffre : `count` tuiles 2×2 aléatoires, plus une chance
-// (LEGENDARY_CHEST_RATE) d'y trouver un légendaire. Ajoute tout à la collection.
-function drawChestPixels(count) {
+// Tire le contenu d'un coffre : `oneCount` pixels 1×1 + `count` tuiles 2×2
+// aléatoires, plus une chance (LEGENDARY_CHEST_RATE) d'y trouver un légendaire.
+// Ajoute tout à la collection.
+function drawChestPixels(count, oneCount = 0) {
     const pixels = [];
+    for (let i = 0; i < oneCount; i++) pixels.push(makeRandom1x1());
     for (let i = 0; i < count; i++) pixels.push(makeRandom2x2());
     if (Math.random() < LEGENDARY_CHEST_RATE) pixels.push(makeRandomLegendary());
 
@@ -1091,6 +1074,12 @@ function drawChestPixels(count) {
     });
 
     return pixels;
+}
+
+// Un pixel 1×1 d'une des 4 couleurs, au hasard
+function makeRandom1x1() {
+    const pattern = String(1 + Math.floor(Math.random() * 4));
+    return { type: '1x1', pattern, id: `1x1_${pattern}`, name: `Pixel 1x1 #${pattern}` };
 }
 
 // Un pixel 2×2 aléatoire parmi les 256 combinaisons
@@ -1150,16 +1139,22 @@ function showResult(pixels, title = 'Vous avez obtenu :', subtitle = '') {
     const container = document.getElementById('resultPixels');
     container.innerHTML = '';
 
+    // Un coffre peut sortir une douzaine de pixels : on resserre l'affichage
+    // au-delà de 6 pour que tout tienne à l'écran sans scroll.
+    const dense = pixels.length > 6;
+    const tileSize = dense ? 46 : 80;
+    container.style.gap = dense ? '10px' : '20px';
+
     pixels.forEach((pixel, index) => {
         const rarity = PixelRenderer.getRarity(pixel.type);
 
         const wrapper = document.createElement('div');
         wrapper.className = 'result-pixel rarity-' + rarity;
-        wrapper.style.animationDelay = `${index * 0.15}s`;
+        wrapper.style.animationDelay = `${Math.min(index, 8) * (dense ? 0.06 : 0.15)}s`;
 
         const canvas = document.createElement('canvas');
         canvas.className = 'pixel-canvas';
-        PixelRenderer.drawPixel(canvas, pixel, 80);
+        PixelRenderer.drawPixel(canvas, pixel, tileSize);
         wrapper.appendChild(canvas);
 
         const rarityLabel = document.createElement('div');
@@ -1167,7 +1162,8 @@ function showResult(pixels, title = 'Vous avez obtenu :', subtitle = '') {
         rarityLabel.textContent = PixelRenderer.getRarityLabel(rarity);
         wrapper.appendChild(rarityLabel);
 
-        if (pixel.isNew) {
+        // Les 1×1 sont du pur consommable : pas de badge « nouveau » dessus.
+        if (pixel.isNew && pixel.type !== '1x1') {
             const badge = document.createElement('div');
             badge.className = 'new-badge';
             badge.textContent = 'NOUVEAU !';
@@ -1725,19 +1721,23 @@ function updateUI() {
     updateMineUI();
 }
 
+// Délai restant sous forme lisible : « 1h42 » ou « 7 min » quand on est proche.
+function formatChestDelay(ms) {
+    const totalMin = Math.ceil(ms / 60000);
+    if (totalMin < 60) return `${totalMin} min`;
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `${h}h${String(m).padStart(2, '0')}`;
+}
+
 function updateChestStatus() {
     if (!currentUser) return;
 
     if (canOpenChest()) {
         document.getElementById('chestTimer').textContent = 'Clique sur le coffre pour l\'ouvrir !';
     } else {
-        // On n'affiche que le délai restant (pas d'heure absolue : le prochain
-        // coffre tombe au même instant pour tout le monde, quel que soit le fuseau).
-        const ms = msUntilNextReset();
-        const h = Math.floor(ms / 3600000);
-        const m = Math.floor((ms % 3600000) / 60000);
         document.getElementById('chestTimer').textContent =
-            `Prochain coffre dans ${h}h${String(m).padStart(2, '0')}`;
+            `Prochain coffre dans ${formatChestDelay(msUntilNextChest())}`;
     }
 
     // Volontairement minimal : pas de paliers ni de compteur de pity affichés.
