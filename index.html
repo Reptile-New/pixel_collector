@@ -291,6 +291,17 @@
             margin-top: auto;
         }
 
+        /* Le coffre s'adapte à la hauteur de l'écran : sur un petit téléphone,
+           il rétrécit pour que la cible, la mine et « Récolter » restent
+           visibles sans scroller. */
+        #chestTab .chest canvas {
+            aspect-ratio: 320 / 240;
+            max-height: 26vh;
+            width: auto;
+            height: auto;
+            max-width: 100%;
+        }
+
         .chest-container {
             display: flex;
             justify-content: center;
@@ -538,12 +549,93 @@
             margin-bottom: 10px;
         }
 
+        /* Écrans courts (petits téléphones) : mode compact pour que le coffre,
+           la cible et la mine tiennent ensemble sans scroller. */
+        @media (max-height: 720px) {
+            #chestTab .chest-stage { height: min(290px, 15vh); }
+            /* !important : la règle responsive historique fixe le coffre à
+               200×150 px, or sur un écran court il doit pouvoir rétrécir. */
+            #chestTab .chest canvas {
+                height: min(150px, 14vh) !important;
+                width: auto !important;
+            }
+            #chestTab .chest-container { gap: 8px; }
+            #chestTab .chest-label { font-size: 0.8em; }
+            #chestTab .target-card__label { display: none; }
+            #chestTab .mine-card .open-button { padding: 10px; }
+            #chestTab .mine-pick { padding: 5px 10px; margin-bottom: 6px; }
+            #chestTab .chest-timer { padding: 8px 12px; font-size: 0.85em; }
+            #chestTab .target-card { padding: 8px 10px; }
+            #chestTab .target-card__art { width: 40px; height: 40px; }
+            /* Titre et compteur sur une seule ligne : « ⛏️ La Mine 0 ✨ » */
+            #chestTab .mine-header,
+            #chestTab .mine-amount { display: inline-block; vertical-align: middle; margin-bottom: 4px; }
+            #chestTab .mine-header { font-size: 0.9em; }
+            #chestTab .mine-amount { font-size: 1.1em; margin-left: 8px; }
+            #chestTab .mine-status { margin-bottom: 6px; }
+        }
+
+        /* Prochaine cible (légendaire le plus proche d'être forgé) */
+        .target-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.10), rgba(0, 0, 0, 0.25));
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            cursor: pointer;
+            text-align: left;
+            touch-action: manipulation;
+            transition: border-color 0.2s, transform 0.06s;
+        }
+        .target-card:hover { border-color: rgba(255, 215, 0, 0.55); }
+        .target-card:active { transform: scale(0.99); }
+        .target-card.is-ready {
+            border-color: rgba(255, 165, 0, 0.7);
+            box-shadow: 0 0 18px rgba(255, 165, 0, 0.18);
+        }
+        .target-card__art {
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+            border-radius: 8px;
+            image-rendering: pixelated;
+        }
+        .target-card__body { flex: 1; min-width: 0; }
+        .target-card__top {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            justify-content: space-between;
+        }
+        .target-card__label { font-size: 0.72em; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.04em; }
+        .target-card__tier { font-size: 0.72em; font-weight: 800; }
+        .target-card__bar {
+            height: 6px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            margin: 5px 0 4px;
+        }
+        .target-card__fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #7b61ff, #FFD700);
+            transition: width 0.4s ease;
+        }
+        .target-card__info { font-size: 0.76em; opacity: 0.85; }
+        .target-card__go { font-size: 1.6em; opacity: 0.45; line-height: 1; }
+
         /* Mine à éclats (récolte passive) */
         .mine-card {
             background: linear-gradient(135deg, rgba(123, 97, 255, 0.18), rgba(0, 0, 0, 0.25));
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 16px;
-            padding: 14px 16px;
+            padding: 10px 14px;
             margin: 0 auto;
             width: 100%;
             text-align: center;
@@ -556,11 +648,11 @@
         }
 
         .mine-amount {
-            font-size: 1.4em;
+            font-size: 1.25em;
             font-weight: bold;
             color: #FFD700;
             line-height: 1.1;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .mine-bar {
@@ -581,8 +673,8 @@
 
         .mine-status {
             opacity: 0.85;
-            font-size: 0.9em;
-            margin-bottom: 14px;
+            font-size: 0.86em;
+            margin-bottom: 8px;
             min-height: 1.2em;
         }
 
@@ -599,8 +691,8 @@
             background: rgba(0, 0, 0, 0.25);
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 12px;
-            padding: 8px 12px;
-            margin-bottom: 10px;
+            padding: 6px 10px;
+            margin-bottom: 8px;
             cursor: pointer;
             user-select: none;
             -webkit-user-select: none;
@@ -2021,6 +2113,10 @@
             line-height: 1.4;
             white-space: pre-line;
             pointer-events: auto;
+            /* Le balayage vertical sur un toast lui appartient : sans ça, le
+               navigateur le prend pour un scroll de page et le geste ne remonte
+               jamais au JS (la notification refusait de partir vers le haut). */
+            touch-action: pan-x;
             cursor: pointer;
             touch-action: none; /* le toast capte le glissement vers le haut */
             animation: toast-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
@@ -2120,8 +2216,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 340px;
-            height: 290px;
+            /* Suit la taille réelle du coffre : cette règle écrasait la version
+               responsive définie plus haut et laissait ~140 px de vide sur
+               mobile, ce qui poussait la mine hors de l'écran. */
+            width: min(340px, 90vw);
+            height: min(290px, 24vh);
         }
 
         /* Halo doux qui respire */
@@ -2343,7 +2442,7 @@
                 <div class="stat-chip" title="Éclats">✨ <span id="shardCount">0</span></div>
                 <div class="stat-chip" title="Série">🔥 <span id="streakCount">0</span></div>
             </div>
-            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.9</a>
+            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.10</a>
             <a class="icon-chip" href="wiki.html" target="_blank" rel="noopener" title="Wiki / aide">📖</a>
             <button id="profileButton" class="profile-chip" title="Mon profil">👤 <span id="profileName">Joueur</span></button>
         </header>
@@ -2383,6 +2482,21 @@
                             <!-- Pixels obtenus, générés dynamiquement -->
                         </div>
                         <button class="continue-button" id="continueButton">Continuer</button>
+                    </div>
+
+                    <!-- Prochaine cible : le légendaire le plus proche d'être forgé -->
+                    <div class="target-card" id="targetCard" role="button" tabindex="0" title="Ouvrir sa forge" hidden>
+                        <canvas id="targetCanvas" class="target-card__art" width="48" height="48"></canvas>
+                        <div class="target-card__body">
+                            <div class="target-card__top">
+                                <span class="target-card__label">🏆 Ta prochaine cible</span>
+                                <span class="target-card__tier" id="targetTier"></span>
+                            </div>
+                            <strong id="targetName">—</strong>
+                            <div class="target-card__bar"><div class="target-card__fill" id="targetFill"></div></div>
+                            <div class="target-card__info" id="targetInfo"></div>
+                        </div>
+                        <span class="target-card__go">›</span>
                     </div>
 
                     <!-- Mine à éclats : récolte passive -->
@@ -2724,10 +2838,10 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=48"></script>
-    <script src="pixel_data.js?v=48"></script>
-    <script src="pixel_renderer.js?v=48"></script>
-    <script type="module" src="game.js?v=48"></script>
+    <script type="module" src="firebase-config.js?v=49"></script>
+    <script src="pixel_data.js?v=49"></script>
+    <script src="pixel_renderer.js?v=49"></script>
+    <script type="module" src="game.js?v=49"></script>
     <script>
         // Dessine les vignettes de démonstration (vraies grilles de pixels)
         // dans l'Atelier : 1×1 = 1 case, 2×2 = 4 cases, 8×8 = 64 cases.

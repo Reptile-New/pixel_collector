@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=46'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=49'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -110,26 +110,32 @@ document.addEventListener('pointerdown', (e) => {
 
 // Balayage vers le haut : les toasts sont ancrés en haut de l'écran, on les
 // pousse donc hors de l'écran dans cette direction.
+// Pointer Events : un seul chemin de code pour le doigt, la souris et le
+// stylet. La capture du pointeur garantit qu'on reçoit la fin du geste même si
+// le doigt sort du toast — sans elle, le toast restait figé à mi-course.
 function enableToastSwipe(toast, remove) {
     let startY = null;
     let dy = 0;
+    let activeId = null;
 
-    const onStart = e => {
-        startY = e.touches ? e.touches[0].clientY : e.clientY;
+    const onDown = e => {
+        if (activeId !== null) return;
+        activeId = e.pointerId;
+        startY = e.clientY;
         dy = 0;
         toast.classList.add('dragging');
+        if (toast.setPointerCapture) toast.setPointerCapture(e.pointerId);
     };
     const onMove = e => {
-        if (startY === null) return;
-        const y = e.touches ? e.touches[0].clientY : e.clientY;
-        dy = Math.min(0, y - startY); // uniquement vers le haut
+        if (startY === null || e.pointerId !== activeId) return;
+        dy = Math.min(0, e.clientY - startY); // uniquement vers le haut
         toast.style.transform = `translateY(${dy}px)`;
         toast.style.opacity = String(Math.max(0, 1 + dy / 120));
-        if (dy < -4 && e.cancelable) e.preventDefault();
     };
-    const onEnd = () => {
-        if (startY === null) return;
+    const onEnd = e => {
+        if (startY === null || e.pointerId !== activeId) return;
         startY = null;
+        activeId = null;
         toast.classList.remove('dragging');
         if (dy < -40) { remove('swipe'); return; }
         // Pas assez loin : retour en place
@@ -137,10 +143,10 @@ function enableToastSwipe(toast, remove) {
         toast.style.opacity = '';
     };
 
-    toast.addEventListener('touchstart', onStart, { passive: true });
-    toast.addEventListener('touchmove', onMove, { passive: false });
-    toast.addEventListener('touchend', onEnd);
-    toast.addEventListener('touchcancel', onEnd);
+    toast.addEventListener('pointerdown', onDown);
+    toast.addEventListener('pointermove', onMove);
+    toast.addEventListener('pointerup', onEnd);
+    toast.addEventListener('pointercancel', onEnd);
 }
 
 // Dialogue de confirmation — renvoie une Promise<boolean>
@@ -426,6 +432,15 @@ function setupEventListeners() {
     if (rndBtn) rndBtn.addEventListener('click', craftRandom2x2);
     const newBtn = document.getElementById('craftNew2x2Btn');
     if (newBtn) newBtn.addEventListener('click', craftNew2x2);
+
+    // Encart « prochaine cible » : emmène directement à la forge du légendaire
+    const targetCard = document.getElementById('targetCard');
+    if (targetCard) targetCard.addEventListener('click', () => {
+        const artId = targetCard.dataset.artId;
+        if (!artId) return;
+        switchTab('atelier');
+        openForgeModal(artId);
+    });
 
     // Recyclage des doublons (Atelier)
     const recycleBtn = document.getElementById('recycleButton');
@@ -1261,6 +1276,10 @@ async function openChest() {
         if (isFirstChestOfDay && streakShards > 0) {
             subtitle += ` &nbsp;·&nbsp; +${streakShards} ✨ de série !`;
         }
+        const usefulCount = pixels.filter(p => p.useful).length;
+        if (usefulCount > 0) {
+            subtitle += ` &nbsp;·&nbsp; 🎯 ${usefulCount} tuile${usefulCount > 1 ? 's' : ''} pour tes schémas`;
+        }
         if (hasLegendary) {
             subtitle += ' &nbsp;·&nbsp; ✨ LÉGENDAIRE !';
         }
@@ -1286,19 +1305,23 @@ function drawChestPixels(count, oneCount = 0) {
     // Une majorité des tuiles est tirée parmi celles qui manquent aux schémas
     // de la Forge : sans ça, une tuile de coffre servait 1 fois sur 256.
     const wanted = missingForgeTilePool();
+    const usefulIdx = new Set();
     for (let i = 0; i < count; i++) {
-        pixels.push(wanted.length && Math.random() < CHEST_USEFUL_TILE_RATE
+        const fromPool = wanted.length > 0 && Math.random() < CHEST_USEFUL_TILE_RATE;
+        pixels.push(fromPool
             ? make2x2(wanted[Math.floor(Math.random() * wanted.length)])
             : makeRandom2x2());
+        if (fromPool) usefulIdx.add(pixels.length - 1);
     }
     if (Math.random() < LEGENDARY_CHEST_RATE) pixels.push(makeRandomLegendary());
 
-    pixels.forEach(pixel => {
+    pixels.forEach((pixel, i) => {
         const isNew = !userCollection[pixel.id];
         addPixelToCollection(pixel);
         userStats.totalPixels++;
-        // Flag posé après l'ajout pour ne pas le persister dans la collection
+        // Flags posés après l'ajout pour ne pas les persister dans la collection
         pixel.isNew = isNew;
+        pixel.useful = usefulIdx.has(i);
     });
 
     return pixels;
@@ -2012,6 +2035,60 @@ function updateUI() {
 
     // État de la mine à éclats
     updateMineUI();
+
+    // Prochain légendaire à portée de forge
+    updateTargetCard();
+}
+
+// === PROCHAINE CIBLE ===
+// Le jeu n'affichait nulle part « où j'en suis » : les schémas de la Forge
+// étaient enterrés dans l'Atelier. Cet encart met en avant le légendaire dont
+// on est le plus proche, et l'ouvre en un clic.
+
+// Le légendaire non possédé le plus avancé (à égalité : le plus facile à forger)
+function nextForgeTarget() {
+    let best = null;
+    PixelArts.forEach(art => {
+        if (userCollection[art.id]) return;
+        const { needs } = getLegendaryBlueprint(art);
+        const prog = forgeOwnedProgress(needs);
+        const score = prog.owned / prog.total;
+        if (!best || score > best.score
+            || (score === best.score && artForgeRate(art.id) > artForgeRate(best.art.id))) {
+            best = { art, score, ...prog };
+        }
+    });
+    return best;
+}
+
+function updateTargetCard() {
+    const card = document.getElementById('targetCard');
+    if (!card) return;
+
+    const target = nextForgeTarget();
+    if (!target) { // collection complète
+        card.hidden = true;
+        return;
+    }
+    card.hidden = false;
+    card.classList.toggle('is-ready', target.ready);
+
+    const bp = getLegendaryBlueprint(target.art);
+    drawBlueprint(document.getElementById('targetCanvas'), bp.quant, 48, forgeMask(bp));
+    document.getElementById('targetName').textContent = target.art.name;
+
+    const tier = artTier(target.art.id);
+    const tierEl = document.getElementById('targetTier');
+    tierEl.textContent = tier.label;
+    tierEl.style.color = tier.color;
+
+    document.getElementById('targetFill').style.width =
+        `${Math.round((target.owned / target.total) * 100)}%`;
+    document.getElementById('targetInfo').textContent = target.ready
+        ? '🔥 Schéma complet — va le forger !'
+        : `${target.owned} / ${target.total} tuiles · il en manque ${target.total - target.owned}`;
+
+    card.dataset.artId = target.art.id;
 }
 
 // Le profil ne montre qu'un chiffre : les légendaires. Les 1×1 et 2×2 sont du
@@ -2215,8 +2292,10 @@ function updatePickUI() {
     if (exhausted) {
         label.textContent = 'Filon épuisé — reviens demain';
     } else {
+        // Libellé volontairement court : il doit tenir sur une seule ligne,
+        // même sur un petit téléphone.
         const remaining = MINE_CLICKS_PER_SHARD - clicks;
-        label.textContent = `${remaining} coup${remaining > 1 ? 's' : ''} avant 1 ✨ · encore ${left} aujourd'hui`;
+        label.textContent = `${remaining} coup${remaining > 1 ? 's' : ''} → 1 ✨ · reste ${left}`;
     }
 }
 
