@@ -16,6 +16,10 @@ incrémenter le `?v=N` de leurs `<script>` dans `index.html` (et garder le même
 pour forcer le rechargement chez les joueurs. Bumper aussi `CACHE_NAME` dans `sw.js` quand
 un fichier mis en cache change.
 
+## 💬 Style de réponse
+
+Réponses **courtes et claires**. Aller à l'essentiel, pas de pavés.
+
 ## ⚙️ Workflow imposé par le propriétaire — À FAIRE À CHAQUE FEATURE
 
 Le propriétaire n'a pas le temps de vérifier que le travail est bien livré. Donc, pour
