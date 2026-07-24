@@ -8,7 +8,17 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - **Android (Chrome)** : menu ⋮ → « Installer l'application »
 - **iPhone (Safari)** : bouton Partager → « Sur l'écran d'accueil »
 
+**📖 Wiki du jeu : [`wiki.html`](wiki.html)** — explique toutes les mécaniques et les pourcentages (accessible aussi depuis le bouton « 📖 Wiki » dans l'app).
+
 ## 🎮 Fonctionnalités actuelles
+
+### ✅ Forge légendaire (nouveau !)
+- Chaque légendaire s'affiche sous forme de **schéma grisé** dans l'Atelier
+- Il se décompose en une grille **4×4 = 16 tuiles 2×2** aux couleurs précises
+- Place tes pixels **2×2 aux bonnes couleurs** sur le schéma : les cases s'allument et le dessin réapparaît
+- Une fois les 16 tuiles réunies, tente la **forge** — mais elle n'a que **12 % de réussite**
+- ⚠️ Les 16 pixels 2×2 sont **consommés à chaque tentative**, réussie ou non
+- C'est le seul moyen d'obtenir **précisément** le légendaire de ton choix
 
 ### ✅ Atelier (recyclage & craft)
 - Recyclez vos doublons en **Éclats ✨** — règle : **1 pixel = 1 éclat**, selon la surface :

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wiki — Pixel Collector</title>
+    <link rel="icon" href="icons/icon-192.png">
+    <style>
+        :root {
+            --accent: #FFD700;
+            --accent-2: #FFA500;
+            --text: #f4f3ff;
+            --text-dim: rgba(244, 243, 255, 0.66);
+            --surface: rgba(255, 255, 255, 0.06);
+            --surface-2: rgba(255, 255, 255, 0.09);
+            --hairline: rgba(255, 255, 255, 0.12);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(160deg, #1a1a2e 0%, #16213e 55%, #0f3460 100%);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 0 0 60px;
+        }
+        .wrap { max-width: 820px; margin: 0 auto; padding: 24px 18px; }
+        header.top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        h1 { font-size: 1.7em; margin: 0; }
+        .subtitle { color: var(--text-dim); margin: 0 0 24px; }
+        .back-link {
+            display: inline-block;
+            background: var(--surface-2);
+            border: 1px solid var(--hairline);
+            border-radius: 999px;
+            padding: 8px 16px;
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+        .back-link:hover { border-color: var(--accent); color: var(--accent); }
+        h2 {
+            font-size: 1.25em;
+            margin: 34px 0 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--hairline);
+        }
+        h3 { font-size: 1.05em; margin: 20px 0 8px; }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            border-radius: 14px;
+            padding: 18px 20px;
+            margin: 16px 0;
+        }
+        .card--forge { border-color: var(--accent-2); box-shadow: 0 0 22px rgba(255, 165, 0, 0.12); }
+        p { margin: 8px 0; }
+        ul { margin: 8px 0; padding-left: 22px; }
+        li { margin: 5px 0; }
+        code { background: rgba(0, 0, 0, 0.3); padding: 1px 6px; border-radius: 5px; font-size: 0.92em; }
+        .pill {
+            display: inline-block;
+            background: rgba(255, 215, 0, 0.14);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            border-radius: 999px;
+            padding: 2px 10px;
+            font-size: 0.82em;
+            font-weight: 700;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 0.95em;
+        }
+        th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--hairline); }
+        th { color: var(--text-dim); font-weight: 600; }
+        .rarity-common { color: #9ad; }
+        .rarity-rare { color: #6cf; }
+        .rarity-leg { color: var(--accent); font-weight: 700; }
+        .tip { background: rgba(255, 165, 0, 0.1); border-left: 3px solid var(--accent-2); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+        .steps { counter-reset: step; list-style: none; padding-left: 0; }
+        .steps li { position: relative; padding-left: 40px; margin: 12px 0; }
+        .steps li::before {
+            counter-increment: step;
+            content: counter(step);
+            position: absolute;
+            left: 0; top: 0;
+            width: 28px; height: 28px;
+            background: var(--accent);
+            color: #241f00;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.9em;
+        }
+        footer { color: var(--text-dim); text-align: center; margin-top: 40px; font-size: 0.85em; }
+        a { color: var(--accent); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header class="top">
+        <h1>📖 Wiki — Pixel Collector</h1>
+        <a class="back-link" href="index.html">← Retour au jeu</a>
+    </header>
+    <p class="subtitle">Tout ce qu'il faut savoir pour collectionner, assembler et forger tes pixels.</p>
+
+    <h2>🎯 Le but du jeu</h2>
+    <div class="card">
+        <p>Collectionne les <strong>294 pixels uniques</strong> du jeu : 4 pixels 1×1, 256 pixels 2×2 et
+        30 pixel arts légendaires 8×8. Tu obtiens des pixels en ouvrant tes coffres quotidiens, en
+        récoltant des éclats à la mine, en assemblant tes pixels à l'Atelier et — nouveauté — en
+        <strong>forgeant</strong> les légendaires toi-même.</p>
+    </div>
+
+    <h2>🧩 Les trois types de pixels</h2>
+    <div class="card">
+        <table>
+            <tr><th>Type</th><th>Rareté</th><th>Variantes</th><th>Ce que c'est</th></tr>
+            <tr><td>Pixel 1×1</td><td class="rarity-common">Commun</td><td>4</td><td>Une seule case, 4 couleurs : Rouge, Bleu, Vert, Jaune.</td></tr>
+            <tr><td>Pixel 2×2</td><td class="rarity-rare">Rare</td><td>256</td><td>Grille de 4 cases (4⁴ combinaisons de couleurs).</td></tr>
+            <tr><td>Pixel Art 8×8</td><td class="rarity-leg">Légendaire</td><td>30</td><td>Un dessin 8×8 dessiné à la main (smiley, cœur, fusée…).</td></tr>
+        </table>
+    </div>
+
+    <h2>📦 Les coffres</h2>
+    <div class="card">
+        <ul>
+            <li>Le coffre se recharge <strong>deux fois par jour</strong> : à <strong>midi</strong> et à <strong>minuit</strong> (heure de Paris).</li>
+            <li>Chaque ouverture donne <strong>3 pixels</strong> (plus avec la série 🔥, voir plus bas).</li>
+            <li>Chances de chaque ouverture :
+                <ul>
+                    <li><span class="rarity-common">Commun (1×1)</span> — <strong>70 %</strong></li>
+                    <li><span class="rarity-rare">Rare (2×2)</span> — <strong>28 %</strong></li>
+                    <li><span class="rarity-leg">Légendaire (8×8)</span> — <strong>2 %</strong></li>
+                </ul>
+            </li>
+            <li><strong>Pitié :</strong> un légendaire est <strong>garanti tous les 25 coffres</strong> sans légendaire. Le compteur est affiché sous le coffre.</li>
+        </ul>
+    </div>
+
+    <h2>🔥 La série quotidienne (streak)</h2>
+    <div class="card">
+        <ul>
+            <li>Ouvre un coffre chaque jour pour faire monter ta série.</li>
+            <li><strong>3 jours de suite</strong> : +1 pixel par coffre (4 au lieu de 3).</li>
+            <li><strong>7 jours de suite</strong> : +2 pixels par coffre (5 au lieu de 3).</li>
+            <li>La série avance <strong>une seule fois par jour</strong> (à la 1ʳᵉ ouverture) et se perd si tu sautes un jour.</li>
+        </ul>
+    </div>
+
+    <h2>⛏️ La mine à éclats</h2>
+    <div class="card">
+        <ul>
+            <li>La mine produit <strong>1 éclat ✨ toutes les 15 minutes</strong>, automatiquement, même hors ligne.</li>
+            <li>La réserve s'accumule jusqu'à un <strong>plafond de 32 éclats</strong> (~8 h). Reviens cliquer sur <strong>« Récolter »</strong> pour l'encaisser.</li>
+        </ul>
+    </div>
+
+    <h2>🛠️ L'Atelier</h2>
+    <div class="card">
+        <p>C'est là qu'on dépense ses <strong>éclats ✨</strong> et qu'on assemble ses pixels.</p>
+        <ul>
+            <li><strong>Acheter un pixel 1×1</strong> — 1 ✨ par pixel, de la couleur de ton choix.</li>
+            <li><strong>Assembler un pixel 2×2 sur mesure</strong> — compose exactement le 2×2 que tu veux, payé
+            avec tes pixels 1×1 des bonnes couleurs (ex. jaune-bleu-bleu-vert = 1 jaune + 2 bleus + 1 vert consommés).</li>
+        </ul>
+        <div class="tip">💡 Règle des éclats : <strong>1 pixel = 1 éclat</strong>. Un 1×1 vaut 1 ✨, un 2×2 vaut 4 ✨ (sa surface), un légendaire 64 ✨.</div>
+    </div>
+
+    <h2>🏆 La Forge légendaire <span class="pill">Nouveau</span></h2>
+    <div class="card card--forge">
+        <p>Plutôt que d'espérer tomber sur le bon légendaire au hasard, tu peux désormais le
+        <strong>forger toi-même</strong> — en le reconstruisant pixel par pixel.</p>
+
+        <h3>Comment ça marche</h3>
+        <ol class="steps">
+            <li>Dans l'Atelier, la Forge affiche les 30 légendaires sous forme de <strong>schémas grisés</strong>.</li>
+            <li>Chaque légendaire se décompose en une grille <strong>4×4 = 16 tuiles 2×2</strong>. Chaque tuile
+            correspond à un pixel 2×2 d'une <strong>couleur précise</strong>.</li>
+            <li>Tu places tes pixels 2×2 sur le schéma : quand tu possèdes la <strong>bonne tuile à la bonne couleur</strong>,
+            la case s'allume et se colore. Petit à petit, le dessin du légendaire réapparaît.</li>
+            <li>Quand les <strong>16 tuiles</strong> sont réunies, le bouton <strong>« Forger »</strong> s'active.</li>
+            <li>Tu tentes la forge… mais elle n'est <strong>pas garantie</strong> !</li>
+        </ol>
+
+        <h3>Le taux de réussite</h3>
+        <p>Chaque tentative de forge a <strong><span class="pill">12 % de réussite</span></strong>. C'est volontairement
+        difficile : un légendaire, ça se mérite.</p>
+        <div class="tip">⚠️ <strong>Attention :</strong> les 16 pixels 2×2 utilisés sont <strong>consommés à chaque
+        tentative</strong>, qu'elle réussisse ou non. En cas d'échec, il faut réassembler les tuiles avant de retenter.</div>
+
+        <h3>Combien ça coûte, en vrai ?</h3>
+        <ul>
+            <li>Un légendaire se découpe en 16 tuiles 2×2, soit en moyenne <strong>~9 motifs 2×2 distincts</strong> à réunir.</li>
+            <li>Chaque 2×2 sur mesure coûte 4 pixels 1×1 (≈ 4 ✨). Un jeu de 16 tuiles ≈ <strong>64 ✨</strong>.</li>
+            <li>Avec 12 % de réussite, il faut en moyenne <strong>~8 tentatives</strong>, soit environ <strong>≈ 530 ✨</strong> pour un légendaire ciblé.</li>
+        </ul>
+        <p>👉 C'est bien plus cher qu'un légendaire <em>aléatoire</em>, mais ici tu choisis <strong>exactement lequel</strong> tu veux obtenir.</p>
+
+        <div class="tip">💡 Astuce : regarde d'abord quelles tuiles 2×2 il te manque (indiquées avec ✅ / ❌ dans la
+        fenêtre de forge), puis assemble-les au fur et à mesure dans l'Atelier avant de tenter ta chance.</div>
+    </div>
+
+    <h2>🏅 Autres façons d'obtenir un légendaire</h2>
+    <div class="card">
+        <ul>
+            <li><strong>Coffre</strong> : 2 % à chaque pixel tiré (et garanti tous les 25 coffres via la pitié).</li>
+            <li><strong>Craft aléatoire</strong> : 64 ✨ pour un légendaire <em>tiré au hasard</em> parmi les 30.</li>
+            <li><strong>Forge</strong> : le seul moyen d'obtenir <em>précisément</em> le légendaire de ton choix.</li>
+        </ul>
+    </div>
+
+    <h2>👥 Joueurs &amp; 🏪 Marché</h2>
+    <div class="card">
+        <ul>
+            <li><strong>Joueurs</strong> : consulte le classement et la collection des autres joueurs.</li>
+            <li><strong>Marché</strong> : propose des échanges — troque tes doublons (et des éclats) contre ce qui te manque.</li>
+        </ul>
+    </div>
+
+    <footer>
+        🎨 Pixel Collector — <a href="index.html">Retour au jeu</a>
+    </footer>
+</div>
+</body>
+</html>
