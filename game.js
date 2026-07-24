@@ -32,7 +32,7 @@ import {
 // UI : notifications (toasts) + dialogue de confirmation stylé
 // Remplacent les alert()/confirm() natifs du navigateur.
 // ============================================================
-function showToast(message, type) {
+function showToast(message, type, options = {}) {
     const host = document.getElementById('appToast');
     if (!host) { console.log(message); return; }
 
@@ -47,13 +47,25 @@ function showToast(message, type) {
     const icons = { success: '✅', error: '⚠️', warn: '⚠️', info: 'ℹ️' };
     const toast = document.createElement('div');
     toast.className = 'toast ' + type;
-    const icon = document.createElement('span');
-    icon.className = 'toast__icon';
-    icon.textContent = icons[type] || icons.info;
+
+    // Visuel : soit le pixel obtenu (si fourni), soit l'icône du ton
+    if (options.pixel) {
+        toast.classList.add('toast--pixel');
+        const canvas = document.createElement('canvas');
+        canvas.className = 'toast__pixel';
+        PixelRenderer.drawPixel(canvas, options.pixel, 40);
+        toast.appendChild(canvas);
+    } else {
+        const icon = document.createElement('span');
+        icon.className = 'toast__icon';
+        icon.textContent = icons[type] || icons.info;
+        toast.appendChild(icon);
+    }
+
     const msg = document.createElement('span');
     msg.className = 'toast__msg';
     msg.textContent = message;
-    toast.append(icon, msg);
+    toast.appendChild(msg);
     host.appendChild(toast);
 
     const remove = () => {
@@ -1818,7 +1830,7 @@ async function finalizeCraft(pixel, title) {
     updateUniquePixelsCount();
     await saveUserData();
 
-    showToast(`${title} ${isNew ? '✨ nouveau !' : '(doublon)'}`, isNew ? 'success' : 'info');
+    showToast(`${title} ${isNew ? '✨ nouveau !' : '(doublon)'}`, isNew ? 'success' : 'info', { pixel });
     showCraftPreview(pixel, isNew);
     updateUI();
     updateAtelierUI();

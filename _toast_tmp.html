@@ -1,0 +1,16 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+:root{--r-md:14px;--text:#f4f3ff;--hairline-strong:rgba(255,255,255,.18);--info:#60a5fa;--ok:#34d399;--shadow-2:0 14px 40px rgba(0,0,0,.42)}
+body{background:#0b0d15;padding:20px;font-family:system-ui}
+#appToast{display:flex;flex-direction:column;gap:10px;max-width:360px}
+.toast{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:var(--r-md);background:linear-gradient(160deg,#1a1e2e,#12141f);border:1px solid var(--hairline-strong);border-left:4px solid var(--info);box-shadow:var(--shadow-2);color:var(--text);font-size:.92em;line-height:1.4}
+.toast--pixel{align-items:center}
+.toast.success{border-left-color:var(--ok)}
+.toast__pixel{width:40px;height:40px;flex-shrink:0;image-rendering:pixelated;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.toast__msg{flex:1}
+</style></head><body><div id="appToast"></div>
+<script src="pixel_renderer.js"></script><script src="pixel_data.js"></script><script>
+function mk(pixel,msg,type){const h=document.getElementById('appToast');const t=document.createElement('div');t.className='toast '+type+' toast--pixel';const c=document.createElement('canvas');c.className='toast__pixel';PixelRenderer.drawPixel(c,pixel,40);t.appendChild(c);const m=document.createElement('span');m.className='toast__msg';m.textContent=msg;t.appendChild(m);h.appendChild(t);}
+mk({type:'2x2',pattern:'1234'},'🎲 Pixel 2×2 aléatoire obtenu ! ✨ nouveau !','success');
+mk({type:'2x2',pattern:'4413'},'⭐ Nouveau pixel 2×2 obtenu ! ✨ nouveau !','success');
+mk({type:'art',data:PixelArts.find(a=>a.id==='art_heart').data,colors:PixelArts.find(a=>a.id==='art_heart').colors},'🏆 FORGE RÉUSSIE !','success');
+</script></body></html>
