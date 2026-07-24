@@ -1091,9 +1091,15 @@ function makeRandom2x2() {
     return { type: '2x2', pattern, id: `2x2_${pattern}`, name: `Pixel 2x2 #${pattern}` };
 }
 
-// Un légendaire aléatoire parmi les 30
+// Un légendaire, tiré au sort PONDÉRÉ par la rareté (les plus rares sortent
+// beaucoup moins souvent — le Cœur est le plus improbable).
 function makeRandomLegendary() {
-    const art = PixelArts[Math.floor(Math.random() * PixelArts.length)];
+    let total = 0;
+    const weights = PixelArts.map(a => { const w = artTier(a.id).weight; total += w; return w; });
+    let r = Math.random() * total;
+    let idx = weights.length - 1;
+    for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r < 0) { idx = i; break; } }
+    const art = PixelArts[idx];
     return { type: 'art', id: art.id, name: art.name, data: art.data, colors: art.colors };
 }
 
@@ -2033,7 +2039,30 @@ function updateAtelierUI() {
 // peut forger — mais la réussite n'est pas garantie, et les 2×2 utilisés sont
 // consommés à chaque tentative (réussie ou non). C'est ce qui rend un
 // légendaire difficile à obtenir de façon ciblée.
-const LEGENDARY_FORGE_RATE = 0.12; // 12 % de réussite par tentative
+// Rareté par légendaire : certains sont bien plus convoités que d'autres. La
+// rareté pilote deux choses :
+//  - le taux de réussite de la Forge (plus rare = plus dur à forger) ;
+//  - le poids du tirage quand un légendaire tombe au coffre (plus rare = sort
+//    moins souvent parmi les 30).
+// Le Cœur ❤️ (icône de l'app) est volontairement le plus rare de tous.
+const LEGENDARY_TIERS = {
+    mythic:    { label: 'Mythique',   forgeRate: 0.05, weight: 1,  color: '#ff5db1' },
+    legendary: { label: 'Légendaire', forgeRate: 0.08, weight: 2,  color: '#ffd54a' },
+    epic:      { label: 'Épique',     forgeRate: 0.12, weight: 5,  color: '#b388ff' },
+    common:    { label: 'Commun',     forgeRate: 0.20, weight: 10, color: '#8fd3ff' }
+};
+// Légendaires classés par rareté (les non listés = 'common')
+const LEGENDARY_RARITY = {
+    art_heart: 'mythic',
+    art_crown: 'legendary', art_diamond: 'legendary', art_rainbow: 'legendary',
+    art_alien: 'legendary', art_robot: 'legendary',
+    art_star: 'epic', art_rocket: 'epic', art_ghost: 'epic', art_shield: 'epic',
+    art_butterfly: 'epic', art_cat: 'epic', art_coin: 'epic', art_gift: 'epic',
+    art_moon: 'epic', art_sun: 'epic'
+};
+function artTierKey(id) { return LEGENDARY_RARITY[id] || 'common'; }
+function artTier(id) { return LEGENDARY_TIERS[artTierKey(id)]; }
+function artForgeRate(id) { return artTier(id).forgeRate; }
 
 // Couleurs de base en RGB (indices 1..4 alignés sur PixelRenderer.colors)
 const BASE_RGB = [
@@ -2213,6 +2242,14 @@ function renderForgeGrid() {
         label.textContent = owned ? art.name : `${prog.owned}/16`;
         item.appendChild(label);
 
+        const tier = artTier(art.id);
+        const tierTag = document.createElement('div');
+        tierTag.className = 'forge-item__tier';
+        tierTag.textContent = tier.label;
+        tierTag.style.color = tier.color;
+        item.appendChild(tierTag);
+        item.style.borderColor = tier.color + '3a';
+
         if (owned || prog.ready) {
             const badge = document.createElement('div');
             badge.className = 'forge-item__badge' + (owned ? '' : ' forge-item__badge--ready');
@@ -2247,18 +2284,23 @@ function renderForgeModal() {
     const owned = !!userCollection[art.id];
     const prog = forgeOwnedProgress(bp.needs);
 
+    const tier = artTier(art.id);
+    const ratePct = Math.round(artForgeRate(art.id) * 100);
     document.getElementById('forgeTitle').textContent = `🏆 ${art.name}`;
     drawBlueprint(document.getElementById('forgeCanvas'), bp.quant, 256, forgeMask(bp));
     document.getElementById('forgeProgressText').textContent = `${prog.owned} / ${prog.total}`;
 
     const status = document.getElementById('forgeStatus');
+    let ctx;
     if (owned) {
-        status.textContent = `✅ Déjà dans ta collection (×${userCollection[art.id].count}). Tu peux en forger un autre.`;
+        ctx = `déjà en collection (×${userCollection[art.id].count}), tu peux en forger un autre.`;
     } else if (prog.ready) {
-        status.textContent = '🔥 Schéma complet ! Tente la forge.';
+        ctx = '🔥 schéma complet, tente la forge !';
     } else {
-        status.textContent = `Il te manque ${prog.total - prog.owned} tuile(s) 2×2. Assemble-les dans l'Atelier ci-dessus.`;
+        ctx = `il te manque ${prog.total - prog.owned} tuile(s) 2×2 (à assembler dans l'Atelier).`;
     }
+    status.innerHTML = `<span class="forge-tier" style="color:${tier.color}">${tier.label}</span>`
+        + ` &nbsp;·&nbsp; <strong>${ratePct}%</strong> de réussite — ${ctx}`;
 
     // Liste des tuiles 2×2 requises (triées par motif)
     const needsEl = document.getElementById('forgeNeeds');
@@ -2287,7 +2329,7 @@ function renderForgeModal() {
     const btn = document.getElementById('forgeButton');
     btn.disabled = !prog.ready;
     btn.textContent = prog.ready
-        ? `🔥 Forger (${Math.round(LEGENDARY_FORGE_RATE * 100)} % de réussite)`
+        ? `🔥 Forger (${ratePct} % de réussite)`
         : '🔒 Schéma incomplet';
 }
 
@@ -2301,8 +2343,9 @@ async function attemptForge() {
         return;
     }
 
-    const pct = Math.round(LEGENDARY_FORGE_RATE * 100);
-    const msg = `Forger « ${art.name} » ?\n\n`
+    const forgeRate = artForgeRate(art.id);
+    const pct = Math.round(forgeRate * 100);
+    const msg = `Forger « ${art.name} » (${artTier(art.id).label}) ?\n\n`
         + `• 16 pixels 2×2 seront consommés (que la forge réussisse ou non)\n`
         + `• Chance de réussite : ${pct} %\n\n`
         + 'Tente ta chance ?';
@@ -2320,7 +2363,7 @@ async function attemptForge() {
         for (let i = 0; i < count; i++) removeOnePixelFromCollection(`2x2_${pattern}`);
     }
 
-    const success = Math.random() < LEGENDARY_FORGE_RATE;
+    const success = Math.random() < forgeRate;
 
     if (success) {
         const isNew = !userCollection[art.id];
