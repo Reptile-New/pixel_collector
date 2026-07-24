@@ -822,8 +822,6 @@
             grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
             gap: 12px;
             margin-top: 12px;
-            max-height: 340px;
-            overflow-y: auto;
             padding: 2px;
         }
         .forge-item {
@@ -2326,7 +2324,6 @@
 
                         <div class="atelier-card">
                             <h3>🛒 Acheter un pixel 1×1 <span class="buy-cost">1 ✨ / couleur</span></h3>
-                            <p class="micro-note">Les éclats ne servent qu'à ça. Choisis une couleur ci-dessous, puis assemble tes 1×1 en 2×2 juste en dessous.</p>
                             <div class="color-craft color-craft--buy">
                                 <div class="color-buy">
                                     <button class="color-craft-btn" data-craft-color="1" style="background:#FF0000" title="Rouge — 1 ✨" disabled></button>
@@ -2349,7 +2346,6 @@
 
                         <div class="atelier-card" style="margin-top: 20px;">
                             <h3>✨ Échanger des éclats contre un 2×2</h3>
-                            <p class="micro-note">Le moyen le plus rapide de dépenser tes éclats. Les légendaires, eux, ne s'achètent pas — coffre ou Forge uniquement.</p>
                             <div class="shard-craft">
                                 <button id="craftRandom2x2Btn" class="open-button shard-craft__btn" disabled>🎲 2×2 aléatoire <span class="shard-craft__cost">3 ✨</span></button>
                                 <button id="craftNew2x2Btn" class="open-button shard-craft__btn" disabled>⭐ 2×2 que tu n'as pas <span class="shard-craft__cost">4 ✨</span></button>
@@ -2359,7 +2355,6 @@
 
                         <div class="atelier-card" style="margin-top: 20px;">
                             <h3>🔨 Assembler un pixel 2×2 <span class="buy-cost">70% de réussite</span></h3>
-                            <p class="micro-note">Compose ton 2×2 case par case — payé avec tes pixels 1×1 des bonnes couleurs. ⚠️ 30 % de risque d'échec (les 1×1 sont perdus). Pour un 2×2 garanti, passe par les éclats ci-dessus.</p>
                             <div style="display: flex; align-items: center; gap: 25px; flex-wrap: wrap; margin: 15px 0;">
                                 <div class="custom-grid">
                                     <div class="custom-cell"></div>
@@ -2378,7 +2373,6 @@
 
                         <div class="atelier-card atelier-card--forge" style="margin-top: 20px;">
                             <h3>🏆 Forge légendaire <span class="buy-cost">5–20% selon rareté</span></h3>
-                            <p class="micro-note">Reproduis le schéma grisé d'un légendaire avec tes pixels 2×2 aux bonnes couleurs (16 tuiles), puis tente la forge. Chaque légendaire a sa propre rareté (le Cœur ❤️ est le plus dur). ⚠️ Les 2×2 sont consommés à chaque tentative. <a href="wiki.html" target="_blank" rel="noopener">En savoir plus →</a></p>
                             <div id="forgeGrid" class="forge-grid"></div>
                         </div>
                     </div>
@@ -2399,7 +2393,6 @@
                     <div class="trade-view">
                         <div class="trade-header">
                             <h2>🔄 Échanges</h2>
-                            <p>Troque tes doublons contre ce qui te manque.</p>
                         </div>
 
                         <!-- Sous-onglets -->
@@ -2559,7 +2552,6 @@
                 </div>
             </div>
             <button id="forgeButton" class="open-button" style="width: 100%; margin-top: 6px;" disabled>🔒 Schéma incomplet</button>
-            <p class="micro-note" style="margin-top: 10px;">Chaque tentative consomme les 16 tuiles 2×2, qu'elle réussisse ou non. Les tuiles manquantes se fabriquent dans l'Atelier (« Assembler un pixel 2×2 »).</p>
         </div>
     </div>
 
@@ -2591,10 +2583,10 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=33"></script>
-    <script src="pixel_data.js?v=33"></script>
-    <script src="pixel_renderer.js?v=33"></script>
-    <script type="module" src="game.js?v=33"></script>
+    <script type="module" src="firebase-config.js?v=34"></script>
+    <script src="pixel_data.js?v=34"></script>
+    <script src="pixel_renderer.js?v=34"></script>
+    <script type="module" src="game.js?v=34"></script>
     <script>
         // Dessine les vignettes de démonstration (vraies grilles de pixels)
         // dans l'Atelier : 1×1 = 1 case, 2×2 = 4 cases, 8×8 = 64 cases.
