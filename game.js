@@ -2046,11 +2046,15 @@ function updateAtelierUI() {
 //  - le poids du tirage quand un légendaire tombe au coffre (plus rare = sort
 //    moins souvent parmi les 30).
 // Le Cœur ❤️ (icône de l'app) est volontairement le plus rare de tous.
+// Les rangs ne réutilisent AUCUN mot des types de pixels (Commun = 1×1,
+// Rare = 2×2, Légendaire = 8×8) : sinon « un légendaire de rang Légendaire »
+// devient incompréhensible. Un légendaire a donc un RANG : Mythique, Royal,
+// Épique ou Classique.
 const LEGENDARY_TIERS = {
-    mythic:    { label: 'Mythique',   forgeRate: 0.05, weight: 1,  color: '#ff5db1' },
-    legendary: { label: 'Légendaire', forgeRate: 0.08, weight: 2,  color: '#ffd54a' },
-    epic:      { label: 'Épique',     forgeRate: 0.12, weight: 5,  color: '#b388ff' },
-    common:    { label: 'Commun',     forgeRate: 0.20, weight: 10, color: '#8fd3ff' }
+    mythic:    { label: 'Mythique',  forgeRate: 0.05, weight: 1,  color: '#ff5db1' },
+    legendary: { label: 'Royal',     forgeRate: 0.08, weight: 2,  color: '#ffd54a' },
+    epic:      { label: 'Épique',    forgeRate: 0.12, weight: 5,  color: '#b388ff' },
+    common:    { label: 'Classique', forgeRate: 0.20, weight: 10, color: '#8fd3ff' }
 };
 // Légendaires classés par rareté (les non listés = 'common')
 const LEGENDARY_RARITY = {
