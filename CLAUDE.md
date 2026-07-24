@@ -35,3 +35,16 @@ tout seul**, sans attendre de validation :
 
 Autrement dit : **commit → push → merge dans `main`, systématiquement**, sans redemander.
 Ne jamais laisser une fonctionnalité terminée en attente sur une branche.
+
+### 📓 Journal des nouveautés (`changelog.html`) — à mettre à jour à CHAQUE merge
+
+À chaque merge dans `main`, **avant** de merger :
+
+1. Ajouter une entrée en haut de `changelog.html` : incrémenter le numéro de version
+   (v1.x), un titre court, et 1 à 3 puces décrivant la nouveauté côté joueur (pas de jargon).
+2. Retirer la pastille « Nouveau » de l'entrée précédente et la mettre sur la nouvelle
+   (classe `rel--new` + `<span class="rel__new">`).
+3. Mettre à jour le numéro affiché dans l'en-tête d'`index.html` (chip `.ver-chip`, « 🆕 vX.Y »).
+
+Le but : le propriétaire clique sur 🆕 dans l'app et voit d'un coup ce qui a changé,
+sans comparer le site. Une version = un merge.

@@ -130,6 +130,7 @@ pixel_collector/
 ├── pixel_data.js       # Données des 30 pixel arts
 ├── pixel_renderer.js   # Module de rendu des pixels
 ├── wiki.html           # Page d'aide / wiki des mécaniques
+├── changelog.html      # Journal des nouveautés (versions)
 ├── sw.js               # Service worker (cache hors ligne)
 └── README.md           # Ce fichier
 ```

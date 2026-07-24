@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nouveautés — Pixel Collector</title>
+    <link rel="icon" href="icons/icon-192.png">
+    <style>
+        :root {
+            --accent: #FFD700;
+            --accent-2: #FFA500;
+            --text: #f4f3ff;
+            --text-dim: rgba(244, 243, 255, 0.66);
+            --surface: rgba(255, 255, 255, 0.06);
+            --surface-2: rgba(255, 255, 255, 0.09);
+            --hairline: rgba(255, 255, 255, 0.12);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: radial-gradient(1200px 600px at 50% -10%, #1c2036 0%, rgba(28, 32, 54, 0) 60%),
+                        linear-gradient(170deg, #0b0d15 0%, #10131f 55%, #0a0c13 100%);
+            background-attachment: fixed;
+            color: var(--text);
+            line-height: 1.6;
+            padding: 0 0 60px;
+            min-height: 100vh;
+        }
+        .wrap { max-width: 720px; margin: 0 auto; padding: 24px 18px; }
+        header.top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+        h1 { font-size: 1.6em; margin: 0; }
+        .subtitle { color: var(--text-dim); margin: 0 0 22px; }
+        .back-link {
+            display: inline-block;
+            background: var(--surface-2);
+            border: 1px solid var(--hairline);
+            border-radius: 999px;
+            padding: 8px 16px;
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+        .back-link:hover { border-color: var(--accent); color: var(--accent); }
+
+        .rel {
+            position: relative;
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            border-radius: 14px;
+            padding: 16px 18px;
+            margin: 14px 0;
+        }
+        .rel--new { border-color: var(--accent-2); box-shadow: 0 0 22px rgba(255, 165, 0, 0.12); }
+        .rel__head {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        .rel__ver { font-size: 1.15em; font-weight: 800; color: var(--accent); }
+        .rel__title { font-weight: 600; }
+        .rel__date { margin-left: auto; font-size: 0.8em; color: var(--text-dim); }
+        .rel__new {
+            font-size: 0.68em;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #241f00;
+            background: var(--accent);
+            border-radius: 999px;
+            padding: 2px 8px;
+        }
+        ul { margin: 6px 0 0; padding-left: 20px; }
+        li { margin: 4px 0; }
+        footer { color: var(--text-dim); text-align: center; margin-top: 34px; font-size: 0.85em; }
+        a { color: var(--accent); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header class="top">
+        <h1>🆕 Nouveautés</h1>
+        <a class="back-link" href="index.html">← Retour au jeu</a>
+    </header>
+    <p class="subtitle">Ce qui a changé à chaque mise à jour du jeu. La plus récente est en haut.</p>
+
+    <div class="rel rel--new">
+        <div class="rel__head">
+            <span class="rel__ver">v1.6</span>
+            <span class="rel__new">Nouveau</span>
+            <span class="rel__title">Interface épurée + page Nouveautés</span>
+        </div>
+        <ul>
+            <li>Cette page 🆕 : suis les mises à jour d'un coup d'œil, sans fouiller le site.</li>
+            <li>Forge : la liste des 30 légendaires fait défiler la page entière (fini la petite boîte).</li>
+            <li>Moins de texte dans l'app — les explications détaillées restent dans le 📖 Wiki.</li>
+        </ul>
+    </div>
+
+    <div class="rel">
+        <div class="rel__head">
+            <span class="rel__ver">v1.5</span>
+            <span class="rel__title">Harmonisation du site</span>
+        </div>
+        <ul>
+            <li>Compteur de collection corrigé : <strong>290</strong> pixels au total (et non 294).</li>
+            <li>Wiki repassé au même thème sombre que le jeu.</li>
+        </ul>
+    </div>
+
+    <div class="rel">
+        <div class="rel__head">
+            <span class="rel__ver">v1.4</span>
+            <span class="rel__title">Rareté par légendaire</span>
+        </div>
+        <ul>
+            <li>Chaque légendaire a un rang : Mythique, Légendaire, Épique, Commun.</li>
+            <li>Forge plus ou moins dure selon le rang (5 % à 20 %). Le Cœur ❤️ est le plus rare.</li>
+            <li>Au coffre, les plus rares sortent beaucoup moins souvent.</li>
+        </ul>
+    </div>
+
+    <div class="rel">
+        <div class="rel__head">
+            <span class="rel__ver">v1.3</span>
+            <span class="rel__title">Craft à la chaîne + look plus pro</span>
+        </div>
+        <ul>
+            <li>Les crafts ne renvoient plus au coffre : on reste dans l'Atelier avec un aperçu « Dernier obtenu ».</li>
+            <li>Direction artistique plus sobre (fond apaisé, boutons dorés adoucis).</li>
+        </ul>
+    </div>
+
+    <div class="rel">
+        <div class="rel__head">
+            <span class="rel__ver">v1.2</span>
+            <span class="rel__title">En-tête compact + équilibrage</span>
+        </div>
+        <ul>
+            <li>Barre du haut réduite à une seule ligne.</li>
+            <li>Assemblage sur mesure : 70 % de réussite. Prix des 2×2 revus (🎲 3 ✨ · ⭐ 4 ✨).</li>
+            <li>Mine ralentie : 1 éclat / 30 min, plafond 8 h.</li>
+        </ul>
+    </div>
+
+    <div class="rel">
+        <div class="rel__head">
+            <span class="rel__ver">v1.1</span>
+            <span class="rel__title">Légendaires plus rares</span>
+        </div>
+        <ul>
+            <li>Suppression de la pitié ; chance au coffre abaissée à 1 %.</li>
+            <li>Le coffre donne des pixels 2×2 + des éclats.</li>
+        </ul>
+    </div>
+
+    <div class="rel">
+        <div class="rel__head">
+            <span class="rel__ver">v1.0</span>
+            <span class="rel__title">La Forge légendaire</span>
+        </div>
+        <ul>
+            <li>Reconstruis un légendaire avec 16 pixels 2×2, puis tente la forge.</li>
+            <li>Création du 📖 Wiki qui explique toutes les mécaniques.</li>
+        </ul>
+    </div>
+
+    <footer>🎨 Pixel Collector — <a href="index.html">Retour au jeu</a></footer>
+</div>
+</body>
+</html>
