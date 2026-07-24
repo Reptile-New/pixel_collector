@@ -22,7 +22,7 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - C'est le seul moyen d'obtenir **précisément** le légendaire de ton choix
 
 ### ✅ Atelier (dépense des éclats)
-- Les **éclats ✨** viennent des coffres (2 à 10 par ouverture) et de la mine.
+- Les **éclats ✨** viennent des coffres (50 à 100 par ouverture) et de la mine.
 - Dépensez-les de plusieurs façons :
   - **Pixel 1×1** (1 ✨) : de la couleur de votre choix
   - **🎲 Pixel 2×2 aléatoire** (3 ✨) : le moins cher, mais peut être un doublon
@@ -32,8 +32,8 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - **Les légendaires ne s'achètent pas avec des éclats** — coffre (1 %) ou Forge uniquement.
 
 ### ✅ Mine à éclats (récolte passive)
-- Une **mine** produit **1 éclat ✨ toutes les 30 min**, automatiquement, même hors ligne
-- La réserve s'accumule jusqu'à un **plafond de 16 éclats** (8 h) — reviens cliquer sur **« Récolter »** au moins une fois par 8 h
+- Une **mine** produit **1 éclat ✨ toutes les 15 min**, automatiquement, même hors ligne
+- La réserve s'accumule jusqu'à un **plafond de 32 éclats** (8 h) — reviens cliquer sur **« Récolter »** au moins une fois par 8 h
 - Barre de progression + compte à rebours du prochain éclat en direct
 - Les éclats récoltés alimentent directement l'Atelier (achat de 1×1, craft de 2×2, assemblage…)
 
@@ -58,7 +58,7 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - Ouverture de coffre avec animation
 - Contenu d'un coffre :
   - **3 à 4 pixels 2×2** (+ bonus de série)
-  - **2 à 10 éclats ✨**
+  - **50 à 100 éclats ✨**
   - **1 %** de chance d'un **pixel art légendaire** en bonus (aléatoire, sans pitié)
 
 ### ✅ Collection

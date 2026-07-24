@@ -147,8 +147,8 @@ let userStats = {
 // Les légendaires ne s'achètent PAS avec des éclats : coffre (rare) ou Forge.
 const CRAFT_COSTS = { craft1x1: 1, craft2x2Random: 3, craft2x2New: 4 };
 // Contenu d'un coffre : des éclats (min..max) + des tuiles 2×2 (min..max de base).
-const CHEST_SHARDS_MIN = 2;
-const CHEST_SHARDS_MAX = 10;
+const CHEST_SHARDS_MIN = 50;
+const CHEST_SHARDS_MAX = 100;
 const CHEST_TILES_MIN = 3;
 const CHEST_TILES_MAX = 4;
 // Chance d'obtenir un légendaire en ouvrant un coffre. Rare et SANS pitié :
@@ -161,8 +161,8 @@ const STREAK_BONUSES = [{ days: 3, extra: 1 }, { days: 7, extra: 2 }];
 // La mine produit 1 éclat toutes les MINE_RATE_MS, jusqu'à un plafond de MINE_CAP.
 // Le joueur revient de temps en temps cliquer sur « Récolter » pour encaisser
 // les éclats accumulés. Le plafond incite à revenir plusieurs fois par jour.
-const MINE_RATE_MS = 30 * 60 * 1000; // 1 éclat toutes les 30 minutes
-const MINE_CAP = 16;                 // réserve maximale = 8 h d'accumulation
+const MINE_RATE_MS = 15 * 60 * 1000; // 1 éclat toutes les 15 minutes
+const MINE_CAP = 32;                 // réserve maximale = 8 h d'accumulation
 // Assemblage sur mesure d'un 2×2 : n'est pas garanti (sinon choisir son 2×2
 // exact serait trop facile). En cas d'échec, les pixels 1×1 sont perdus.
 const CUSTOM_CRAFT_RATE = 0.70; // 70 % de réussite
