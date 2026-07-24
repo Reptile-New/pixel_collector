@@ -1827,14 +1827,16 @@ async function finalizeCraft(pixel, title) {
     userStats.totalPixels++;
 
     updateUniquePixelsCount();
-    await saveUserData();
 
     // 1×1 et 2×2 sont du consommable : un doublon est normal, on ne distingue
     // donc plus « nouveau » de « doublon ».
+    // Le retour visuel part AVANT la sauvegarde pour que le craft soit instantané.
     showToast(title, 'success', { pixel });
     showCraftPreview(pixel);
     updateUI();
     updateAtelierUI();
+
+    saveUserData(); // sauvegarde en arrière-plan : l'écran ne l'attend pas
 }
 
 // Aperçu « dernier obtenu » dans l'Atelier
@@ -1919,7 +1921,11 @@ function updateCustomCraftUI() {
         parts.push(`${needed}× ${COLOR_NAMES[digit]} ${have >= needed ? '✅' : `❌ (tu en as ${have})`}`);
     }
     document.getElementById('customCraftNeeds').innerHTML = 'Coût en pixels 1×1 : ' + parts.join(' &nbsp;·&nbsp; ');
-    document.getElementById('customCraftButton').disabled = !ok;
+    const btn = document.getElementById('customCraftButton');
+    btn.disabled = !ok;
+    // Plus de pop-up de confirmation : le taux de réussite est affiché sur le
+    // bouton lui-même, l'assemblage part au premier clic.
+    btn.textContent = `🎯 Assembler (${Math.round(CUSTOM_CRAFT_RATE * 100)} % de réussite)`;
 }
 
 async function craftCustom2x2() {
@@ -1934,19 +1940,7 @@ async function craftCustom2x2() {
         }
     }
 
-    // Avertir si on consomme un dernier exemplaire
-    const lastOnes = Object.entries(needs)
-        .filter(([digit, needed]) => userCollection[`1x1_${digit}`].count - needed < 1)
-        .map(([digit]) => COLOR_NAMES[digit]);
-
-    const pct = Math.round(CUSTOM_CRAFT_RATE * 100);
-    let msg = `Assembler le Pixel 2x2 #${pattern} en consommant ${customPattern.length} pixels 1×1 ?\n\n`
-        + `⚙️ ${pct} % de réussite — en cas d'échec, les pixels 1×1 sont perdus.`;
-    if (lastOnes.length > 0) {
-        msg += `\n\n⚠️ Tu vas consommer ton DERNIER exemplaire de : ${lastOnes.join(', ')}`;
-    }
-    if (!await uiConfirm(msg, { icon: '🔨', confirmLabel: '🔨 Assembler' })) return;
-
+    // Pas de confirmation : un clic = un assemblage, immédiat.
     // Consommer les pixels 1x1 (dans tous les cas, réussite ou non)
     for (const [digit, needed] of Object.entries(needs)) {
         for (let i = 0; i < needed; i++) {
@@ -1957,10 +1951,10 @@ async function craftCustom2x2() {
     // Tenter l'assemblage
     if (Math.random() >= CUSTOM_CRAFT_RATE) {
         updateUniquePixelsCount();
-        await saveUserData();
         showToast('💥 Assemblage raté… tes pixels 1×1 sont perdus. Retente ta chance !', 'error');
         updateUI();
         updateAtelierUI();
+        saveUserData(); // sauvegarde en arrière-plan : l'écran ne l'attend pas
         return;
     }
 
