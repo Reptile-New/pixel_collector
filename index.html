@@ -253,6 +253,19 @@
             font-weight: bold;
         }
 
+        /* Fiche d'un pixel (clic depuis la collection) */
+        .pixel-detail__canvas {
+            width: 192px;
+            height: 192px;
+            image-rendering: pixelated;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.25);
+            box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+        }
+        .pixel-detail__tier { font-weight: 700; font-size: 0.95em; }
+        .pixel-detail__count { margin-top: 6px; opacity: 0.85; }
+        .pixel-detail__note { margin-top: 14px; font-size: 0.85em; opacity: 0.65; line-height: 1.45; }
+
         /* Petite note sous un champ (ex. règle de changement de pseudo) */
         .stat-hint {
             font-size: 0.78em;
@@ -2251,7 +2264,7 @@
                 <div class="stat-chip" title="Éclats">✨ <span id="shardCount">0</span></div>
                 <div class="stat-chip" title="Série">🔥 <span id="streakCount">0</span></div>
             </div>
-            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.6</a>
+            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.7</a>
             <a class="icon-chip" href="wiki.html" target="_blank" rel="noopener" title="Wiki / aide">📖</a>
             <button id="profileButton" class="profile-chip" title="Mon profil">👤 <span id="profileName">Joueur</span></button>
         </header>
@@ -2285,7 +2298,7 @@
 
                     <div class="result-container" id="resultView">
                         <div class="legendary-banner" id="legendaryBanner">✨ LÉGENDAIRE ! ✨</div>
-                        <div class="result-label" id="resultLabel">Vous avez obtenu :</div>
+                        <div class="result-label" id="resultLabel">Tu as obtenu :</div>
                         <div class="result-subtitle" id="resultSubtitle"></div>
                         <div id="resultPixels" style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
                             <!-- Pixels obtenus, générés dynamiquement -->
@@ -2389,7 +2402,7 @@
                                     <div class="custom-cell"></div>
                                 </div>
                                 <div>
-                                    <div id="customCraftTarget" style="font-weight: bold; font-size: 1.1em;">Pixel 2x2 #1111</div>
+                                    <div id="customCraftTarget" style="font-weight: bold; font-size: 1.1em;">Tuile 2×2 #1111</div>
                                     <div id="customCraftOwned" style="font-size: 0.85em; opacity: 0.85; margin-top: 4px;"></div>
                                 </div>
                             </div>
@@ -2508,14 +2521,6 @@
                     <span class="stat-label">💎 Légendaires</span>
                     <span class="stat-value" id="profLegendaries">0 / 30</span>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">🟦 Tuiles 2×2</span>
-                    <span class="stat-value" id="profTiles">0 / 256</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">📚 Collection</span>
-                    <span class="stat-value" id="profProgress">0 %</span>
-                </div>
                 <button id="logoutButton" class="open-button" style="margin-top: 20px; width: 100%; padding: 10px;">
                     Déconnexion
                 </button>
@@ -2526,6 +2531,18 @@
                     🗑️ Supprimer mon compte
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Fiche d'un pixel de la collection -->
+    <div id="pixelDetailModal" class="modal-overlay">
+        <div class="profile-panel" style="max-width: 340px; text-align: center;">
+            <button id="closePixelDetail" class="modal-close">×</button>
+            <canvas id="pixelDetailCanvas" class="pixel-detail__canvas"></canvas>
+            <h2 id="pixelDetailName" style="margin: 16px 0 6px; font-size: 1.25em;">Pixel</h2>
+            <div id="pixelDetailTier" class="pixel-detail__tier"></div>
+            <div id="pixelDetailCount" class="pixel-detail__count"></div>
+            <p id="pixelDetailNote" class="pixel-detail__note"></p>
         </div>
     </div>
 
@@ -2540,10 +2557,6 @@
                     <div style="text-align: center;">
                         <div style="color: rgba(255,255,255,0.7); font-size: 0.78em;">💎 Légendaires</div>
                         <div style="color: white; font-size: 1.2em; font-weight: bold;" id="modalUniquePixels">0 / 30</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="color: rgba(255,255,255,0.7); font-size: 0.78em;">🟦 Tuiles 2×2</div>
-                        <div style="color: white; font-size: 1.2em; font-weight: bold;" id="modalTotalPixels">0 / 256</div>
                     </div>
                 </div>
             </div>
@@ -2614,10 +2627,10 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=45"></script>
-    <script src="pixel_data.js?v=45"></script>
-    <script src="pixel_renderer.js?v=45"></script>
-    <script type="module" src="game.js?v=45"></script>
+    <script type="module" src="firebase-config.js?v=46"></script>
+    <script src="pixel_data.js?v=46"></script>
+    <script src="pixel_renderer.js?v=46"></script>
+    <script type="module" src="game.js?v=46"></script>
     <script>
         // Dessine les vignettes de démonstration (vraies grilles de pixels)
         // dans l'Atelier : 1×1 = 1 case, 2×2 = 4 cases, 8×8 = 64 cases.

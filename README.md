@@ -1,6 +1,7 @@
 # 🎨 Pixel Collector
 
-Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2 et des pixel arts rares en ouvrant des coffres quotidiens !
+Un jeu de collection de pixels : tu ouvres des coffres, tu assembles des tuiles à l'Atelier
+et tu forges les 30 **légendaires** 8×8.
 
 **🎮 Jouer en ligne : https://reptile-new.github.io/pixel_collector/**
 
@@ -8,167 +9,108 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - **Android (Chrome)** : menu ⋮ → « Installer l'application »
 - **iPhone (Safari)** : bouton Partager → « Sur l'écran d'accueil »
 
-**📖 Wiki du jeu : [`wiki.html`](wiki.html)** — explique toutes les mécaniques et les pourcentages (accessible aussi depuis le bouton « 📖 Wiki » dans l'app).
+**📖 Wiki du jeu : [`wiki.html`](wiki.html)** — toutes les mécaniques et tous les pourcentages
+(accessible aussi depuis le bouton « 📖 » dans l'app).
+**🆕 Journal des nouveautés : [`changelog.html`](changelog.html)**.
 
-## 🎮 Fonctionnalités actuelles
+## 🧩 Les trois types de pixels
 
-### ✅ Forge légendaire (nouveau !)
-- Chaque légendaire s'affiche sous forme de **schéma grisé** dans l'Atelier
-- Il se décompose en une grille **4×4 = 16 tuiles 2×2** aux couleurs précises
-- Place tes pixels **2×2 aux bonnes couleurs** sur le schéma : les cases s'allument et le dessin réapparaît
-- Une fois les 16 tuiles réunies, tente la **forge** — réussite **variable selon la rareté**
-  (de **5 %** pour le Cœur ❤️ jusqu'à **20 %** pour les plus communs)
-- ⚠️ Les 16 pixels 2×2 sont **consommés à chaque tentative**, réussie ou non
-- C'est le seul moyen d'obtenir **précisément** le légendaire de ton choix
+| Type | Rareté | Variantes | Rôle |
+|---|---|---|---|
+| **Pixel 1×1** | Commun | 4 (Rouge, Bleu, Vert, Jaune) | Matière première de l'assemblage |
+| **Tuile 2×2** | Rare | 256 (4⁴) | Matière première de la Forge |
+| **Légendaire 8×8** | Légendaire | 30 dessins | Le seul vrai trophée |
 
-### ✅ Atelier (dépense des éclats)
-- Les **éclats ✨** viennent des coffres (50 à 100 par ouverture) et de la mine.
-- Dépensez-les de plusieurs façons :
-  - **Pixel 1×1** (1 ✨) : de la couleur de votre choix
-  - **🎲 Pixel 2×2 aléatoire** (3 ✨) : le moins cher, mais peut être un doublon
-  - **⭐ Pixel 2×2 garanti nouveau** (4 ✨) : un 2×2 que vous n'avez pas encore
-  - **🔨 Assemblage sur mesure** (70 % de réussite) : composez exactement le 2×2 voulu,
-    payé avec vos pixels 1×1 des bonnes couleurs — en cas d'échec, les 1×1 sont perdus
-- **Les légendaires ne s'achètent pas avec des éclats** — coffre (1 %) ou Forge uniquement.
+Soit **290 pixels uniques** au total — mais **seuls les légendaires comptent** comme score.
 
-### ✅ Mine à éclats (récolte passive)
-- Une **mine** produit **1 éclat ✨ toutes les 15 min**, automatiquement, même hors ligne
-- La réserve s'accumule jusqu'à un **plafond de 32 éclats** (8 h) — reviens cliquer sur **« Récolter »** au moins une fois par 8 h
-- Barre de progression + compte à rebours du prochain éclat en direct
-- Les éclats récoltés alimentent directement l'Atelier (achat de 1×1, craft de 2×2, assemblage…)
+## 📦 Les coffres
 
-### ✅ Coffres midi & minuit (2 par jour)
-- Le coffre se recharge **deux fois par jour** : à **midi** et à **minuit** (heure de Paris), pour tout le monde
-- Chaque demi-journée (00 h→12 h, 12 h→00 h) donne droit à une ouverture
-- La **série 🔥 n'avance qu'une fois par jour** (à la 1ʳᵉ ouverture) : ouvrir les deux coffres ne gonfle pas la série
+- Le coffre se recharge **2 h après chaque ouverture** — jusqu'à **12 coffres par jour**.
+- Contenu d'une ouverture :
+  - **15 à 25 éclats ✨**
+  - **3 à 7 pixels 1×1**
+  - **2 à 4 tuiles 2×2** (+ bonus de série)
+  - **0,3 %** de chance d'un **légendaire** en bonus, sans pitié ni compteur
+    (~1 par mois pour qui ouvre ses 12 coffres quotidiens)
+- La **série 🔥 n'avance qu'une fois par jour**, à la première ouverture :
+  **3 jours** de suite = +1 tuile par coffre, **7 jours** = +2 tuiles. Un jour sauté et elle repart à 1.
 
-### ✅ Série quotidienne (streak)
-- Ouvrez votre coffre chaque jour pour faire monter votre série 🔥
-- **3 jours consécutifs** : +1 tuile 2×2 par coffre
-- **7 jours consécutifs** : +2 tuiles 2×2 par coffre
-- La série est perdue si vous sautez un jour
+## ⛏️ La mine à éclats
 
-### ✅ Système de connexion
-- Création de compte avec email/mot de passe
-- Connexion/déconnexion
-- Sauvegarde locale (localStorage pour l'instant)
+- Produit **1 éclat ✨ toutes les 15 min**, même hors ligne, jusqu'à un **plafond de 32** (8 h).
+- Compte à rebours et barre de progression en direct, bouton « Récolter ».
 
-### ✅ Système de coffres
-- 2 coffres gratuits par jour — ils se rechargent à midi et à minuit (heure de Paris) pour tout le monde
-- Ouverture de coffre avec animation
-- Contenu d'un coffre :
-  - **3 à 4 pixels 2×2** (+ bonus de série)
-  - **50 à 100 éclats ✨**
-  - **1 %** de chance d'un **pixel art légendaire** en bonus (aléatoire, sans pitié)
+## 🔨 L'Atelier
 
-### ✅ Collection
-- 290 pixels uniques à collectionner au total
-  - 4 pixels 1x1
-  - 256 pixels 2x2
-  - 30 pixel arts 8x8
-- Affichage de votre collection complète
-- Recherche dans la collection
-- Compteur de doublons
+- **Pixel 1×1** — 1 ✨, couleur au choix.
+- **🎲 Tuile au hasard** — 3 ✨, peut être un doublon.
+- **⭐ Tuile que tu n'as pas** — 4 ✨, garantie nouvelle.
+- **🔨 Assembler une tuile sur mesure** — composes exactement la tuile voulue, payée avec
+  4 pixels 1×1 des bonnes couleurs. **70 % de réussite**, les 1×1 sont perdus en cas d'échec
+  (soit ~6 ✨ la tuile choisie, le prix du sur-mesure). Pas de confirmation : un clic, ça part.
+- **Les légendaires ne s'achètent pas avec des éclats** — coffre (0,3 %) ou Forge, point.
 
-### ✅ Statistiques
-- Nombre total de pixels possédés
-- Nombre de pixels uniques
-- Nombre de coffres ouverts
-- Dernières trouvailles affichées
+## 🏆 La Forge légendaire
 
-### ✅ 30 Pixel Arts Légendaires
-1. Smiley 😊
-2. Coeur ❤️
-3. Champignon 🍄
-4. Étoile ⭐
-5. Cerise 🍒
-6. Diamant 💎
-7. Fantôme 👻
-8. Pizza 🍕
-9. Couronne 👑
-10. Fleur 🌸
-11. Fusée 🚀
-12. Clé 🔑
-13. Arc-en-ciel 🌈
-14. Soleil ☀️
-15. Lune 🌙
-16. Café ☕
-17. Chat 🐱
-18. Pièce 🪙
-19. Bombe 💣
-20. Papillon 🦋
-21. Robot 🤖
-22. Parapluie ☂️
-23. Poisson 🐟
-24. Ballon 🎈
-25. Pomme 🍎
-26. Cadeau 🎁
-27. Ananas 🍍
-28. Bonbon 🍬
-29. Bouclier 🛡️
-30. Alien 👽
+- Chaque légendaire s'affiche en **schéma grisé** : une grille **4×4 = 16 tuiles 2×2**.
+- Quand les 16 tuiles sont réunies, la forge s'active. Elle n'est **pas garantie** et les
+  16 tuiles sont **consommées à chaque tentative**, réussie ou non.
+- Réussite selon le **rang** du légendaire — c'est aussi lui qui pilote la probabilité de
+  sortie au coffre :
 
-## 🚀 Comment lancer le jeu
+| Rang | Forge | Combien | Exemples |
+|---|---|---|---|
+| Mythique | 5 % | 1 | Cœur ❤️ |
+| Royal | 8 % | 5 | Couronne, Diamant, Arc-en-ciel, Alien, Robot |
+| Épique | 12 % | 10 | Étoile, Fusée, Fantôme, Chat, Bouclier… |
+| Classique | 20 % | 14 | Smiley, Pizza, Fleur, Pomme, Bonbon… |
 
-1. Ouvrez simplement `index.html` dans votre navigateur
-2. Le jeu démarre automatiquement en mode invité
-3. Cliquez sur le coffre pour l'ouvrir et obtenir des pixels 2×2 + des éclats !
+Le mot « légendaire » désigne **le type de pixel** ; entre eux, les 30 se distinguent par leur
+**rang** — aucun mot n'est réutilisé aux deux niveaux.
 
-## 📋 À venir
+## 🤝 Les échanges
 
-- [ ] Sécuriser l'ouverture des coffres et les échanges côté serveur (Cloud Functions)
-- [ ] Succès et défis
-- [ ] Affichage détaillé de chaque pixel (avec recyclage individuel)
-- [ ] Statistiques avancées
+- Propose un pixel et/ou des éclats contre un pixel et/ou des éclats d'un autre joueur.
+- Ce que tu offres est **mis de côté** dès l'envoi, puis récupérable dans l'historique
+  si la proposition est refusée ou annulée.
+
+## 👤 Compte
+
+- Connexion par email/mot de passe ou compte Google, sauvegarde dans **Firestore**.
+- Le **pseudo** se change une fois tous les **30 jours** (3 à 16 caractères, unique).
+
+## 🚀 Lancer le jeu en local
+
+1. Servir le dossier en HTTP (les modules ES et le service worker ne fonctionnent pas en `file://`) :
+   `python3 -m http.server 8000`, puis ouvrir http://localhost:8000
+2. La configuration Firebase est déjà en place dans `firebase-config.js`.
 
 ## 🎨 Structure du projet
 
 ```
 pixel_collector/
 ├── index.html          # Interface + tout le CSS
-├── game.js             # Logique du jeu
-├── pixel_data.js       # Données des 30 pixel arts
-├── pixel_renderer.js   # Module de rendu des pixels
-├── wiki.html           # Page d'aide / wiki des mécaniques
-├── changelog.html      # Journal des nouveautés (versions)
+├── game.js             # Logique du jeu (module ES)
+├── firebase-config.js  # Initialisation Firebase (auth + Firestore)
+├── pixel_data.js       # Données des 30 légendaires
+├── pixel_renderer.js   # Rendu des pixels sur canvas
+├── wiki.html           # Wiki des mécaniques
+├── changelog.html      # Journal des nouveautés
+├── admin.html/admin.js # Page d'administration
 ├── sw.js               # Service worker (cache hors ligne)
 └── README.md           # Ce fichier
 ```
 
-## 🔧 Configuration Firebase (À faire)
+> Après toute modif de `game.js`, `pixel_renderer.js`, `pixel_data.js` ou `firebase-config.js` :
+> incrémenter le `?v=N` de leurs `<script>` dans `index.html` (même N partout, y compris dans
+> l'import de `firebase-config.js` en tête de `game.js`) et bumper `CACHE_NAME` dans `sw.js`.
 
-Pour activer la sauvegarde en ligne, modifiez les informations dans `game.js` :
+## 📋 À venir
 
-```javascript
-const firebaseConfig = {
-    apiKey: "VOTRE_API_KEY",
-    authDomain: "VOTRE_AUTH_DOMAIN",
-    projectId: "VOTRE_PROJECT_ID",
-    storageBucket: "VOTRE_STORAGE_BUCKET",
-    messagingSenderId: "VOTRE_MESSAGING_SENDER_ID",
-    appId: "VOTRE_APP_ID"
-};
-```
-
-## 🎯 Les trois types de pixels
-
-- **Pixels 1×1** : 4 couleurs (Rouge, Bleu, Vert, Jaune). S'achètent à l'Atelier (1 ✨).
-- **Pixels 2×2** : 256 combinaisons (4⁴). Tombent des coffres, ou se craftent à l'Atelier.
-- **Pixel Arts 8×8 (Légendaires)** : 30 designs dessinés à la main, palette personnalisée.
-  Uniquement via coffre (**1 %**, tirage pondéré par la rareté) ou via la **Forge**
-  (5 % à 20 % selon la rareté du légendaire).
-
-## 📊 Progression
-
-- **Objectif principal** : Compléter la collection des 290 pixels uniques
-- **Défi ultime** : Obtenir les 30 pixel arts légendaires — soit en priant le coffre (1 %),
-  soit en les **forgeant** un par un (le seul moyen de viser un légendaire précis)
-
-## 🎮 Conseils
-
-1. Ouvrez vos deux coffres chaque jour (midi + minuit) !
-2. Dépensez vos éclats à l'Atelier pour compléter vos 2×2
-3. Visez un légendaire précis via la Forge, en réunissant ses 16 tuiles 2×2
+- [ ] Sécuriser l'ouverture des coffres et les échanges côté serveur (Cloud Functions) —
+      aujourd'hui les délais reposent sur l'horloge du navigateur
+- [ ] Succès et défis
+- [ ] Recyclage d'un pixel depuis sa fiche
 
 ---
 
