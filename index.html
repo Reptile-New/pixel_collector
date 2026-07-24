@@ -582,6 +582,74 @@
             opacity: 0.5;
         }
 
+        /* Le Filon : zone cliquable pour récolter à la pioche */
+        .mine-pick {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: border-color 0.2s, transform 0.06s;
+        }
+        .mine-pick:hover { border-color: rgba(255, 215, 0, 0.5); }
+        .mine-pick:active { transform: scale(0.98); }
+        .mine-pick.is-exhausted { opacity: 0.45; cursor: default; }
+        .mine-pick.is-exhausted:active { transform: none; }
+
+        .mine-pick-icon {
+            font-size: 1.5em;
+            line-height: 1;
+            display: inline-block;
+        }
+        .mine-pick-icon.hit { animation: pickHit 0.18s ease; }
+        @keyframes pickHit {
+            0% { transform: rotate(0deg) scale(1); }
+            45% { transform: rotate(-32deg) scale(1.12); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+
+        .mine-pick-body { flex: 1; display: block; text-align: left; }
+
+        .mine-pick-bar {
+            display: block;
+            height: 7px;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+        .mine-pick-fill {
+            display: block;
+            height: 100%;
+            width: 0%;
+            border-radius: 5px;
+            background: linear-gradient(90deg, #FFA500, #FFD700);
+            transition: width 0.12s linear;
+        }
+        .mine-pick-label { font-size: 0.78em; opacity: 0.85; }
+
+        .mine-pick-float {
+            position: absolute;
+            right: 12px;
+            top: 4px;
+            font-weight: bold;
+            color: #FFD700;
+            pointer-events: none;
+            animation: pickFloat 0.9s ease-out forwards;
+        }
+        @keyframes pickFloat {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-26px); }
+        }
+
         .craft-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -2264,7 +2332,7 @@
                 <div class="stat-chip" title="Éclats">✨ <span id="shardCount">0</span></div>
                 <div class="stat-chip" title="Série">🔥 <span id="streakCount">0</span></div>
             </div>
-            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.7</a>
+            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.8</a>
             <a class="icon-chip" href="wiki.html" target="_blank" rel="noopener" title="Wiki / aide">📖</a>
             <button id="profileButton" class="profile-chip" title="Mon profil">👤 <span id="profileName">Joueur</span></button>
         </header>
@@ -2312,6 +2380,14 @@
                         <div class="mine-amount"><span id="mineReady">0</span> ✨</div>
                         <div class="mine-bar"><div class="mine-bar-fill" id="mineBarFill"></div></div>
                         <div class="mine-status" id="mineStatus">Reviens régulièrement pour récolter tes éclats !</div>
+                        <!-- Le Filon : récolte active, 20 clics = 1 éclat -->
+                        <div class="mine-pick" id="minePick" role="button" tabindex="0" title="Tape le filon pour gagner des éclats">
+                            <span class="mine-pick-icon" id="minePickIcon">⛏️</span>
+                            <span class="mine-pick-body">
+                                <span class="mine-pick-bar"><span class="mine-pick-fill" id="minePickFill"></span></span>
+                                <span class="mine-pick-label" id="minePickLabel">Tape le filon !</span>
+                            </span>
+                        </div>
                         <button class="open-button" id="collectMineButton" style="width: 100%;" disabled>⛏️ Récolter</button>
                     </div>
 
@@ -2627,10 +2703,10 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=46"></script>
-    <script src="pixel_data.js?v=46"></script>
-    <script src="pixel_renderer.js?v=46"></script>
-    <script type="module" src="game.js?v=46"></script>
+    <script type="module" src="firebase-config.js?v=47"></script>
+    <script src="pixel_data.js?v=47"></script>
+    <script src="pixel_renderer.js?v=47"></script>
+    <script type="module" src="game.js?v=47"></script>
     <script>
         // Dessine les vignettes de démonstration (vraies grilles de pixels)
         // dans l'Atelier : 1×1 = 1 case, 2×2 = 4 cases, 8×8 = 64 cases.

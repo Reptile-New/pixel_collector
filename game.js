@@ -202,7 +202,10 @@ let userStats = {
     lastChestTime: 0,
     shards: 0,
     streak: 0,
-    mineLastCollect: 0
+    mineLastCollect: 0,
+    mineClicks: 0,        // coups de pioche vers le prochain éclat
+    mineClickDay: '',     // jour UTC en cours pour le plafond quotidien
+    mineClickShards: 0    // éclats déjà gagnés à la pioche aujourd'hui
 };
 
 // === ÉCONOMIE DE L'ATELIER ===
@@ -234,6 +237,16 @@ const STREAK_BONUSES = [{ days: 3, extra: 1 }, { days: 7, extra: 2 }];
 // les éclats accumulés. Le plafond incite à revenir plusieurs fois par jour.
 const MINE_RATE_MS = 15 * 60 * 1000; // 1 éclat toutes les 15 minutes
 const MINE_CAP = 32;                 // réserve maximale = 8 h d'accumulation
+
+// === LE FILON (récolte active, à la pioche) ===
+// Pour ceux qui n'ont pas envie d'attendre : on tape le filon au clic et tous
+// les MINE_CLICKS_PER_SHARD clics, 1 éclat tombe. C'est volontairement plafonné
+// par jour : le clic est un bonus d'appoint, pas un remplaçant de la mine
+// passive (qui produit jusqu'à ~96 éclats/jour). Sans plafond, un autoclicker
+// casserait toute l'économie de l'Atelier et de la Forge.
+const MINE_CLICKS_PER_SHARD = 20;  // 20 coups de pioche = 1 éclat
+const MINE_CLICK_DAILY_CAP = 20;   // au maximum 20 éclats/jour à la pioche
+const MINE_CLICK_MIN_INTERVAL = 40; // ms : garde-fou anti-autoclick basique
 // Assemblage sur mesure d'un 2×2 : n'est pas garanti (sinon choisir son 2×2
 // exact serait trop facile). En cas d'échec, les pixels 1×1 sont perdus.
 const CUSTOM_CRAFT_RATE = 0.70; // 70 % de réussite
@@ -326,6 +339,14 @@ function setupEventListeners() {
     document.getElementById('chestCanvas').addEventListener('click', openChest);
     document.getElementById('continueButton').addEventListener('click', closeResult);
     document.getElementById('collectMineButton').addEventListener('click', collectMine);
+    // Le Filon : chaque clic sur la pioche fait avancer vers le prochain éclat
+    const pick = document.getElementById('minePick');
+    if (pick) {
+        pick.addEventListener('click', hitPick);
+        pick.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); hitPick(); }
+        });
+    }
 
     // Onglets
     document.querySelectorAll('.tab').forEach(tab => {
@@ -979,7 +1000,10 @@ async function initializeUserData(uid, displayName) {
             uniquePixels: 0,
             shards: 0,
             streak: 0,
-            mineLastCollect: 0
+            mineLastCollect: 0,
+            mineClicks: 0,
+            mineClickDay: '',
+            mineClickShards: 0
         },
         lastChestTime: 0,
         createdAt: serverTimestamp()
@@ -1025,6 +1049,10 @@ async function loadUserData() {
             userStats.shards = userStats.shards || 0;
             userStats.streak = userStats.streak || 0;
             userStats.mineLastCollect = userStats.mineLastCollect || 0;
+            // Valeurs par défaut pour les comptes créés avant le Filon (clic)
+            userStats.mineClicks = userStats.mineClicks || 0;
+            userStats.mineClickDay = userStats.mineClickDay || '';
+            userStats.mineClickShards = userStats.mineClickShards || 0;
             // Charger le lastChestTime pour le délai entre deux coffres
             userStats.lastChestTime = data.lastChestTime || 0;
             // Date du dernier changement de pseudo (verrou de 30 jours)
@@ -1996,8 +2024,100 @@ async function collectMine() {
     showToast(`⛏️ Mine récoltée : +${state.ready} éclats ✨`);
 }
 
+// === LE FILON : récolte active à la pioche ===
+
+let lastPickClickAt = 0;      // garde-fou anti-autoclick
+let pickSaveTimer = null;     // sauvegarde différée de la progression
+
+// Jour courant en UTC (« 2026-07-24 ») : même remise à zéro pour tout le monde,
+// impossible de gagner un plafond de plus en changeant l'heure du téléphone.
+function currentMineDay() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+// Remet le compteur du jour à zéro quand la date UTC a changé.
+function syncMineClickDay() {
+    const day = currentMineDay();
+    if (userStats.mineClickDay !== day) {
+        userStats.mineClickDay = day;
+        userStats.mineClickShards = 0;
+        userStats.mineClicks = 0;
+    }
+}
+
+function getPickState() {
+    syncMineClickDay();
+    const done = userStats.mineClickShards || 0;
+    return {
+        clicks: userStats.mineClicks || 0,
+        shardsToday: done,
+        left: Math.max(0, MINE_CLICK_DAILY_CAP - done),
+        exhausted: done >= MINE_CLICK_DAILY_CAP
+    };
+}
+
+// Un coup de pioche. On n'écrit dans Firestore que quand un éclat tombe (ou,
+// pour ne pas perdre la progression, 3 s après le dernier clic).
+function hitPick() {
+    if (!currentUser) return;
+    const now = Date.now();
+    if (now - lastPickClickAt < MINE_CLICK_MIN_INTERVAL) return;
+    lastPickClickAt = now;
+
+    const state = getPickState();
+    if (state.exhausted) {
+        showToast(`Le filon est épuisé pour aujourd'hui (${MINE_CLICK_DAILY_CAP} ✨ à la pioche). Reviens demain !`);
+        return;
+    }
+
+    userStats.mineClicks = (userStats.mineClicks || 0) + 1;
+    animatePick();
+
+    if (userStats.mineClicks >= MINE_CLICKS_PER_SHARD) {
+        userStats.mineClicks = 0;
+        userStats.mineClickShards = (userStats.mineClickShards || 0) + 1;
+        userStats.shards = (userStats.shards || 0) + 1;
+        floatPickReward();
+        updateUI();
+        if (typeof updateAtelierUI === 'function') updateAtelierUI();
+        schedulePickSave(0);
+    } else {
+        schedulePickSave(3000);
+    }
+    updateMineUI();
+}
+
+function schedulePickSave(delay) {
+    if (pickSaveTimer) clearTimeout(pickSaveTimer);
+    pickSaveTimer = setTimeout(() => {
+        pickSaveTimer = null;
+        saveUserData();
+    }, delay);
+}
+
+// Petit retour visuel : la pioche « frappe » à chaque clic.
+function animatePick() {
+    const icon = document.getElementById('minePickIcon');
+    if (!icon) return;
+    icon.classList.remove('hit');
+    void icon.offsetWidth; // relance l'animation CSS
+    icon.classList.add('hit');
+}
+
+// « +1 ✨ » qui s'envole quand un éclat tombe.
+function floatPickReward() {
+    const zone = document.getElementById('minePick');
+    if (!zone) return;
+    const el = document.createElement('span');
+    el.className = 'mine-pick-float';
+    el.textContent = '+1 ✨';
+    zone.appendChild(el);
+    setTimeout(() => el.remove(), 900);
+}
+
 function updateMineUI() {
     if (!currentUser) return;
+    updatePickUI();
     const readyEl = document.getElementById('mineReady');
     const fillEl = document.getElementById('mineBarFill');
     const statusEl = document.getElementById('mineStatus');
@@ -2015,6 +2135,24 @@ function updateMineUI() {
         const m = Math.floor(msToNext / 60000);
         const s = Math.floor((msToNext % 60000) / 1000);
         statusEl.textContent = `Prochain éclat dans ${m}m${String(s).padStart(2, '0')}s`;
+    }
+}
+
+function updatePickUI() {
+    const zone = document.getElementById('minePick');
+    const fill = document.getElementById('minePickFill');
+    const label = document.getElementById('minePickLabel');
+    if (!zone || !fill || !label) return;
+
+    const { clicks, left, exhausted } = getPickState();
+    fill.style.width = `${Math.round((clicks / MINE_CLICKS_PER_SHARD) * 100)}%`;
+    zone.classList.toggle('is-exhausted', exhausted);
+
+    if (exhausted) {
+        label.textContent = 'Filon épuisé — reviens demain';
+    } else {
+        const remaining = MINE_CLICKS_PER_SHARD - clicks;
+        label.textContent = `${remaining} coup${remaining > 1 ? 's' : ''} avant 1 ✨ · encore ${left} aujourd'hui`;
     }
 }
 
