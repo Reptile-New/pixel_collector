@@ -127,15 +127,12 @@ let userStats = {
 };
 
 // === ÉCONOMIE DE L'ATELIER ===
-// Règle : 1 pixel = 1 éclat. La valeur d'un doublon est sa surface en pixels :
-// un 1x1 vaut 1, un 2x2 en contient 4, un pixel art 8x8 en contient 64.
-const SHARD_VALUES = { '1x1': 1, '2x2': 4, 'art': 64 };
-// Coût des crafts = assembler les pixels de l'item : un 1x1 coûte 1 pixel,
-// un 2x2 ses 4 pixels, un pixel art ses 64 pixels. Coffre bonus : 16.
-// Tous les crafts payés en éclats sont 100% aléatoires dans leur catégorie.
-// Pour un 2x2 précis : l'assemblage sur mesure, payé en pixels 1x1.
-// Coûts en éclats des crafts de l'Atelier. Les légendaires ne s'achètent PAS
-// avec des éclats : on ne les obtient qu'en coffre (rare) ou à la Forge.
+// Coûts en éclats des crafts de l'Atelier :
+//  - craft1x1     : 1 pixel 1×1 de la couleur choisie
+//  - craft2x2Random : 1 pixel 2×2 au hasard (peut être un doublon)
+//  - craft2x2New  : 1 pixel 2×2 garanti nouveau (parmi ceux qui manquent)
+// L'assemblage sur mesure d'un 2×2, lui, se paie en pixels 1×1 (pas en éclats).
+// Les légendaires ne s'achètent PAS avec des éclats : coffre (rare) ou Forge.
 const CRAFT_COSTS = { craft1x1: 1, craft2x2Random: 3, craft2x2New: 4 };
 // Contenu d'un coffre : des éclats (min..max) + des tuiles 2×2 (min..max de base).
 const CHEST_SHARDS_MIN = 2;
@@ -1488,7 +1485,7 @@ function displayPlayers(players) {
                 <div class="player-card__name">${index + 1}. ${player.displayName} ${isCurrentUser ? '(Vous)' : ''}</div>
                 <div class="player-card__stats">
                     <span>💎 ${s.legendary} légendaires</span>
-                    <span>🎨 ${s.unique} / 294 uniques</span>
+                    <span>🎨 ${s.unique} / 290 uniques</span>
                 </div>
             </div>
             <div class="player-card__arrow">→</div>
@@ -1519,7 +1516,7 @@ async function openPlayerProfile(player) {
     const s = statsFromCollection(player.collection);
     document.getElementById('modalPlayerName').textContent = player.displayName;
     document.getElementById('modalTotalPixels').textContent = s.total;
-    document.getElementById('modalUniquePixels').textContent = `${s.unique} / 294`;
+    document.getElementById('modalUniquePixels').textContent = `${s.unique} / 290`;
 
     // Générer dynamiquement les boutons d'albums
     generateModalAlbumTabs();
@@ -1704,7 +1701,7 @@ function updateUI() {
     document.getElementById('profileName').textContent = displayName;
     document.getElementById('userNameInput').value = displayName;
     document.getElementById('totalPixels').textContent = userStats.totalPixels;
-    document.getElementById('uniquePixels').textContent = `${userStats.uniquePixels} / 294`;
+    document.getElementById('uniquePixels').textContent = `${userStats.uniquePixels} / 290`;
     document.getElementById('chestsOpened').textContent = userStats.chestsOpened;
     document.getElementById('shardCount').textContent = userStats.shards || 0;
     document.getElementById('streakCount').textContent = userStats.streak || 0;

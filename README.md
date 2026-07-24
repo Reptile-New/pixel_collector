@@ -35,7 +35,7 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - Une **mine** produit **1 éclat ✨ toutes les 30 min**, automatiquement, même hors ligne
 - La réserve s'accumule jusqu'à un **plafond de 16 éclats** (8 h) — reviens cliquer sur **« Récolter »** au moins une fois par 8 h
 - Barre de progression + compte à rebours du prochain éclat en direct
-- Les éclats récoltés alimentent directement l'Atelier (craft, coffre bonus, assemblage…)
+- Les éclats récoltés alimentent directement l'Atelier (achat de 1×1, craft de 2×2, assemblage…)
 
 ### ✅ Coffres midi & minuit (2 par jour)
 - Le coffre se recharge **deux fois par jour** : à **midi** et à **minuit** (heure de Paris), pour tout le monde
@@ -62,7 +62,7 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
   - **1 %** de chance d'un **pixel art légendaire** en bonus (aléatoire, sans pitié)
 
 ### ✅ Collection
-- 294 pixels uniques à collectionner au total
+- 290 pixels uniques à collectionner au total
   - 4 pixels 1x1
   - 256 pixels 2x2
   - 30 pixel arts 8x8
@@ -112,7 +112,7 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 
 1. Ouvrez simplement `index.html` dans votre navigateur
 2. Le jeu démarre automatiquement en mode invité
-3. Cliquez sur le coffre pour l'ouvrir et obtenir 3 pixels !
+3. Cliquez sur le coffre pour l'ouvrir et obtenir des pixels 2×2 + des éclats !
 
 ## 📋 À venir
 
@@ -125,11 +125,12 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 
 ```
 pixel_collector/
-├── index.html          # Interface principale
+├── index.html          # Interface + tout le CSS
 ├── game.js             # Logique du jeu
 ├── pixel_data.js       # Données des 30 pixel arts
 ├── pixel_renderer.js   # Module de rendu des pixels
-├── test_pixel_reel.html # Test de visualisation
+├── wiki.html           # Page d'aide / wiki des mécaniques
+├── sw.js               # Service worker (cache hors ligne)
 └── README.md           # Ce fichier
 ```
 
@@ -158,7 +159,7 @@ const firebaseConfig = {
 
 ## 📊 Progression
 
-- **Objectif principal** : Compléter la collection des 294 pixels uniques
+- **Objectif principal** : Compléter la collection des 290 pixels uniques
 - **Défi ultime** : Obtenir les 30 pixel arts légendaires — soit en priant le coffre (1 %),
   soit en les **forgeant** un par un (le seul moyen de viser un légendaire précis)
 
