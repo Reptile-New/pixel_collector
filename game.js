@@ -136,7 +136,7 @@ const SHARD_VALUES = { '1x1': 1, '2x2': 4, 'art': 64 };
 // Pour un 2x2 précis : l'assemblage sur mesure, payé en pixels 1x1.
 // Coûts en éclats des crafts de l'Atelier. Les légendaires ne s'achètent PAS
 // avec des éclats : on ne les obtient qu'en coffre (rare) ou à la Forge.
-const CRAFT_COSTS = { craft1x1: 1, craft2x2Random: 4, craft2x2New: 12 };
+const CRAFT_COSTS = { craft1x1: 1, craft2x2Random: 3, craft2x2New: 4 };
 // Contenu d'un coffre : des éclats (min..max) + des tuiles 2×2 (min..max de base).
 const CHEST_SHARDS_MIN = 2;
 const CHEST_SHARDS_MAX = 10;
@@ -152,8 +152,11 @@ const STREAK_BONUSES = [{ days: 3, extra: 1 }, { days: 7, extra: 2 }];
 // La mine produit 1 éclat toutes les MINE_RATE_MS, jusqu'à un plafond de MINE_CAP.
 // Le joueur revient de temps en temps cliquer sur « Récolter » pour encaisser
 // les éclats accumulés. Le plafond incite à revenir plusieurs fois par jour.
-const MINE_RATE_MS = 15 * 60 * 1000; // 1 éclat toutes les 15 minutes
-const MINE_CAP = 32;                 // réserve maximale (~8 h d'accumulation)
+const MINE_RATE_MS = 30 * 60 * 1000; // 1 éclat toutes les 30 minutes
+const MINE_CAP = 16;                 // réserve maximale = 8 h d'accumulation
+// Assemblage sur mesure d'un 2×2 : n'est pas garanti (sinon choisir son 2×2
+// exact serait trop facile). En cas d'échec, les pixels 1×1 sont perdus.
+const CUSTOM_CRAFT_RATE = 0.70; // 70 % de réussite
 // Configuration des albums
 const ALBUMS = [
     { id: 'all', label: 'Tous' },
@@ -1905,17 +1908,29 @@ async function craftCustom2x2() {
         .filter(([digit, needed]) => userCollection[`1x1_${digit}`].count - needed < 1)
         .map(([digit]) => COLOR_NAMES[digit]);
 
-    let msg = `Assembler le Pixel 2x2 #${pattern} en consommant ${customPattern.length} pixels 1×1 ?`;
+    const pct = Math.round(CUSTOM_CRAFT_RATE * 100);
+    let msg = `Assembler le Pixel 2x2 #${pattern} en consommant ${customPattern.length} pixels 1×1 ?\n\n`
+        + `⚙️ ${pct} % de réussite — en cas d'échec, les pixels 1×1 sont perdus.`;
     if (lastOnes.length > 0) {
         msg += `\n\n⚠️ Tu vas consommer ton DERNIER exemplaire de : ${lastOnes.join(', ')}`;
     }
-    if (!await uiConfirm(msg)) return;
+    if (!await uiConfirm(msg, { icon: '🔨', confirmLabel: '🔨 Assembler' })) return;
 
-    // Consommer les pixels 1x1
+    // Consommer les pixels 1x1 (dans tous les cas, réussite ou non)
     for (const [digit, needed] of Object.entries(needs)) {
         for (let i = 0; i < needed; i++) {
             removeOnePixelFromCollection(`1x1_${digit}`);
         }
+    }
+
+    // Tenter l'assemblage
+    if (Math.random() >= CUSTOM_CRAFT_RATE) {
+        updateUniquePixelsCount();
+        await saveUserData();
+        showToast('💥 Assemblage raté… tes pixels 1×1 sont perdus. Retente ta chance !', 'error');
+        updateUI();
+        updateAtelierUI();
+        return;
     }
 
     const pixel = {

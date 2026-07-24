@@ -24,15 +24,15 @@ Un jeu de collection de pixels unique où vous collectionnez des pixels 1x1, 2x2
 - Les **éclats ✨** viennent des coffres (2 à 10 par ouverture) et de la mine.
 - Dépensez-les de plusieurs façons :
   - **Pixel 1×1** (1 ✨) : de la couleur de votre choix
-  - **🎲 Pixel 2×2 aléatoire** (4 ✨) : rapide, peut être un doublon
-  - **⭐ Pixel 2×2 garanti nouveau** (12 ✨) : un 2×2 que vous n'avez pas encore
-  - **🔨 Assemblage sur mesure** : composez exactement le 2×2 voulu, payé avec vos
-    pixels 1×1 des bonnes couleurs (ex. jaune-bleu-bleu-vert = 1 jaune + 2 bleus + 1 vert)
+  - **🎲 Pixel 2×2 aléatoire** (3 ✨) : le moins cher, mais peut être un doublon
+  - **⭐ Pixel 2×2 garanti nouveau** (4 ✨) : un 2×2 que vous n'avez pas encore
+  - **🔨 Assemblage sur mesure** (70 % de réussite) : composez exactement le 2×2 voulu,
+    payé avec vos pixels 1×1 des bonnes couleurs — en cas d'échec, les 1×1 sont perdus
 - **Les légendaires ne s'achètent pas avec des éclats** — coffre (1 %) ou Forge uniquement.
 
 ### ✅ Mine à éclats (récolte passive)
-- Une **mine** produit **1 éclat ✨ toutes les 15 min**, automatiquement, même hors ligne
-- La réserve s'accumule jusqu'à un **plafond de 32 éclats** (~8 h) — reviens cliquer sur **« Récolter »** pour l'encaisser
+- Une **mine** produit **1 éclat ✨ toutes les 30 min**, automatiquement, même hors ligne
+- La réserve s'accumule jusqu'à un **plafond de 16 éclats** (8 h) — reviens cliquer sur **« Récolter »** au moins une fois par 8 h
 - Barre de progression + compte à rebours du prochain éclat en direct
 - Les éclats récoltés alimentent directement l'Atelier (craft, coffre bonus, assemblage…)
 
