@@ -1823,29 +1823,27 @@ function spendShards(cost) {
 // au coffre) : on peut ainsi crafter à la chaîne sans re-cliquer. Un aperçu du
 // dernier pixel obtenu s'affiche sur place + un toast.
 async function finalizeCraft(pixel, title) {
-    const isNew = !userCollection[pixel.id];
     addPixelToCollection(pixel);
     userStats.totalPixels++;
 
     updateUniquePixelsCount();
     await saveUserData();
 
-    showToast(`${title} ${isNew ? '✨ nouveau !' : '(doublon)'}`, isNew ? 'success' : 'info', { pixel });
-    showCraftPreview(pixel, isNew);
+    // 1×1 et 2×2 sont du consommable : un doublon est normal, on ne distingue
+    // donc plus « nouveau » de « doublon ».
+    showToast(title, 'success', { pixel });
+    showCraftPreview(pixel);
     updateUI();
     updateAtelierUI();
 }
 
 // Aperçu « dernier obtenu » dans l'Atelier
-function showCraftPreview(pixel, isNew) {
+function showCraftPreview(pixel) {
     const box = document.getElementById('craftPreview');
     if (!box) return;
     const canvas = document.getElementById('craftPreviewCanvas');
     PixelRenderer.drawPixel(canvas, pixel, 44);
     document.getElementById('craftPreviewName').textContent = pixel.name;
-    const tag = document.getElementById('craftPreviewTag');
-    tag.textContent = isNew ? '✨ Nouveau' : 'Doublon';
-    tag.className = 'craft-preview__tag ' + (isNew ? 'is-new' : 'is-dup');
     box.hidden = false;
     box.classList.remove('pop');
     void box.offsetWidth; // relance l'animation
