@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=50'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=51'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -2940,11 +2940,81 @@ function renderForgeModal() {
             needsEl.appendChild(row);
         });
 
+    renderForgeColorNeeds(bp);
+
     const btn = document.getElementById('forgeButton');
     btn.disabled = !prog.ready;
     btn.textContent = prog.ready
         ? `🔥 Forger (${ratePct} % de réussite)`
         : '🔒 Schéma incomplet';
+}
+
+// Combien de pixels 1×1 de chaque couleur il faut encore fabriquer pour
+// assembler les tuiles 2×2 qui manquent au schéma. Chaque tuile manquante
+// coûte ses 4 cases, une par pixel de couleur.
+function forgeColorNeeds(bp) {
+    const colors = {};
+    let tiles = 0;
+    Object.entries(bp.needs).forEach(([pattern, count]) => {
+        const have = userCollection[`2x2_${pattern}`]?.count || 0;
+        const missing = Math.max(0, count - have);
+        tiles += missing;
+        for (let i = 0; i < missing; i++) {
+            for (const digit of pattern) colors[digit] = (colors[digit] || 0) + 1;
+        }
+    });
+    return { colors, tiles };
+}
+
+// Affiche l'étape 1 du chemin (1×1 → tuiles 2×2 → légendaire) : le joueur voit
+// d'un coup d'œil combien de rouges, bleus, verts et jaunes il doit fabriquer.
+function renderForgeColorNeeds(bp) {
+    const list = document.getElementById('forgeColors');
+    const sub = document.getElementById('forgeColorsSub');
+    const note = document.getElementById('forgeColorsNote');
+    if (!list) return;
+
+    list.innerHTML = '';
+    const { colors, tiles } = forgeColorNeeds(bp);
+    const total = Object.values(colors).reduce((a, b) => a + b, 0);
+
+    if (!total) {
+        sub.textContent = '';
+        note.textContent = '';
+        list.innerHTML = '<div class="forge-colors__done">🔥 Toutes les tuiles sont là, plus rien à fabriquer.</div>';
+        return;
+    }
+
+    sub.textContent = `— pour les ${tiles} tuile${tiles > 1 ? 's' : ''} qui te manque${tiles > 1 ? 'nt' : ''}`;
+
+    ['1', '2', '3', '4'].forEach(digit => {
+        const need = colors[digit] || 0;
+        if (!need) return;
+        const have = userCollection[`1x1_${digit}`]?.count || 0;
+        const ok = have >= need;
+
+        const chip = document.createElement('div');
+        chip.className = 'forge-color' + (ok ? ' forge-color--ok' : '');
+
+        const dot = document.createElement('span');
+        dot.className = 'forge-color__dot';
+        dot.style.background = PixelRenderer.colors[Number(digit) - 1];
+        chip.appendChild(dot);
+
+        const txt = document.createElement('span');
+        txt.innerHTML = `${COLOR_NAMES[digit]} <span class="forge-color__need">×${need}</span>`
+            + ` <span class="forge-color__have">(tu en as ${have})</span> ${ok ? '✅' : '❌'}`;
+        chip.appendChild(txt);
+
+        list.appendChild(chip);
+    });
+
+    // L'assemblage consomme les pixels même quand il rate : on annonce donc
+    // aussi le stock réaliste à prévoir, sinon le compte tombe toujours court.
+    const withFails = Math.ceil(total / CUSTOM_CRAFT_RATE);
+    note.textContent = `Soit ${total} pixels 1×1 à assembler en ${tiles} tuile${tiles > 1 ? 's' : ''} dans l'Atelier. `
+        + `L'assemblage réussit ${Math.round(CUSTOM_CRAFT_RATE * 100)} % du temps et consomme les pixels même s'il rate : `
+        + `prévois plutôt ~${withFails} pixels au total.`;
 }
 
 async function attemptForge() {

@@ -1088,6 +1088,37 @@
         .forge-need__tile { width: 22px; height: 22px; image-rendering: pixelated; border-radius: 3px; flex-shrink: 0; }
         .forge-need small { opacity: 0.65; }
 
+        /* Étape 1 du chemin : les pixels 1×1 à fabriquer avant d'assembler
+           les tuiles 2×2 qui manquent encore au schéma. */
+        .forge-colors {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--hairline);
+        }
+        .forge-colors__list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .forge-color {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: var(--surface-sunken);
+            border: 1px solid var(--hairline);
+            border-radius: 999px;
+            padding: 5px 12px 5px 6px;
+            font-size: 0.8em;
+        }
+        .forge-color--ok { border-color: color-mix(in srgb, var(--ok) 55%, transparent); }
+        .forge-color__dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+        }
+        .forge-color__need { font-weight: 800; color: var(--accent); }
+        .forge-color__have { opacity: 0.6; }
+        .forge-colors__note { font-size: 0.75em; opacity: 0.62; margin-top: 9px; line-height: 1.45; }
+        .forge-colors__done { font-size: 0.82em; opacity: 0.8; }
+
         @media (max-width: 520px) {
             .forge-body { flex-direction: column; align-items: center; }
             .forge-info { width: 100%; }
@@ -2454,7 +2485,7 @@
                 <div class="stat-chip" title="Éclats">✨ <span id="shardCount">0</span></div>
                 <div class="stat-chip" title="Série">🔥 <span id="streakCount">0</span></div>
             </div>
-            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.12</a>
+            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.13</a>
             <a class="icon-chip" href="wiki.html" target="_blank" rel="noopener" title="Wiki / aide">📖</a>
             <button id="profileButton" class="profile-chip" title="Mon profil">👤 <span id="profileName">Joueur</span></button>
         </header>
@@ -2818,6 +2849,11 @@
                     <div id="forgeNeeds" class="forge-needs"></div>
                 </div>
             </div>
+            <div class="forge-colors">
+                <div class="forge-info__title">🎨 Étape 1 — pixels 1×1 à fabriquer <span id="forgeColorsSub"></span></div>
+                <div id="forgeColors" class="forge-colors__list"></div>
+                <div id="forgeColorsNote" class="forge-colors__note"></div>
+            </div>
             <button id="forgeButton" class="open-button" style="width: 100%; margin-top: 6px;" disabled>🔒 Schéma incomplet</button>
         </div>
     </div>
@@ -2850,10 +2886,10 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=50"></script>
-    <script src="pixel_data.js?v=50"></script>
-    <script src="pixel_renderer.js?v=50"></script>
-    <script type="module" src="game.js?v=50"></script>
+    <script type="module" src="firebase-config.js?v=51"></script>
+    <script src="pixel_data.js?v=51"></script>
+    <script src="pixel_renderer.js?v=51"></script>
+    <script type="module" src="game.js?v=51"></script>
     <script>
         // Dessine les vignettes de démonstration (vraies grilles de pixels)
         // dans l'Atelier : 1×1 = 1 case, 2×2 = 4 cases, 8×8 = 64 cases.
