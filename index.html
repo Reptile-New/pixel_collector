@@ -32,11 +32,11 @@
             box-sizing: border-box;
         }
 
-        /* Tout ce qui se clique vite (coffre, boutons, filon) ne doit jamais
-           déclencher le zoom du navigateur au double-tap. Le pincement pour
-           zoomer, lui, reste possible partout ailleurs. */
-        button, .chest, .icon-chip, .tab, .custom-cell, .color-craft-btn,
-        .profile-chip, .mine-pick, .forge-item, .pixel-item {
+        /* Aucun double-tap ne doit zoomer, nulle part dans l'app : on tape vite
+           sur les coffres, les boutons et le filon, et le zoom accidentel est
+           pénible. Le pincement pour zoomer, lui, reste possible (accessibilité)
+           et le défilement n'est pas affecté. */
+        html, body {
             touch-action: manipulation;
         }
 
@@ -2454,7 +2454,7 @@
                 <div class="stat-chip" title="Éclats">✨ <span id="shardCount">0</span></div>
                 <div class="stat-chip" title="Série">🔥 <span id="streakCount">0</span></div>
             </div>
-            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.11</a>
+            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.12</a>
             <a class="icon-chip" href="wiki.html" target="_blank" rel="noopener" title="Wiki / aide">📖</a>
             <button id="profileButton" class="profile-chip" title="Mon profil">👤 <span id="profileName">Joueur</span></button>
         </header>

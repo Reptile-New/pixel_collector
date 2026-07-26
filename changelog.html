@@ -16,6 +16,8 @@
             --hairline: rgba(255, 255, 255, 0.12);
         }
         * { box-sizing: border-box; }
+        /* Pas de zoom au double-tap (le pincement reste possible) */
+        html, body { touch-action: manipulation; }
         body {
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -97,8 +99,19 @@
 
     <div class="rel rel--new">
         <div class="rel__head">
-            <span class="rel__ver">v2.11</span>
+            <span class="rel__ver">v2.12</span>
             <span class="rel__new">Nouveau</span>
+            <span class="rel__title">Plus de zoom au double-tap</span>
+        </div>
+        <ul>
+            <li><strong>Fini l'écran qui zoome tout seul</strong> quand tu tapes vite deux fois (coffres, boutons, filon) : le double-tap ne zoome plus nulle part dans l'app.</li>
+            <li>Le zoom au <strong>pincement reste disponible</strong> si tu en as besoin.</li>
+        </ul>
+    </div>
+
+    <div class="rel">
+        <div class="rel__head">
+            <span class="rel__ver">v2.11</span>
             <span class="rel__title">Les notifications s'empilent</span>
         </div>
         <ul>
