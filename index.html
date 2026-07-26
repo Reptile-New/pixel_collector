@@ -2092,12 +2092,24 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 4000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
             width: min(440px, calc(100vw - 24px));
+            height: 0; /* les notifications s'empilent : rien ne pousse vers le bas */
             pointer-events: none;
         }
+        /* Toutes les notifications occupent le même emplacement. La plus récente
+           est devant, les précédentes sont décalées derrière (pile de cartes) :
+           dix pixels fabriqués d'affilée ne recouvrent plus l'écran. */
+        .toast-slot {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            transform-origin: top center;
+            transition: transform 0.26s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.26s ease;
+            pointer-events: none;
+        }
+        /* Seule celle de devant réagit au clic / au balayage */
+        .toast-slot:not(.toast-slot--front) > .toast { pointer-events: none; }
         .toast {
             display: flex;
             align-items: flex-start;
@@ -2442,7 +2454,7 @@
                 <div class="stat-chip" title="Éclats">✨ <span id="shardCount">0</span></div>
                 <div class="stat-chip" title="Série">🔥 <span id="streakCount">0</span></div>
             </div>
-            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.10</a>
+            <a class="icon-chip ver-chip" href="changelog.html" target="_blank" rel="noopener" title="Nouveautés">🆕 v2.11</a>
             <a class="icon-chip" href="wiki.html" target="_blank" rel="noopener" title="Wiki / aide">📖</a>
             <button id="profileButton" class="profile-chip" title="Mon profil">👤 <span id="profileName">Joueur</span></button>
         </header>
@@ -2838,10 +2850,10 @@
 
     <!-- ?v=N : à incrémenter à chaque mise à jour (ici ET dans l'import de game.js)
          pour forcer les navigateurs à recharger les scripts -->
-    <script type="module" src="firebase-config.js?v=49"></script>
-    <script src="pixel_data.js?v=49"></script>
-    <script src="pixel_renderer.js?v=49"></script>
-    <script type="module" src="game.js?v=49"></script>
+    <script type="module" src="firebase-config.js?v=50"></script>
+    <script src="pixel_data.js?v=50"></script>
+    <script src="pixel_renderer.js?v=50"></script>
+    <script type="module" src="game.js?v=50"></script>
     <script>
         // Dessine les vignettes de démonstration (vraies grilles de pixels)
         // dans l'Atelier : 1×1 = 1 case, 2×2 = 4 cases, 8×8 = 64 cases.

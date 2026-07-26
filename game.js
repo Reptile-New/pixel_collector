@@ -26,7 +26,7 @@ import {
     addDoc,
     onSnapshot,
     where
-} from './firebase-config.js?v=49'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
+} from './firebase-config.js?v=50'; // même version que dans index.html (sinon Firebase serait initialisé deux fois)
 
 // ============================================================
 // UI : notifications (toasts) + dialogue de confirmation stylé
@@ -66,7 +66,14 @@ function showToast(message, type, options = {}) {
     msg.className = 'toast__msg';
     msg.textContent = message;
     toast.appendChild(msg);
-    host.appendChild(toast);
+
+    // Chaque notification vit dans son « emplacement » : toutes les cases sont
+    // superposées au même endroit, c'est layoutToasts() qui décale légèrement
+    // les plus anciennes derrière la nouvelle (pile de cartes).
+    const slot = document.createElement('div');
+    slot.className = 'toast-slot';
+    slot.appendChild(toast);
+    host.appendChild(slot);
 
     let removed = false;
     const remove = (mode) => {
@@ -74,23 +81,59 @@ function showToast(message, type, options = {}) {
         removed = true;
         activeToasts.delete(remove);
         clearTimeout(timer);
+        slot.dataset.leaving = '1';
+        const done = () => { slot.remove(); layoutToasts(host); };
         if (mode === 'swipe') {
             // Poursuit le geste du doigt au lieu de repartir de zéro
             toast.style.transition = 'transform 0.18s ease, opacity 0.18s ease';
             toast.style.transform = 'translateY(-130%)';
             toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 200);
+            setTimeout(done, 200);
+        } else if (mode === 'overflow') {
+            // Poussée hors de la pile par une notification plus récente
+            slot.style.opacity = '0';
+            slot.style.transform = 'translateY(30px) scale(0.82)';
+            setTimeout(done, 200);
         } else {
             toast.classList.add('leaving');
-            setTimeout(() => toast.remove(), 250);
+            setTimeout(done, 250);
         }
+        layoutToasts(host); // les autres se replacent tout de suite
     };
+    slot._removeToast = remove;
     const timer = setTimeout(remove, type === 'error' ? 5200 : 3800);
 
+    // Au-delà de TOAST_STACK_MAX, la plus ancienne sort de la pile : 10 pixels
+    // fabriqués d'affilée ne doivent jamais recouvrir l'écran.
+    const stack = liveSlots(host);
+    for (let i = 0; i < stack.length - TOAST_STACK_MAX; i++) stack[i]._removeToast('overflow');
+
+    layoutToasts(host);
     activeToasts.add(remove);
     lastToastAt = Date.now();
     toast.addEventListener('click', () => remove());
     enableToastSwipe(toast, remove);
+}
+
+// Nombre de notifications visibles simultanément dans la pile.
+const TOAST_STACK_MAX = 3;
+
+function liveSlots(host) {
+    return Array.from(host.children).filter(s => !s.dataset.leaving);
+}
+
+// Empile les notifications au lieu de les aligner vers le bas : la plus récente
+// est devant, les précédentes rétrécissent et dépassent de quelques pixels
+// dessous. La hauteur occupée reste donc celle d'une seule notification.
+function layoutToasts(host) {
+    const slots = liveSlots(host);
+    slots.forEach((slot, i) => {
+        const depth = slots.length - 1 - i; // 0 = devant (la plus récente)
+        slot.classList.toggle('toast-slot--front', depth === 0);
+        slot.style.zIndex = String(100 - depth);
+        slot.style.transform = `translateY(${depth * 12}px) scale(${1 - depth * 0.05})`;
+        slot.style.opacity = depth === 0 ? '1' : String(Math.max(0.25, 1 - depth * 0.3));
+    });
 }
 
 // Notifications visibles : on garde leur fonction de fermeture pour pouvoir
